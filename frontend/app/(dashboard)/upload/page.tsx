@@ -124,7 +124,7 @@ export default function UploadPage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={onDrop}
               onClick={() => inputRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 transition-colors hover:border-[#0F6E56]"
+              className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 transition-colors hover:border-[#0695A8]"
             >
               <Upload className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export default function UploadPage() {
         <Card>
           <CardContent className="space-y-4 py-8 text-center">
             <div
-              className="mx-auto h-12 w-12 rounded-full bg-[#0F6E56]/20"
+              className="mx-auto h-12 w-12 rounded-full bg-[#0695A8]/20"
               style={{ animation: "pulse-soft 2s ease-in-out infinite" }}
             />
             <p className="text-sm font-medium">

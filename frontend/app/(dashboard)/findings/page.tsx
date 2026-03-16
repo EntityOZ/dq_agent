@@ -193,7 +193,7 @@ function FindingsContent() {
                 }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   dimensionFilter === d
-                    ? "bg-[#0F6E56] text-white"
+                    ? "bg-[#0695A8] text-white"
                     : "bg-accent text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -252,7 +252,7 @@ function FindingsContent() {
                   {findingsData?.findings.map((f) => (
                     <tr
                       key={f.id}
-                      className="border-b border-border/50 hover:bg-accent/30"
+                      className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF]"
                     >
                       <td className="px-4 py-3">
                         <Badge className={severityColor(f.severity)}>
@@ -336,7 +336,7 @@ function FindingsContent() {
           if (!open) setSelectedFinding(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-4xl lg:w-3/4">
+        <SheetContent className="w-full overflow-y-auto border-l-4 border-l-[#0695A8] sm:max-w-4xl lg:w-3/4">
           {selectedFinding && (
             <FindingDetail
               finding={selectedFinding}
@@ -378,20 +378,18 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function authorityVariant(
-  authority: string,
-): "destructive" | "secondary" | "outline" | "default" {
+function authorityClasses(authority: string): string {
   switch (authority) {
     case "sap_hard_constraint":
-      return "destructive";
+      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
     case "s4hana_migration":
-      return "default";
+      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
     case "best_practice":
-      return "secondary";
+      return "bg-[#DBEAFE] text-[#1D6ECC] border border-[#93C5FD]";
     case "customer_configured":
-      return "outline";
+      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
     default:
-      return "outline";
+      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
   }
 }
 
@@ -486,7 +484,7 @@ function FindingDetail({
             <CardTitle className="text-sm">Why this rule exists</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Badge variant={authorityVariant(ruleCtx.rule_authority)}>
+            <Badge className={authorityClasses(ruleCtx.rule_authority)}>
               {authorityLabel(ruleCtx.rule_authority)}
             </Badge>
 
@@ -653,7 +651,7 @@ function FindingDetail({
       </Card>
 
       {/* ─── PANEL 3: Remediation guidance (updated) ─── */}
-      <Card className="border-[#0F6E56]/30 bg-[#0F6E56]/5">
+      <Card className="border-[#0695A8]/30 bg-[#0695A8]/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Remediation guidance</CardTitle>
         </CardHeader>

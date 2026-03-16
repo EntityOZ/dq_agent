@@ -8,7 +8,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -47,80 +48,103 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ─── Vantax Light Theme ─── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* Surfaces */
+  --background: #F0F5FA;
+  --foreground: #0F2137;
+  --card: #FFFFFF;
+  --card-foreground: #0F2137;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F2137;
 
-.dark {
-  --background: #1A1A2E;
-  --foreground: #F0F0F0;
-  --card: #232340;
-  --card-foreground: #F0F0F0;
-  --popover: #232340;
-  --popover-foreground: #F0F0F0;
-  --primary: #0F6E56;
+  /* Accent */
+  --primary: #0695A8;
   --primary-foreground: #FFFFFF;
-  --secondary: #2A2A45;
-  --secondary-foreground: #F0F0F0;
-  --muted: #2A2A45;
-  --muted-foreground: #A0A0B8;
-  --accent: #2A2A45;
-  --accent-foreground: #F0F0F0;
+  --secondary: #F0F5FA;
+  --secondary-foreground: #3D6080;
+  --muted: #F0F5FA;
+  --muted-foreground: #6B92AD;
+  --accent: #F5F9FF;
+  --accent-foreground: #0F2137;
+
+  /* Status */
   --destructive: #DC2626;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
-  --ring: #0F6E56;
-  --chart-1: #22C55E;
-  --chart-2: #F59E0B;
-  --chart-3: #EF4444;
-  --chart-4: #3B82F6;
-  --chart-5: #8B5CF6;
-  --sidebar: #16162B;
-  --sidebar-foreground: #F0F0F0;
-  --sidebar-primary: #0F6E56;
+
+  /* Borders & focus */
+  --border: #D6E4F0;
+  --input: #D6E4F0;
+  --ring: #0695A8;
+
+  /* Charts */
+  --chart-1: #0695A8;
+  --chart-2: #1D6ECC;
+  --chart-3: #059669;
+  --chart-4: #D97706;
+  --chart-5: #DC2626;
+
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* Sidebar (dark) */
+  --sidebar: #0F2137;
+  --sidebar-foreground: #A8C5D8;
+  --sidebar-primary: #0695A8;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #2A2A45;
-  --sidebar-accent-foreground: #F0F0F0;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #0F6E56;
+  --sidebar-ring: #0695A8;
+
+  /* ─── Vantax Direct Tokens ─── */
+  --vx-bg-base: #F0F5FA;
+  --vx-bg-card: #FFFFFF;
+  --vx-bg-card-hover: #F5F9FF;
+  --vx-border: #D6E4F0;
+  --vx-teal-bright: #0695A8;
+  --vx-teal-mid: #047A8A;
+  --vx-teal-dim: #D0EEF2;
+  --vx-blue-bright: #1D6ECC;
+  --vx-blue-mid: #1557A8;
+  --vx-amber: #D97706;
+  --vx-red: #DC2626;
+  --vx-green: #059669;
+  --vx-text-primary: #0F2137;
+  --vx-text-secondary: #3D6080;
+  --vx-text-tertiary: #6B92AD;
+  --vx-sidebar-bg: #0F2137;
+  --vx-sidebar-text: #A8C5D8;
 }
 
-@keyframes pulse-soft {
+/* ─── Animations ─── */
+@keyframes vx-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vx-count-up {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vx-pulse-dot {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.4; }
 }
 
+/* ─── Base styles ─── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -131,4 +155,39 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ─── Utility classes ─── */
+.vx-card {
+  background: var(--vx-bg-card);
+  border: 1px solid var(--vx-border);
+  border-radius: 12px;
+  padding: 20px;
+  animation: vx-fade-in 0.3s ease-out both;
+}
+
+.font-display {
+  font-family: var(--font-display), sans-serif;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #E2EBF3;
+}
+::-webkit-scrollbar-thumb {
+  background: #0695A8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #047A8A;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: #D0EEF2;
+  color: #0F2137;
 }

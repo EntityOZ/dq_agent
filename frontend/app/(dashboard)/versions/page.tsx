@@ -167,7 +167,7 @@ export default function VersionsPage() {
                     <tr
                       key={v.id}
                       className={`border-b border-border/50 hover:bg-accent/30 ${
-                        compareIds.includes(v.id) ? "bg-[#0F6E56]/10" : ""
+                        compareIds.includes(v.id) ? "bg-[#0695A8]/10" : ""
                       }`}
                     >
                       <td className="px-4 py-3">
@@ -282,7 +282,7 @@ function ComparisonView({ comparison }: { comparison: VersionComparison }) {
   const modules = Object.keys(delta);
 
   return (
-    <Card className="border-[#0F6E56]/30">
+    <Card className="border-[#0695A8]/30">
       <CardHeader>
         <CardTitle className="text-base">Version Comparison</CardTitle>
         <p className="text-xs text-muted-foreground">
