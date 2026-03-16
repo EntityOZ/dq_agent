@@ -28,3 +28,5 @@ celery_app.autodiscover_tasks(["workers.tasks"])
 import workers.tasks.run_checks  # noqa: F401, E402
 import workers.tasks.run_agents  # noqa: F401, E402
 import workers.tasks.generate_pdf  # noqa: F401, E402
+import workers.tasks.send_notifications  # noqa: F401, E402
+import workers.scheduler  # noqa: F401, E402 — registers beat schedule

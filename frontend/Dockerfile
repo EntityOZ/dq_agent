@@ -1,20 +1,30 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS deps
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --production=false
 
-# Placeholder — Phase 4 will build the real Next.js app
-# For now, serve a simple health-check page
-RUN npm init -y && npm install next@latest react@latest react-dom@latest
-
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
 
-# Create a minimal Next.js app for healthcheck
-RUN mkdir -p app && \
-    echo 'export default function Home() { return <h1>Vantax Dashboard</h1>; }' > app/page.tsx && \
-    echo 'export default function RootLayout({ children }: { children: React.ReactNode }) { return <html><body>{children}</body></html>; }' > app/layout.tsx
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npx next build || true
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-CMD ["npx", "next", "start"]
+CMD ["node", "server.js"]
