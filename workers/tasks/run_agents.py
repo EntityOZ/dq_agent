@@ -122,6 +122,10 @@ def run_agents(self, version_id: str, tenant_id: str):
         from workers.tasks.generate_pdf import generate_pdf
         generate_pdf.delay(version_id, tenant_id)
 
+        # Enqueue notification check for critical findings
+        from workers.tasks.send_notifications import send_notification
+        send_notification.delay(version_id, tenant_id, "critical_found")
+
         logger.info(f"run_agents complete: version_id={version_id}")
         return {"version_id": version_id, "status": "agents_complete"}
 
