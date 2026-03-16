@@ -1,0 +1,114 @@
+module: material_master
+target_state: S4HANA_2023
+rules:
+  - id: MM001
+    field: MARA.MTART
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Material type is mandatory — determines procurement and storage behaviour in S/4HANA"
+
+  - id: MM002
+    field: MARA.MTART
+    check_class: domain_value_check
+    allowed_values: ["FERT", "HALB", "ROH", "HAWA", "DIEN", "NLAG", "ERSA", "IBAU"]
+    severity: critical
+    dimension: validity
+    message: "Material type must be a valid SAP material type for S/4HANA migration"
+
+  - id: MM003
+    field: MARA.MEINS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Base unit of measure is mandatory for all materials in S/4HANA"
+
+  - id: MM004
+    field: MARA.MBRSH
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Industry sector is required for material classification in S/4HANA"
+
+  - id: MM005
+    field: MARA.MATKL
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Material group is required for reporting and procurement in S/4HANA"
+
+  - id: MM006
+    field: MARA.MATNR
+    check_class: regex_check
+    pattern: "^[A-Z0-9\\-_]{1,18}$"
+    severity: critical
+    dimension: validity
+    message: "Material number must be 1-18 chars alphanumeric (uppercase), hyphens, or underscores"
+
+  - id: MM007
+    field: MARD.WERKS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Plant is mandatory for material storage location in S/4HANA"
+
+  - id: MM008
+    field: MARA.NTGEW
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Net weight is recommended for logistics and shipping calculations"
+
+  - id: MM009
+    field: MARA.GEWEI
+    check_class: domain_value_check
+    allowed_values: ["KG", "G", "LB", "OZ", "T"]
+    severity: medium
+    dimension: validity
+    message: "Weight unit must be a valid ISO unit (KG, G, LB, OZ, T)"
+
+  - id: MM010
+    field: MARA.BISMT
+    check_class: null_check
+    severity: low
+    dimension: completeness
+    message: "Old material number is recommended for traceability during migration"
+
+  - id: MM011
+    field: MARA.LAEDA
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: medium
+    dimension: timeliness
+    message: "Material not updated in 2+ years — review if data is still current"
+
+  - id: MM012
+    field: MARA.EAN11
+    check_class: regex_check
+    pattern: "^[0-9]{8,14}$"
+    severity: medium
+    dimension: validity
+    message: "GTIN/EAN must be 8-14 digit numeric barcode"
+
+  - id: MM013
+    field: MARA.MSTAE
+    check_class: domain_value_check
+    allowed_values: ["10", "20", "30", "40", "KK", "KL", "KP", "KW", "VP"]
+    severity: high
+    dimension: validity
+    message: "Cross-plant material status must be a valid SAP status code"
+
+  - id: MM014
+    field: MBEW.VPRSV
+    check_class: domain_value_check
+    allowed_values: ["S", "V"]
+    severity: critical
+    dimension: validity
+    message: "Price control indicator must be S (standard) or V (moving average)"
+
+  - id: MM015
+    field: MBEW.STPRS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Standard price is required when price control is S — missing value blocks valuation"

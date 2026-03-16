@@ -1,0 +1,93 @@
+module: fi_gl
+target_state: S4HANA_2023
+rules:
+  - id: GL001
+    field: SKA1.SAKNR
+    check_class: regex_check
+    pattern: "^[0-9]{1,10}$"
+    severity: critical
+    dimension: validity
+    message: "GL account number must be 1-10 digit numeric for S/4HANA chart of accounts"
+
+  - id: GL002
+    field: SKA1.KTOKS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Account group is mandatory — controls number range and field status in S/4HANA"
+
+  - id: GL003
+    field: SKA1.XBILK
+    check_class: domain_value_check
+    allowed_values: ["X", ""]
+    severity: critical
+    dimension: validity
+    message: "Balance sheet indicator must be X (balance sheet) or empty (P&L)"
+
+  - id: GL004
+    field: SKA1.GVTYP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "P&L statement account type is required for financial reporting in S/4HANA"
+
+  - id: GL005
+    field: SKB1.BUKRS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Company code is mandatory for all GL account assignments in S/4HANA"
+
+  - id: GL006
+    field: SKB1.WAERS
+    check_class: domain_value_check
+    allowed_values: ["ZAR", "USD", "EUR", "GBP", "AUD"]
+    severity: critical
+    dimension: validity
+    message: "Account currency must be a supported ISO currency code"
+
+  - id: GL007
+    field: SKB1.MWSKZ
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Tax category is recommended for automatic tax determination"
+
+  - id: GL008
+    field: SKB1.XOPVW
+    check_class: domain_value_check
+    allowed_values: ["X", ""]
+    severity: medium
+    dimension: validity
+    message: "Open item management flag must be X (enabled) or empty (disabled)"
+
+  - id: GL009
+    field: SKB1.XKRES
+    check_class: domain_value_check
+    allowed_values: ["X", ""]
+    severity: medium
+    dimension: validity
+    message: "Line item display flag must be X (enabled) or empty (disabled)"
+
+  - id: GL010
+    field: SKA1.FUNC_AREA
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Functional area is required for cost-of-sales accounting in S/4HANA"
+
+  - id: GL011
+    field: SKB1.ALTKT
+    check_class: null_check
+    severity: low
+    dimension: completeness
+    message: "Alternative account number aids parallel reporting — recommended for migration"
+
+  - id: GL012
+    field: SKA1.SAKNR
+    check_class: cross_field_check
+    fields: ["SKA1.SAKNR"]
+    condition: "~`SKA1.SAKNR`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: "Duplicate GL account numbers detected — each account must be unique"

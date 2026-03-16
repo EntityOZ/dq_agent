@@ -23,3 +23,6 @@ celery_app.conf.update(
 
 # Auto-discover tasks in workers/tasks/
 celery_app.autodiscover_tasks(["workers.tasks"])
+
+# Explicit imports for task registration
+import workers.tasks.run_checks  # noqa: F401, E402
