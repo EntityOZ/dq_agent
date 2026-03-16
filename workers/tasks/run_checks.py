@@ -148,6 +148,12 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
             session.commit()
 
         logger.info(f"run_checks complete: version_id={version_id}, findings={len(all_results)}")
+
+        # Enqueue agent pipeline
+        from workers.tasks.run_agents import run_agents
+        run_agents.delay(version_id, tenant_id)
+        logger.info(f"Enqueued run_agents for version_id={version_id}")
+
         return {"version_id": version_id, "status": "complete", "findings_count": len(all_results)}
 
     except Exception as e:

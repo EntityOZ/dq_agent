@@ -38,14 +38,20 @@ def test_full_pipeline():
         # Step 4: Poll for completion
         start = time.time()
         status = "pending"
-        while status not in ("complete", "failed") and (time.time() - start) < TIMEOUT:
+        # Wait for checks to complete (status transitions: pending → running → complete → agents_running → agents_complete/agents_failed)
+        terminal_statuses = {"complete", "agents_complete", "agents_failed", "failed"}
+        while status not in terminal_statuses and (time.time() - start) < TIMEOUT:
             time.sleep(2)
             resp = client.get(f"/api/v1/versions/{version_id}/status")
             assert resp.status_code == 200
             status = resp.json()["status"]
             print(f"  Status: {status} ({int(time.time() - start)}s)")
 
-        assert status == "complete", f"Pipeline did not complete within {TIMEOUT}s — status: {status}"
+        # Accept "complete" (checks done, agents not yet started) or "agents_complete" or "agents_failed"
+        # The check engine itself must succeed — agents may fail in test env (no LLM available)
+        assert status in ("complete", "agents_complete", "agents_failed"), (
+            f"Pipeline did not complete within {TIMEOUT}s — status: {status}"
+        )
 
         # Step 5: Fetch critical findings
         resp = client.get(f"/api/v1/findings?version_id={version_id}&severity=critical")

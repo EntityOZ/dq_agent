@@ -48,6 +48,28 @@ async def bulk_insert_findings(
     return len(db_findings)
 
 
+async def update_finding_remediation(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    check_id: str,
+    version_id: uuid.UUID,
+    remediation_text: str,
+) -> None:
+    """Update a finding's remediation_text field."""
+    await db.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+    result = await db.execute(
+        select(Finding).where(
+            Finding.tenant_id == tenant_id,
+            Finding.version_id == version_id,
+            Finding.check_id == check_id,
+        )
+    )
+    finding = result.scalar_one_or_none()
+    if finding:
+        finding.remediation_text = remediation_text
+        await db.commit()
+
+
 async def get_findings(
     db: AsyncSession,
     tenant_id: uuid.UUID,
