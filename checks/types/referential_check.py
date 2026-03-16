@@ -1,6 +1,6 @@
 import pandas as pd
 
-from checks.base import BaseCheck, CheckResult
+from checks.base import BaseCheck, CheckResult, find_id_field, safe_json
 
 
 class ReferentialCheck(BaseCheck):
@@ -36,7 +36,22 @@ class ReferentialCheck(BaseCheck):
             affected = int(failing_mask.sum())
             pass_rate = ((total - affected) / total * 100) if total > 0 else 0.0
 
-            missing_values = df.loc[failing_mask, field].dropna().unique().tolist()[:5]
+            id_field = find_id_field(df)
+            failing_rows = df[failing_mask]
+
+            details = safe_json({
+                "field_checked": field,
+                "reference_field": reference_field,
+                "id_field_used": id_field,
+                "failing_record_count": int(failing_mask.sum()),
+                "message": self.rule.get("message", ""),
+                "missing_values": failing_rows[field]
+                    .dropna().astype(str).unique().tolist()[:20],
+                "sample_failing_records": [
+                    {id_field: str(row[id_field]), field: str(row[field])}
+                    for _, row in failing_rows.head(10).iterrows()
+                ],
+            })
 
             return CheckResult(
                 check_id=self.rule["id"],
@@ -49,10 +64,7 @@ class ReferentialCheck(BaseCheck):
                 total_count=total,
                 pass_rate=round(pass_rate, 2),
                 message=self.rule.get("message", ""),
-                details={
-                    "reference_field": reference_field,
-                    "missing_values": [str(v) for v in missing_values],
-                },
+                details=details,
             )
         except Exception as e:
             return CheckResult(

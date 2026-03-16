@@ -135,5 +135,21 @@ def remediation_node(state: AgentState) -> dict:
         else:
             all_remediations.extend(remediations_tier2 or [])
 
+    # Normalise check_ids to match what was in the input findings
+    input_ids = {f["check_id"] for f in findings}
+    for rem in all_remediations:
+        if rem.get("check_id") not in input_ids:
+            normalised = rem["check_id"].replace("-", "").replace("_", "").upper()
+            match = next(
+                (cid for cid in input_ids
+                 if cid.replace("-", "").replace("_", "").upper() == normalised),
+                None,
+            )
+            if match:
+                logger.info(f"Normalised check_id '{rem['check_id']}' -> '{match}'")
+                rem["check_id"] = match
+            else:
+                logger.warning(f"Could not match check_id: {rem['check_id']}")
+
     logger.info(f"Remediation: generated {len(all_remediations)} remediations")
     return {"remediations": all_remediations}

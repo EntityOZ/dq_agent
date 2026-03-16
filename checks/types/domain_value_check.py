@@ -2,7 +2,7 @@ import re
 
 import pandas as pd
 
-from checks.base import BaseCheck, CheckResult
+from checks.base import BaseCheck, CheckResult, find_id_field, safe_json
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 
@@ -57,7 +57,25 @@ class DomainValueCheck(BaseCheck):
             affected = int(failing_mask.sum())
             pass_rate = ((total - affected) / total * 100) if total > 0 else 0.0
 
-            failing_values = df.loc[failing_mask, field].head(5).tolist()
+            id_field = find_id_field(df)
+            failing_rows = df[failing_mask]
+
+            details = safe_json({
+                "field_checked": field,
+                "allowed_values": allowed_values,
+                "format": fmt,
+                "id_field_used": id_field,
+                "failing_record_count": int(failing_mask.sum()),
+                "message": self.rule.get("message", ""),
+                "sample_failing_records": [
+                    {id_field: str(row[id_field]), field: str(row[field]),
+                     "invalid_value": str(row[field])}
+                    for _, row in failing_rows.head(10).iterrows()
+                ],
+                "distinct_invalid_values": failing_rows[field]
+                    .dropna().astype(str).value_counts().head(10).to_dict()
+                    if len(failing_rows) > 0 else {},
+            })
 
             return CheckResult(
                 check_id=self.rule["id"],
@@ -70,10 +88,7 @@ class DomainValueCheck(BaseCheck):
                 total_count=total,
                 pass_rate=round(pass_rate, 2),
                 message=self.rule.get("message", ""),
-                details={
-                    "allowed_values": allowed_values,
-                    "sample_failing_values": [str(v) for v in failing_values],
-                },
+                details=details,
             )
         except Exception as e:
             return CheckResult(

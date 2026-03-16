@@ -1,6 +1,6 @@
 import pandas as pd
 
-from checks.base import BaseCheck, CheckResult
+from checks.base import BaseCheck, CheckResult, find_id_field, safe_json
 
 
 class NullCheck(BaseCheck):
@@ -32,7 +32,20 @@ class NullCheck(BaseCheck):
             non_null = total - affected
             pass_rate = (non_null / total * 100) if total > 0 else 0.0
 
-            failing_indices = df.index[null_mask].tolist()[:5]
+            id_field = find_id_field(df)
+            failing_rows = df[null_mask]
+
+            details = safe_json({
+                "field_checked": field,
+                "id_field_used": id_field,
+                "failing_record_count": int(null_mask.sum()),
+                "message": self.rule.get("message", ""),
+                "sample_failing_records": failing_rows[[id_field, field]]
+                    .head(10)
+                    .fillna("")
+                    .astype(str)
+                    .to_dict(orient="records"),
+            })
 
             return CheckResult(
                 check_id=self.rule["id"],
@@ -45,7 +58,7 @@ class NullCheck(BaseCheck):
                 total_count=total,
                 pass_rate=round(pass_rate, 2),
                 message=self.rule.get("message", ""),
-                details={"sample_failing_indices": failing_indices},
+                details=details,
             )
         except Exception as e:
             return CheckResult(
