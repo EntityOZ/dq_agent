@@ -79,9 +79,13 @@ def run_agents(self, version_id: str, tenant_id: str):
 
         # Update findings with remediation text
         remediations = final_state.get("remediations", [])
+        logger.info(f"Writing remediation text for {len(remediations)} findings")
+
         if remediations:
             with Session(engine) as session:
                 session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+
+                total_updated = 0
                 for rem in remediations:
                     check_id = rem.get("check_id")
                     fix_steps = rem.get("fix_steps", [])
@@ -89,11 +93,13 @@ def run_agents(self, version_id: str, tenant_id: str):
                     effort = rem.get("estimated_effort", "")
                     remediation_text = "\n".join(fix_steps)
                     if sap_tx:
-                        remediation_text += f"\nSAP Transaction: {sap_tx}"
+                        remediation_text += f"\n\nSAP Transaction: {sap_tx}"
                     if effort:
                         remediation_text += f"\nEstimated Effort: {effort}"
 
-                    session.execute(
+                    logger.info(f"  Updating check_id={check_id} with {len(remediation_text)} chars")
+
+                    result = session.execute(
                         text("""
                             UPDATE findings SET remediation_text = :rem_text
                             WHERE version_id = :vid AND tenant_id = :tid AND check_id = :cid
@@ -105,9 +111,24 @@ def run_agents(self, version_id: str, tenant_id: str):
                             "rem_text": remediation_text,
                         },
                     )
+                    rows_updated = result.rowcount
+                    total_updated += rows_updated
+                    logger.info(f"  Rows updated: {rows_updated}")
+
+                    if rows_updated == 0:
+                        existing = session.execute(
+                            text("SELECT DISTINCT check_id FROM findings WHERE version_id = :vid"),
+                            {"vid": version_id},
+                        )
+                        existing_ids = [r[0] for r in existing.fetchall()]
+                        logger.warning(
+                            f"check_id '{check_id}' not found in findings for version {version_id}. "
+                            f"Existing check_ids: {existing_ids[:10]}"
+                        )
+
                 session.commit()
 
-            logger.info(f"Updated {len(remediations)} findings with remediation text")
+            logger.info(f"Updated {total_updated} findings with remediation text")
 
         # Update status to agents_complete
         with Session(engine) as session:

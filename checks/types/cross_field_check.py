@@ -1,6 +1,6 @@
 import pandas as pd
 
-from checks.base import BaseCheck, CheckResult
+from checks.base import BaseCheck, CheckResult, find_id_field, safe_json
 
 
 class CrossFieldCheck(BaseCheck):
@@ -37,7 +37,25 @@ class CrossFieldCheck(BaseCheck):
             affected = total - passing_count
             pass_rate = (passing_count / total * 100) if total > 0 else 0.0
 
-            failing_indices = df.index.difference(passing_df.index).tolist()[:5]
+            failing_mask = ~df.index.isin(passing_df.index)
+            failing_rows = df[failing_mask]
+            id_field = find_id_field(df)
+
+            # Include the id field plus all checked fields in the output
+            output_cols = [id_field] + [f for f in fields if f in df.columns and f != id_field]
+
+            details = safe_json({
+                "fields_checked": fields,
+                "condition": condition,
+                "id_field_used": id_field,
+                "failing_record_count": int(affected),
+                "message": self.rule.get("message", ""),
+                "sample_failing_records": failing_rows[output_cols]
+                    .head(10)
+                    .fillna("")
+                    .astype(str)
+                    .to_dict(orient="records"),
+            })
 
             return CheckResult(
                 check_id=self.rule["id"],
@@ -50,7 +68,7 @@ class CrossFieldCheck(BaseCheck):
                 total_count=total,
                 pass_rate=round(pass_rate, 2),
                 message=self.rule.get("message", ""),
-                details={"condition": condition, "sample_failing_indices": failing_indices},
+                details=details,
             )
         except Exception as e:
             return CheckResult(

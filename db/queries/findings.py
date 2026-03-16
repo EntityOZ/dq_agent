@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import case, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.schema import Finding
@@ -54,20 +54,26 @@ async def update_finding_remediation(
     check_id: str,
     version_id: uuid.UUID,
     remediation_text: str,
-) -> None:
-    """Update a finding's remediation_text field."""
+) -> int:
+    """Update a finding's remediation_text field. Returns rows updated."""
     await db.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
     result = await db.execute(
-        select(Finding).where(
-            Finding.tenant_id == tenant_id,
-            Finding.version_id == version_id,
-            Finding.check_id == check_id,
-        )
+        text("""
+            UPDATE findings
+            SET remediation_text = :remediation_text
+            WHERE tenant_id = :tenant_id
+              AND version_id = :version_id
+              AND check_id = :check_id
+        """),
+        {
+            "remediation_text": remediation_text,
+            "tenant_id": str(tenant_id),
+            "version_id": str(version_id),
+            "check_id": check_id,
+        },
     )
-    finding = result.scalar_one_or_none()
-    if finding:
-        finding.remediation_text = remediation_text
-        await db.commit()
+    await db.commit()
+    return result.rowcount
 
 
 async def get_findings(
@@ -86,5 +92,13 @@ async def get_findings(
         stmt = stmt.where(Finding.severity == severity)
     if module:
         stmt = stmt.where(Finding.module == module)
+    severity_order = case(
+        (Finding.severity == "critical", 1),
+        (Finding.severity == "high", 2),
+        (Finding.severity == "medium", 3),
+        (Finding.severity == "low", 4),
+        else_=5,
+    )
+    stmt = stmt.order_by(severity_order, Finding.pass_rate.asc())
     result = await db.execute(stmt)
     return list(result.scalars().all())

@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
@@ -47,8 +47,15 @@ async def list_findings(
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar() or 0
 
-    # Get paginated results
-    stmt = base.offset(offset).limit(limit)
+    # Get paginated results — worst findings first
+    severity_order = case(
+        (Finding.severity == "critical", 1),
+        (Finding.severity == "high", 2),
+        (Finding.severity == "medium", 3),
+        (Finding.severity == "low", 4),
+        else_=5,
+    )
+    stmt = base.order_by(severity_order, Finding.pass_rate.asc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     findings = result.scalars().all()
 
@@ -63,7 +70,7 @@ async def list_findings(
                 "affected_count": f.affected_count,
                 "total_count": f.total_count,
                 "pass_rate": float(f.pass_rate) if f.pass_rate is not None else None,
-                "details": f.details,
+                "details": f.details or {},
                 "remediation_text": f.remediation_text,
                 "created_at": f.created_at.isoformat() if f.created_at else None,
             }

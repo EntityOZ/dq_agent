@@ -2,8 +2,8 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { X, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ const PAGE_SIZE = 50;
 function FindingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const paramVersionId = searchParams.get("version_id") ?? "";
   const paramModule = searchParams.get("module") ?? "";
@@ -258,7 +259,7 @@ function FindingsContent() {
                         {f.details?.message ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {f.affected_count} / {f.total_count}
+                        {f.affected_count.toLocaleString()} / {f.total_count.toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
                         {f.pass_rate != null ? (
@@ -318,90 +319,147 @@ function FindingsContent() {
         </div>
       )}
 
-      {/* Detail sheet */}
+      {/* Detail sheet — w-2/3 on desktop, full on mobile */}
       <Sheet
         open={!!selectedFinding}
         onOpenChange={(open) => {
           if (!open) setSelectedFinding(null);
         }}
       >
-        <SheetContent className="w-[500px] overflow-y-auto sm:max-w-lg">
-          {selectedFinding && <FindingDetail finding={selectedFinding} />}
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl lg:w-2/3">
+          {selectedFinding && (
+            <FindingDetail
+              finding={selectedFinding}
+              onRefresh={() => {
+                refetch().then((result) => {
+                  const updated = result.data?.findings.find(
+                    (f) => f.id === selectedFinding.id,
+                  );
+                  if (updated) setSelectedFinding(updated);
+                });
+              }}
+            />
+          )}
         </SheetContent>
       </Sheet>
     </div>
   );
 }
 
-function FindingDetail({ finding }: { finding: Finding }) {
+function FindingDetail({
+  finding,
+  onRefresh,
+}: {
+  finding: Finding;
+  onRefresh: () => void;
+}) {
   const samples = finding.details?.sample_failing_records ?? [];
-  const sapTx = finding.remediation_text?.match(/SAP Transaction: (\S+)/)?.[1];
+  const distinctInvalid = finding.details?.distinct_invalid_values as
+    | Record<string, number>
+    | undefined;
+
+  // Extract SAP transaction from remediation text
+  const sapTxMatch = finding.remediation_text?.match(
+    /SAP Transaction:\s*(.+?)(?:\n|$)/,
+  );
+  const sapTx = sapTxMatch?.[1]?.trim();
+
+  // Extract estimated effort
+  const effortMatch = finding.remediation_text?.match(
+    /Estimated Effort:\s*(.+?)(?:\n|$)/,
+  );
+  const effort = effortMatch?.[1]?.trim();
+
+  // Clean remediation text (remove the metadata lines for display)
+  const cleanRemediation = finding.remediation_text
+    ?.replace(/\n\nSAP Transaction:.*$/s, "")
+    ?.trim();
 
   return (
     <div className="space-y-6">
+      {/* SECTION 1: Summary */}
       <SheetHeader>
-        <SheetTitle className="font-mono">{finding.check_id}</SheetTitle>
+        <SheetTitle className="font-mono text-lg">{finding.check_id}</SheetTitle>
       </SheetHeader>
 
-      <p className="text-sm">{finding.details?.message ?? "—"}</p>
+      <p className="text-sm leading-relaxed">
+        {finding.details?.message ?? "—"}
+      </p>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Badge className={severityColor(finding.severity)}>
           {finding.severity}
         </Badge>
         <Badge variant="outline">{finding.dimension}</Badge>
-        {sapTx && <Badge variant="secondary">TX: {sapTx}</Badge>}
+        {finding.details?.field_checked && (
+          <Badge variant="secondary" className="font-mono text-xs">
+            {String(finding.details.field_checked)}
+          </Badge>
+        )}
+        {sapTx && (
+          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+            SAP Transaction: {sapTx}
+          </Badge>
+        )}
+        {effort && (
+          <Badge variant="outline" className="text-xs">
+            {effort}
+          </Badge>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-muted-foreground">Affected</span>
-          <p className="text-lg font-bold">{finding.affected_count}</p>
+          <span className="text-muted-foreground">Affected Records</span>
+          <p className="text-lg font-bold">
+            {finding.affected_count.toLocaleString()} of{" "}
+            {finding.total_count.toLocaleString()}
+          </p>
         </div>
         <div>
           <span className="text-muted-foreground">Pass Rate</span>
-          <p className="text-lg font-bold">
-            {finding.pass_rate != null
-              ? `${finding.pass_rate.toFixed(1)}%`
-              : "—"}
-          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <Progress
+              value={finding.pass_rate ?? 0}
+              className={`h-2.5 ${passRateColor(finding.pass_rate ?? 0)}`}
+            />
+            <span className="text-lg font-bold">
+              {finding.pass_rate != null
+                ? `${finding.pass_rate.toFixed(1)}%`
+                : "—"}
+            </span>
+          </div>
         </div>
       </div>
 
-      {finding.remediation_text && (
-        <Card className="border-[#0F6E56]/30 bg-[#0F6E56]/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Remediation Guidance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="whitespace-pre-wrap text-xs">
-              {finding.remediation_text}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
+      {/* SECTION 2: Failing records */}
+      <div>
+        <h4 className="mb-2 text-sm font-semibold">
+          {samples.length > 0
+            ? `Sample Failing Records (showing up to ${Math.min(samples.length, 10)})`
+            : "Record Detail"}
+        </h4>
 
-      {samples.length > 0 && (
-        <div>
-          <h4 className="mb-2 text-sm font-medium">
-            Sample Failing Records ({Math.min(samples.length, 5)})
-          </h4>
+        {samples.length > 0 ? (
           <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b bg-accent">
                   {Object.keys(samples[0]).map((k) => (
-                    <th key={k} className="px-2 py-1 text-left font-medium">
+                    <th key={k} className="px-3 py-2 text-left font-medium">
                       {k}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {samples.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-b border-border/50">
+                {samples.slice(0, 10).map((row, i) => (
+                  <tr
+                    key={i}
+                    className="border-b border-border/50 hover:bg-accent/30"
+                  >
                     {Object.values(row).map((v, j) => (
-                      <td key={j} className="px-2 py-1">
+                      <td key={j} className="px-3 py-1.5 font-mono">
                         {String(v ?? "null")}
                       </td>
                     ))}
@@ -410,7 +468,63 @@ function FindingDetail({ finding }: { finding: Finding }) {
               </tbody>
             </table>
           </div>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">
+            Record detail not available for this check.
+          </p>
+        )}
+      </div>
+
+      {/* Distinct invalid values (for domain_value_check) */}
+      {distinctInvalid && Object.keys(distinctInvalid).length > 0 && (
+        <div>
+          <h4 className="mb-2 text-sm font-semibold">
+            Most Common Invalid Values
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(distinctInvalid)
+              .slice(0, 10)
+              .map(([val, count]) => (
+                <Badge
+                  key={val}
+                  variant="outline"
+                  className="font-mono text-xs"
+                >
+                  {val === "" ? "''" : `"${val}"`}: {count.toLocaleString()}
+                </Badge>
+              ))}
+          </div>
         </div>
+      )}
+
+      {/* SECTION 3: Remediation guidance */}
+      {cleanRemediation ? (
+        <Card className="border-[#0F6E56]/30 bg-[#0F6E56]/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">How to Fix This</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1 text-sm">
+              {cleanRemediation.split("\n").map((line, i) => (
+                <p key={i} className={line.trim() === "" ? "h-2" : ""}>
+                  {line}
+                </p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Remediation guidance is being generated. Refresh in a moment.
+            </p>
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              <RefreshCw className="mr-1.5 h-3 w-3" />
+              Refresh findings
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

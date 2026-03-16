@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from checks.base import BaseCheck, CheckResult
+from checks.base import BaseCheck, CheckResult, find_id_field, safe_json
 
 
 class FreshnessCheck(BaseCheck):
@@ -66,6 +66,26 @@ class FreshnessCheck(BaseCheck):
             oldest = str(valid_dates.min()) if len(valid_dates) > 0 else "N/A"
             newest = str(valid_dates.max()) if len(valid_dates) > 0 else "N/A"
 
+            id_field = find_id_field(df)
+            failing_rows = df[failing_mask]
+
+            details = safe_json({
+                "field_checked": field,
+                "max_age_hours": max_age_hours,
+                "cutoff_datetime": cutoff.isoformat(),
+                "oldest_failing_value": oldest,
+                "newest_failing_value": newest,
+                "id_field_used": id_field,
+                "failing_record_count": int(failing_mask.sum()),
+                "message": self.rule.get("message", ""),
+                "sample_failing_records": [
+                    {id_field: str(row[id_field]), field: str(row[field]),
+                     "age_hours": str(round((now - pd.to_datetime(row[field], utc=True)).total_seconds() / 3600, 1))
+                     if pd.notna(row[field]) else "N/A"}
+                    for _, row in failing_rows.head(10).iterrows()
+                ],
+            })
+
             return CheckResult(
                 check_id=self.rule["id"],
                 module=self.rule.get("module", ""),
@@ -77,11 +97,7 @@ class FreshnessCheck(BaseCheck):
                 total_count=total,
                 pass_rate=round(pass_rate, 2),
                 message=self.rule.get("message", ""),
-                details={
-                    "max_age_hours": max_age_hours,
-                    "oldest_value": oldest,
-                    "newest_value": newest,
-                },
+                details=details,
             )
         except Exception as e:
             return CheckResult(
