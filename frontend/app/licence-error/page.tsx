@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 
 export default function LicenceErrorPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#1A1A2E] p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#F0F5FA] p-4">
       <div className="w-full max-w-md space-y-6 text-center">
         <AlertTriangle className="mx-auto h-16 w-16 text-destructive" />
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-[#0F2137]">
           Licence Invalid or Expired
         </h1>
         <Alert variant="destructive">

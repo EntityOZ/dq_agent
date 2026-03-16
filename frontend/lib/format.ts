@@ -1,14 +1,14 @@
 /** Score color: green ≥85, amber 60–84, red <60 */
 export function scoreColor(score: number): string {
-  if (score >= 85) return "#22C55E";
-  if (score >= 60) return "#F59E0B";
-  return "#EF4444";
+  if (score >= 85) return "#059669";
+  if (score >= 60) return "#D97706";
+  return "#DC2626";
 }
 
 export function scoreBg(score: number): string {
-  if (score >= 85) return "bg-green-600/15 text-green-400";
-  if (score >= 60) return "bg-amber-600/15 text-amber-400";
-  return "bg-red-600/15 text-red-400";
+  if (score >= 85) return "bg-[#059669]/10 text-[#059669]";
+  if (score >= 60) return "bg-[#D97706]/10 text-[#D97706]";
+  return "bg-[#DC2626]/10 text-[#DC2626]";
 }
 
 /** "business_partner" → "Business Partner" */
@@ -31,23 +31,24 @@ export function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+/** Severity badge pill classes for light theme */
 export function severityColor(severity: string): string {
   switch (severity) {
     case "critical":
-      return "bg-red-600 text-white";
+      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
     case "high":
-      return "bg-orange-500 text-white";
+      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
     case "medium":
-      return "bg-yellow-500 text-black";
+      return "bg-[#FFF9C4] text-[#B45309] border border-[#FDE68A]";
     case "low":
-      return "bg-green-600 text-white";
+      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
     default:
-      return "bg-gray-500 text-white";
+      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
   }
 }
 
 export function passRateColor(rate: number): string {
-  if (rate >= 95) return "bg-green-600";
-  if (rate >= 80) return "bg-amber-500";
-  return "bg-red-600";
+  if (rate >= 95) return "bg-[#059669]";
+  if (rate >= 80) return "bg-[#D97706]";
+  return "bg-[#DC2626]";
 }

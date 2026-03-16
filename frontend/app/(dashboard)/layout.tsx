@@ -5,25 +5,22 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { User } from "lucide-react";
 
-// Dynamically import UserButton — only loads when Clerk is configured
 const UserButton = dynamic(
   () => import("@clerk/nextjs").then((mod) => mod.UserButton),
   {
     ssr: false,
-    loading: () => <User className="h-6 w-6 text-muted-foreground" />,
+    loading: () => <User className="h-5 w-5 text-[#6B92AD]" />,
   }
 );
 import {
   LayoutDashboard,
   Upload,
-  Search,
+  AlertTriangle,
   GitCompareArrows,
   FileText,
   Settings,
   ShieldCheck,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
@@ -32,7 +29,7 @@ import type { HealthResponse } from "@/types/api";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/upload", label: "Upload", icon: Upload },
-  { href: "/findings", label: "Findings", icon: Search },
+  { href: "/findings", label: "Findings", icon: AlertTriangle },
   { href: "/versions", label: "Versions", icon: GitCompareArrows },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -50,19 +47,30 @@ export default function DashboardLayout({
     staleTime: 60_000,
   });
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-[#16162B]">
-        {/* Logo */}
-        <div className="flex h-14 items-center gap-2 px-4">
-          <ShieldCheck className="h-6 w-6 text-[#0F6E56]" />
-          <span className="text-lg font-bold text-white">Vantax</span>
-        </div>
-        <Separator />
+  const licence = health?.licence;
+  const licenceDotColor =
+    licence?.valid === true
+      ? "bg-[#059669]"
+      : licence?.valid === false
+        ? "bg-[#DC2626]"
+        : "bg-[#6B92AD]";
+  const licencePulse = licence?.valid === true ? "animate-[vx-pulse-dot_2s_ease-in-out_infinite]" : "";
 
-        {/* Nav */}
-        <nav className="flex-1 space-y-1 px-2 py-3">
+  const timestamp = health?.timestamp
+    ? new Date(health.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : "";
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#F0F5FA]">
+      {/* Sidebar — icon only, 56px, deep navy */}
+      <aside className="flex w-14 shrink-0 flex-col items-center border-r border-white/10 bg-[#0F2137] py-3">
+        {/* Logo */}
+        <div className="mb-4 flex h-8 w-8 items-center justify-center">
+          <ShieldCheck className="h-5 w-5 text-[#0695A8]" />
+        </div>
+
+        {/* Nav icons */}
+        <nav className="flex flex-1 flex-col items-center gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -70,65 +78,48 @@ export default function DashboardLayout({
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
                   active
-                    ? "bg-[#0F6E56]/15 text-[#0F6E56]"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "border-l-2 border-l-[#0695A8] bg-white/10 text-white"
+                    : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {label}
+                <Icon className="h-[18px] w-[18px]" />
+                {/* Tooltip */}
+                <span className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-md bg-[#0F2137] px-2.5 py-1 font-sans text-xs text-white shadow-lg group-hover:block">
+                  {label}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Footer — Licence badge */}
-        <div className="border-t border-border p-3">
-          {(() => {
-            const licence = health?.licence;
-            if (!licence || licence.valid === null) {
-              return (
-                <Badge variant="secondary" className="bg-gray-600 hover:bg-gray-700">
-                  Licence unverified
-                </Badge>
-              );
-            }
-            if (licence.valid === false) {
-              return (
-                <Badge variant="destructive">
-                  Licence expired
-                </Badge>
-              );
-            }
-            if (
-              licence.days_remaining !== null &&
-              licence.days_remaining !== undefined &&
-              licence.days_remaining <= 30
-            ) {
-              return (
-                <Badge variant="default" className="bg-amber-600 hover:bg-amber-700">
-                  Licence expiring — {licence.days_remaining}d
-                </Badge>
-              );
-            }
-            return (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                Licence active{licence.days_remaining != null ? ` — ${licence.days_remaining}d` : ""}
-              </Badge>
-            );
-          })()}
+        {/* Bottom — V monogram + licence dot */}
+        <div className="flex flex-col items-center gap-2">
+          <div className={`h-2 w-2 rounded-full ${licenceDotColor} ${licencePulse}`} />
+          <span className="font-display text-sm font-bold text-[#0695A8]">V</span>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-[#16162B] px-6">
-          <span className="text-sm text-muted-foreground">
-            SAP Data Quality Agent
-          </span>
+        {/* Top bar — white, 52px */}
+        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[#D6E4F0] bg-white px-5">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[#0695A8]" />
+            <span className="font-display text-base font-bold text-[#0F2137]">
+              Vantax
+            </span>
+            <span className="font-display text-base font-bold text-[#0695A8]">
+              DQ
+            </span>
+          </div>
           <div className="flex items-center gap-4">
+            {timestamp && (
+              <span className="font-mono text-xs text-[#6B92AD]">
+                Updated: {timestamp}
+              </span>
+            )}
             <UserButton />
           </div>
         </header>

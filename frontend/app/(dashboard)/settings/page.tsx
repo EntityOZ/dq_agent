@@ -118,7 +118,7 @@ export default function SettingsPage() {
             href="https://portal.dqagent.vantax.co.za"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-[#0F6E56] hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
           >
             Manage licence on Vantax Portal
             <ExternalLink className="h-3 w-3" />
@@ -153,7 +153,7 @@ export default function SettingsPage() {
                       [dim]: parseInt(e.target.value),
                     }))
                   }
-                  className="w-full accent-[#0F6E56]"
+                  className="w-full accent-[#0695A8]"
                 />
               </div>
             )
