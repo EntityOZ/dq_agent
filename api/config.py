@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Licence
     licence_key: Optional[str] = None
     licence_server_url: str = "https://licence.dqagent.vantax.co.za"
+    licence_file: Optional[str] = None
 
     # Notifications
     resend_api_key: Optional[str] = None

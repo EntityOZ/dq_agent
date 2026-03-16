@@ -105,10 +105,22 @@ export interface UploadResponse {
 }
 
 /* ─── Health ─── */
+export interface LicenceStatus {
+  valid: boolean | null;
+  modules?: string[];
+  expires_at?: string | null;
+  days_remaining?: number | null;
+  last_checked?: string | null;
+  status?: string;
+  reason?: string;
+}
+
 export interface HealthResponse {
   status: string;
   version: string;
   llm_provider: string;
+  llm_connected: boolean;
+  licence: LicenceStatus;
   timestamp: string;
 }
 

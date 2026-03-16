@@ -83,18 +83,41 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer — Licence badge */}
         <div className="border-t border-border p-3">
-          <Badge
-            variant={health?.status === "ok" ? "default" : "destructive"}
-            className={
-              health?.status === "ok"
-                ? "bg-green-600 hover:bg-green-700"
-                : ""
+          {(() => {
+            const licence = health?.licence;
+            if (!licence || licence.valid === null) {
+              return (
+                <Badge variant="secondary" className="bg-gray-600 hover:bg-gray-700">
+                  Licence unverified
+                </Badge>
+              );
             }
-          >
-            {health?.status === "ok" ? "Licence Active" : "Licence Unknown"}
-          </Badge>
+            if (licence.valid === false) {
+              return (
+                <Badge variant="destructive">
+                  Licence expired
+                </Badge>
+              );
+            }
+            if (
+              licence.days_remaining !== null &&
+              licence.days_remaining !== undefined &&
+              licence.days_remaining <= 30
+            ) {
+              return (
+                <Badge variant="default" className="bg-amber-600 hover:bg-amber-700">
+                  Licence expiring — {licence.days_remaining}d
+                </Badge>
+              );
+            }
+            return (
+              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                Licence active{licence.days_remaining != null ? ` — ${licence.days_remaining}d` : ""}
+              </Badge>
+            );
+          })()}
         </div>
       </aside>
 
