@@ -5,13 +5,25 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { User } from "lucide-react";
 
-const UserButton = dynamic(
+const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
+
+const ClerkUserButton = dynamic(
   () => import("@clerk/nextjs").then((mod) => mod.UserButton),
   {
     ssr: false,
     loading: () => <User className="h-5 w-5 text-[#6B92AD]" />,
   }
 );
+
+function LocalUserButton() {
+  return (
+    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0695A8] text-xs font-medium text-white">
+      DU
+    </div>
+  );
+}
+
+const UserButton = isLocalAuth ? LocalUserButton : ClerkUserButton;
 import {
   LayoutDashboard,
   Upload,
@@ -22,6 +34,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import type { HealthResponse } from "@/types/api";
@@ -63,36 +81,46 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-[#F0F5FA]">
       {/* Sidebar — icon only, 56px, deep navy */}
-      <aside className="flex w-14 shrink-0 flex-col items-center border-r border-white/10 bg-[#0F2137] py-3">
+      <aside className="relative z-50 flex w-14 shrink-0 flex-col items-center border-r border-white/10 bg-[#0F2137] py-3">
         {/* Logo */}
         <div className="mb-4 flex h-8 w-8 items-center justify-center">
           <ShieldCheck className="h-5 w-5 text-[#0695A8]" />
         </div>
 
         {/* Nav icons */}
-        <nav className="flex flex-1 flex-col items-center gap-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                  active
-                    ? "border-l-2 border-l-[#0695A8] bg-white/10 text-white"
-                    : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className="h-[18px] w-[18px]" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-md bg-[#0F2137] px-2.5 py-1 font-sans text-xs text-white shadow-lg group-hover:block">
-                  {label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+        <TooltipProvider delay={0}>
+          <nav className="flex flex-1 flex-col items-center gap-1">
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active =
+                href === "/" ? pathname === "/" : pathname.startsWith(href);
+              return (
+                <Tooltip key={href}>
+                  <TooltipTrigger
+                    render={
+                      <Link
+                        href={href}
+                        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+                          active
+                            ? "bg-white/10 text-white border-l-2 border-l-[#0695A8]"
+                            : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
+                        }`}
+                      />
+                    }
+                  >
+                    <Icon className="h-[18px] w-[18px]" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    sideOffset={12}
+                    className="z-[9999] bg-[var(--vx-sidebar-bg,#0F2137)] text-white border border-[var(--vx-border,#D6E4F0)] shadow-lg text-sm font-medium"
+                  >
+                    {label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </nav>
+        </TooltipProvider>
 
         {/* Bottom — V monogram + licence dot */}
         <div className="flex flex-col items-center gap-2">
@@ -102,7 +130,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-0 flex flex-1 flex-col overflow-hidden">
         {/* Top bar — white, 52px */}
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[#D6E4F0] bg-white px-5">
           <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { X, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +11,11 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getVersions } from "@/lib/api/versions";
 import { getFindings, getFindingReportContext } from "@/lib/api/findings";
 import {
@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AlertTitle } from "@/components/ui/alert";
-import type { Finding, Severity, Dimension, FindingReportContext } from "@/types/api";
+import type { Finding, Severity, Dimension, ValueFixEntry } from "@/types/api";
 
 const SEVERITIES: Severity[] = ["critical", "high", "medium", "low"];
 const DIMENSIONS: Dimension[] = [
@@ -46,11 +46,96 @@ const DIMENSIONS: Dimension[] = [
 ];
 const PAGE_SIZE = 50;
 
+/* ── Helpers ────────────────────────────────────────────── */
+
+function getFixForValue(
+  value: string | null | undefined,
+  valueFixMap: Record<string, ValueFixEntry> | null | undefined,
+): ValueFixEntry | null {
+  if (!valueFixMap || Object.keys(valueFixMap).length === 0) return null;
+
+  const normalised =
+    value === null ||
+    value === undefined ||
+    value === "None" ||
+    value === "nan" ||
+    String(value).trim() === ""
+      ? ""
+      : String(value).trim();
+
+  // Strip trailing .0 from float strings ("2.0" → "2")
+  const stripped = normalised.replace(/\.0+$/, "");
+
+  return (
+    valueFixMap[normalised] ??
+    valueFixMap[stripped] ??
+    valueFixMap[""] ??
+    valueFixMap["__other__"] ??
+    Object.values(valueFixMap)[0] ??
+    null
+  );
+}
+
+const displayValue = (val: string) =>
+  val ? val.replace(/\.0+$/, "") : "blank";
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 px-1.5"
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-green-600" />
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </Button>
+  );
+}
+
+function authorityClasses(authority: string): string {
+  switch (authority) {
+    case "sap_hard_constraint":
+      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
+    case "s4hana_migration":
+      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
+    case "best_practice":
+      return "bg-[#DBEAFE] text-[#1D6ECC] border border-[#93C5FD]";
+    case "customer_configured":
+      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
+    default:
+      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
+  }
+}
+
+function authorityLabel(authority: string): string {
+  switch (authority) {
+    case "sap_hard_constraint":
+      return "SAP Hard Constraint";
+    case "s4hana_migration":
+      return "S/4HANA Migration Requirement";
+    case "best_practice":
+      return "Best Practice";
+    case "customer_configured":
+      return "Customer Configured";
+    default:
+      return authority;
+  }
+}
+
+/* ── Main page ──────────────────────────────────────────── */
+
 function FindingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
-
   const paramVersionId = searchParams.get("version_id") ?? "";
   const paramModule = searchParams.get("module") ?? "";
   const paramSeverity = searchParams.get("severity") ?? "";
@@ -71,7 +156,6 @@ function FindingsContent() {
     (v) => v.status === "agents_complete" || v.status === "complete"
   );
 
-  // Auto-select latest version if none specified
   const activeVersionId =
     versionId || completedVersions[0]?.id || "";
 
@@ -329,91 +413,64 @@ function FindingsContent() {
         </div>
       )}
 
-      {/* Detail sheet — w-2/3 on desktop, full on mobile */}
-      <Sheet
-        open={!!selectedFinding}
+      {/* ── Detail modal — centred, wide, scrollable ── */}
+      <Dialog
+        open={selectedFinding !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedFinding(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto border-l-4 border-l-[#0695A8] sm:max-w-4xl lg:w-3/4">
+        <DialogContent
+          className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0 rounded-xl shadow-2xl border border-[var(--vx-border,#D6E4F0)] bg-white"
+        >
           {selectedFinding && (
-            <FindingDetail
-              finding={selectedFinding}
-              onRefresh={() => {
-                refetch().then((result) => {
-                  const updated = result.data?.findings.find(
-                    (f) => f.id === selectedFinding.id,
-                  );
-                  if (updated) setSelectedFinding(updated);
-                });
-              }}
-            />
+            <>
+              <DialogHeader className="px-8 pt-6 pb-4 border-b border-[var(--vx-border,#D6E4F0)] sticky top-0 bg-white z-10">
+                <div className="flex items-center gap-3">
+                  <Badge className={severityColor(selectedFinding.severity)}>
+                    {selectedFinding.severity}
+                  </Badge>
+                  <DialogTitle className="font-mono text-sm text-muted-foreground">
+                    {selectedFinding.check_id}
+                  </DialogTitle>
+                </div>
+                <p className="text-foreground font-medium mt-1">
+                  {selectedFinding.details?.message ?? "—"}
+                </p>
+              </DialogHeader>
+
+              <div className="px-8 py-6">
+                <FindingDetail
+                  finding={selectedFinding}
+                  onRefresh={() => {
+                    refetch().then((result) => {
+                      const updated = result.data?.findings.find(
+                        (f) => f.id === selectedFinding.id,
+                      );
+                      if (updated) setSelectedFinding(updated);
+                    });
+                  }}
+                  onNavigateUpload={() => router.push("/upload")}
+                />
+              </div>
+            </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-6 px-1.5"
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? (
-        <Check className="h-3 w-3 text-green-600" />
-      ) : (
-        <Copy className="h-3 w-3" />
-      )}
-    </Button>
-  );
-}
-
-function authorityClasses(authority: string): string {
-  switch (authority) {
-    case "sap_hard_constraint":
-      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
-    case "s4hana_migration":
-      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
-    case "best_practice":
-      return "bg-[#DBEAFE] text-[#1D6ECC] border border-[#93C5FD]";
-    case "customer_configured":
-      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
-    default:
-      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
-  }
-}
-
-function authorityLabel(authority: string): string {
-  switch (authority) {
-    case "sap_hard_constraint":
-      return "SAP Hard Constraint";
-    case "s4hana_migration":
-      return "S/4HANA Migration Requirement";
-    case "best_practice":
-      return "Best Practice";
-    case "customer_configured":
-      return "Customer Configured";
-    default:
-      return authority;
-  }
-}
+/* ── Finding detail panels ──────────────────────────────── */
 
 function FindingDetail({
   finding,
   onRefresh,
+  onNavigateUpload,
 }: {
   finding: Finding;
   onRefresh: () => void;
+  onNavigateUpload: () => void;
 }) {
   const samples = finding.details?.sample_failing_records ?? [];
   const distinctInvalid = finding.details?.distinct_invalid_values;
@@ -423,28 +480,25 @@ function FindingDetail({
   const checkField = finding.details?.field_checked as string | undefined;
 
   // Fetch report context for Panel 3
-  const { data: reportCtxData } = useQuery({
+  const { data: reportCtxData, isLoading: isReportCtxLoading } = useQuery({
     queryKey: ["finding-report-context", finding.id],
     queryFn: () => getFindingReportContext(finding.id),
     enabled: !!finding.id,
   });
   const reportCtx = reportCtxData?.report_context;
 
+  // Debug: log the full finding object and fix map vs record values
+  console.log("Finding detail:", JSON.stringify(finding, null, 2));
+  console.log("value_fix_map keys:", Object.keys(valueFixes || {}));
+  console.log(
+    "record values:",
+    samples.map((r) => (checkField ? r[checkField] : undefined)),
+  );
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <SheetHeader>
-        <SheetTitle className="font-mono text-lg">{finding.check_id}</SheetTitle>
-      </SheetHeader>
-
-      <p className="text-sm leading-relaxed">
-        {finding.details?.message ?? "—"}
-      </p>
-
+      {/* Summary badges */}
       <div className="flex flex-wrap gap-2">
-        <Badge className={severityColor(finding.severity)}>
-          {finding.severity}
-        </Badge>
         <Badge variant="outline">{finding.dimension}</Badge>
         {checkField && (
           <Badge variant="secondary" className="font-mono text-xs">
@@ -546,65 +600,148 @@ function FindingDetail({
         <CardContent className="space-y-4">
           {samples.length > 0 ? (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Record ID</TableHead>
-                    <TableHead>Field</TableHead>
-                    <TableHead>Invalid value</TableHead>
-                    <TableHead>Recommended fix</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <table
+                style={{
+                  tableLayout: "fixed",
+                  width: "100%",
+                  borderCollapse: "collapse",
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "50%" }} />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th
+                      style={{
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                        padding: "10px 12px",
+                      }}
+                      className="text-xs font-medium"
+                    >
+                      Record ID
+                    </th>
+                    <th
+                      style={{
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                        padding: "10px 12px",
+                      }}
+                      className="text-xs font-medium"
+                    >
+                      Field
+                    </th>
+                    <th
+                      style={{
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                        padding: "10px 12px",
+                      }}
+                      className="text-xs font-medium"
+                    >
+                      Invalid value
+                    </th>
+                    <th
+                      style={{
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                        padding: "10px 12px",
+                      }}
+                      className="text-xs font-medium"
+                    >
+                      Recommended fix
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
                   {samples.slice(0, 10).map((record, idx) => {
                     const fix = recordFixes?.[idx];
                     const idField =
                       finding.details?.id_field_used as string | undefined;
-                    const invalidVal = checkField
+                    const rawVal = checkField
                       ? String(record[checkField] ?? "")
                       : "";
-                    const valueFix = valueFixes?.[invalidVal];
+                    const valueFix = getFixForValue(rawVal, valueFixes);
+
+                    const instruction =
+                      fix?.fix_instruction ??
+                      valueFix?.fix_instruction ??
+                      null;
+                    const sqlStatement =
+                      fix?.sql_statement ??
+                      valueFix?.sql_statement ??
+                      null;
+
+                    const cellStyle = {
+                      wordBreak: "break-word" as const,
+                      verticalAlign: "top" as const,
+                      padding: "10px 12px",
+                    };
 
                     return (
-                      <TableRow key={idx}>
-                        <TableCell className="font-mono text-xs">
+                      <tr
+                        key={idx}
+                        className="border-b border-border/50"
+                      >
+                        <td
+                          style={cellStyle}
+                          className="font-mono text-xs text-[var(--vx-text-tertiary,#6B92AD)]"
+                        >
                           {fix?.record_id ??
-                            (idField ? String(record[idField] ?? "") : "—")}
-                        </TableCell>
-                        <TableCell className="text-xs">
+                            (idField
+                              ? String(record[idField] ?? "")
+                              : "—")}
+                        </td>
+                        <td
+                          style={cellStyle}
+                          className="font-mono text-xs text-[var(--vx-text-tertiary,#6B92AD)]"
+                        >
                           {checkField ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {invalidVal === "" ? (
-                              <em>blank</em>
-                            ) : (
-                              invalidVal
-                            )}
+                        </td>
+                        <td style={cellStyle}>
+                          <Badge
+                            variant="outline"
+                            className="font-mono text-xs"
+                          >
+                            {displayValue(rawVal)}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-sm text-xs">
+                        </td>
+                        <td
+                          style={{
+                            ...cellStyle,
+                            fontSize: "13px",
+                            lineHeight: "1.5",
+                          }}
+                          className="text-[var(--vx-text-primary,#0F2137)]"
+                        >
                           <div className="space-y-1">
-                            <p>
-                              {fix?.fix_instruction ??
-                                valueFix?.fix_instruction ??
-                                "—"}
-                            </p>
-                            {fix?.sql_statement && (
+                            {instruction ? (
+                              <p>{instruction}</p>
+                            ) : (
+                              <span className="text-xs italic text-[var(--vx-text-tertiary,#6B92AD)]">
+                                Check fix_map configuration for this
+                                rule
+                              </span>
+                            )}
+                            {sqlStatement && (
                               <div className="flex items-center gap-1 rounded bg-accent p-1.5">
-                                <code className="text-[11px]">
-                                  {fix.sql_statement}
+                                <code className="text-[11px] break-all">
+                                  {sqlStatement}
                                 </code>
-                                <CopyButton text={fix.sql_statement} />
+                                <CopyButton text={sqlStatement} />
                               </div>
                             )}
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           ) : (
             <p className="text-sm italic text-muted-foreground">
@@ -623,22 +760,26 @@ function FindingDetail({
                   {Object.entries(distinctInvalid)
                     .sort((a, b) => b[1] - a[1])
                     .map(([val, count]) => {
-                      const fix = valueFixes?.[val];
+                      const stripped = val.replace(/\.0+$/, "");
+                      const fix =
+                        valueFixes?.[val] ?? valueFixes?.[stripped];
                       return (
                         <div
                           key={val}
                           className="flex items-center gap-2 text-xs"
                         >
                           <Badge variant="outline" className="font-mono">
-                            {val === "" ? "blank" : val}
+                            {displayValue(val)}
                           </Badge>
                           <span className="text-muted-foreground">
                             {count.toLocaleString()} records
                           </span>
                           {fix?.fix_instruction && (
                             <span className="truncate text-muted-foreground">
-                              {fix.fix_instruction.slice(0, 80)}
-                              {fix.fix_instruction.length > 80 ? "..." : ""}
+                              {String(fix.fix_instruction).slice(0, 80)}
+                              {String(fix.fix_instruction).length > 80
+                                ? "..."
+                                : ""}
                             </span>
                           )}
                         </div>
@@ -650,42 +791,43 @@ function FindingDetail({
         </CardContent>
       </Card>
 
-      {/* ─── PANEL 3: Remediation guidance (updated) ─── */}
+      {/* ─── PANEL 3: Remediation guidance ─── */}
       <Card className="border-[#0695A8]/30 bg-[#0695A8]/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Remediation guidance</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {reportCtx ? (
-            <>
-              {/* Effort estimate */}
+          {reportCtx &&
+          (reportCtx.effort_estimate ||
+            reportCtx.cross_finding_patterns?.length > 0) ? (
+            <div className="space-y-4">
+              {/* Effort estimate card */}
               {reportCtx.effort_estimate && (
-                <div className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
-                  <div>
-                    <span className="text-xs text-muted-foreground">
+                <div className="bg-[#F0F5FA] rounded-lg p-4 border border-[var(--vx-border,#D6E4F0)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--vx-text-tertiary,#6B92AD)]">
                       Estimated effort
                     </span>
-                    <p className="text-lg font-bold">
-                      {reportCtx.effort_estimate.estimated_person_hours}{" "}
-                      person-hours
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {reportCtx.effort_estimate.estimation_basis}
-                    </p>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--vx-teal-dim,#CCEFF1)] text-[var(--vx-teal-bright,#0695A8)] font-medium">
+                      {reportCtx.effort_estimate.fix_complexity} complexity
+                    </span>
                   </div>
-                  <Badge variant="secondary">
-                    {reportCtx.effort_estimate.fix_complexity} complexity
-                  </Badge>
+                  <p className="text-2xl font-bold text-[var(--vx-teal-bright,#0695A8)]">
+                    {reportCtx.effort_estimate.estimated_person_hours}h
+                  </p>
+                  <p className="text-xs text-[var(--vx-text-secondary,#4A6B84)] mt-1">
+                    {reportCtx.effort_estimate.estimation_basis}
+                  </p>
                 </div>
               )}
 
               {/* Fix sequence position */}
               {reportCtx.fix_sequence && (
-                <div className="rounded-md border border-border bg-background p-3">
-                  <span className="text-sm font-medium">
-                    Fix priority: #{reportCtx.fix_sequence.sequence}
-                  </span>
-                  <p className="text-xs text-muted-foreground">
+                <div className="border-l-[3px] border-[var(--vx-blue-bright,#1D6ECC)] pl-4 py-2">
+                  <p className="text-xs font-semibold text-[var(--vx-text-tertiary,#6B92AD)] mb-1">
+                    Fix priority #{reportCtx.fix_sequence.sequence}
+                  </p>
+                  <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)]">
                     {reportCtx.fix_sequence.reason}
                   </p>
                 </div>
@@ -704,8 +846,9 @@ function FindingDetail({
                     >
                       <p className="text-sm">{p.pattern_description}</p>
                       <p className="text-xs text-muted-foreground">
-                        Affects {p.shared_record_count.toLocaleString()} records
-                        across {p.affected_check_ids.join(", ")}
+                        Affects {p.shared_record_count.toLocaleString()}{" "}
+                        records across{" "}
+                        {p.affected_check_ids.join(", ")}
                       </p>
                       <p className="text-xs">{p.recommended_approach}</p>
                     </div>
@@ -722,24 +865,41 @@ function FindingDetail({
                   ))}
                 </Alert>
               )}
-
-              {/* No data from report yet */}
-              {!reportCtx.effort_estimate &&
-                !reportCtx.fix_sequence &&
-                reportCtx.cross_finding_patterns.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No cross-finding patterns detected for this check.
-                  </p>
-                )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Strategic remediation analysis is being generated.
+            </div>
+          ) : isReportCtxLoading ? (
+            <div className="space-y-3 py-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-10 w-1/2" />
+            </div>
+          ) : finding.remediation_text ? (
+            /* Fallback: show legacy remediation_text from Phase 3 */
+            <div className="bg-[#F0F5FA] rounded-lg p-4 border border-[var(--vx-border,#D6E4F0)]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vx-text-tertiary,#6B92AD)] mb-2">
+                Remediation guidance
               </p>
-              <Button variant="outline" size="sm" onClick={onRefresh}>
-                <RefreshCw className="mr-1.5 h-3 w-3" />
-                Refresh
+              <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)] leading-relaxed whitespace-pre-line">
+                {finding.remediation_text}
+              </p>
+            </div>
+          ) : (
+            /* No data at all */
+            <div className="text-center py-8 space-y-3">
+              <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)]">
+                Remediation guidance is generated during analysis. This
+                finding is from a previous run that pre-dates the AI
+                remediation feature.
+              </p>
+              <p className="text-xs text-[var(--vx-text-tertiary,#6B92AD)]">
+                Run a new analysis to generate effort estimates, fix
+                sequencing, and cross-finding pattern analysis.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNavigateUpload}
+              >
+                Run new analysis
               </Button>
             </div>
           )}
