@@ -1,0 +1,117 @@
+module: business_partner
+target_state: S4HANA_2023
+rules:
+  - id: BP001
+    field: BUT000.BU_TYPE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "BP type is mandatory in S/4HANA — missing value blocks migration"
+
+  - id: BP002
+    field: BUT000.PARTNER
+    check_class: regex_check
+    pattern: "^[0-9]{10}$"
+    severity: critical
+    dimension: validity
+    message: "BP number must be 10-digit numeric for S/4HANA conversion"
+
+  - id: BP003
+    field: ADR6.SMTP_ADDR
+    check_class: domain_value_check
+    allowed_values: null
+    format: email
+    severity: warning
+    dimension: completeness
+    message: "Email required for customer-facing BP in target state"
+
+  - id: BP004
+    field: BUT000.NAME_ORG1
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Organisation name is required for BP type 2 (organisation) in S/4HANA"
+
+  - id: BP005
+    field: BUT000.TITLE
+    check_class: domain_value_check
+    allowed_values: ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010"]
+    severity: medium
+    dimension: validity
+    message: "Title key must be a valid SAP title code (0001–0010)"
+
+  - id: BP006
+    field: ADRC.COUNTRY
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Country is mandatory for all business partners in S/4HANA"
+
+  - id: BP007
+    field: ADRC.CITY1
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "City is required for address validation in S/4HANA"
+
+  - id: BP008
+    field: ADRC.POST_CODE1
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Postal code improves address quality — recommended for migration"
+
+  - id: BP009
+    field: BUT000.PARTNER_GUID
+    check_class: regex_check
+    pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    severity: critical
+    dimension: validity
+    message: "Partner GUID must be valid UUID format for S/4HANA BP mapping"
+
+  - id: BP010
+    field: BUT100.RLTYP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "BP role type is required — determines partner function in S/4HANA"
+
+  - id: BP011
+    field: BUT000.BU_SORT1
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Search term 1 is recommended for efficient BP lookup in S/4HANA"
+
+  - id: BP012
+    field: ADR6.SMTP_ADDR
+    check_class: regex_check
+    pattern: "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"
+    severity: medium
+    dimension: validity
+    message: "Email address format is invalid — must be a valid SMTP address"
+
+  - id: BP013
+    field: BUT000.CREATED_AT
+    check_class: freshness_check
+    max_age_hours: 8760
+    severity: low
+    dimension: timeliness
+    message: "BP record older than 1 year — review if data is still current"
+
+  - id: BP014
+    field: BUT000.PARTNER
+    check_class: cross_field_check
+    fields: ["BUT000.PARTNER"]
+    condition: "~`BUT000.PARTNER`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: "Duplicate BP numbers detected — each partner must have a unique number"
+
+  - id: BP015
+    field: BUT000.BU_TYPE
+    check_class: domain_value_check
+    allowed_values: ["1", "2", "3"]
+    severity: critical
+    dimension: validity
+    message: "BP category must be 1 (person), 2 (organisation), or 3 (group)"

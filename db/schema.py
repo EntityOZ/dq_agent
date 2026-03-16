@@ -96,3 +96,28 @@ class Finding(Base):
         Index("ix_findings_tenant_version", "tenant_id", "version_id"),
         Index("ix_findings_tenant_module_severity", "tenant_id", "module", "severity"),
     )
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("analysis_versions.id"),
+        nullable=False,
+    )
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False
+    )
+    report_json = Column(JSONB, nullable=True)
+    pdf_path = Column(Text, nullable=True)
+    generated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    __table_args__ = (
+        Index("ix_reports_tenant_version", "tenant_id", "version_id"),
+    )

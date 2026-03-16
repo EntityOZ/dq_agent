@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vantax SAP Data Quality Report</title>
+    <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="report-header">
+        <h1>Vantax SAP Data Quality Report</h1>
+        <div class="subtitle">{{ tenant_name | default("SAP Data Quality Assessment", true) }}</div>
+        <div class="report-date">Generated: {{ report.generated_at[:10] }}</div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="executive-summary">
+        <h2>Executive Summary</h2>
+        <p>{{ report.executive_summary }}</p>
+    </div>
+
+    <!-- Overall DQS Score -->
+    <div class="dqs-score-box">
+        <div class="score">{{ "%.1f" | format(report.overall_dqs.composite) }}</div>
+        <div class="score-label">Overall Data Quality Score</div>
+    </div>
+
+    <!-- Migration Readiness Status -->
+    <div class="readiness-status {{ report.migration_readiness.overall_status | replace('_', '-') }}">
+        Migration Readiness: {{ report.migration_readiness.overall_status | upper }}
+    </div>
+
+    <!-- Module Overview Table -->
+    <h2>Module Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Module</th>
+                <th>DQS Score</th>
+                <th>Readiness</th>
+                <th>Critical Issues</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mod in report.modules %}
+            <tr>
+                <td>{{ mod.name | replace("_", " ") | title }}</td>
+                <td>{{ "%.1f" | format(mod.dqs_score) }}</td>
+                <td>
+                    <span class="severity {{ mod.readiness_status | replace('_', '-') }}">
+                        {{ mod.readiness_status }}
+                    </span>
+                </td>
+                <td>{{ mod.critical_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Findings by Severity -->
+    <h2>Findings Overview</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="severity critical">Critical</span></td>
+                <td>{{ report.findings_by_severity.critical }}</td>
+            </tr>
+            <tr>
+                <td><span class="severity high">High</span></td>
+                <td>{{ report.findings_by_severity.high }}</td>
+            </tr>
+            <tr>
+                <td><span class="severity medium">Medium</span></td>
+                <td>{{ report.findings_by_severity.medium }}</td>
+            </tr>
+            <tr>
+                <td><span class="severity low">Low</span></td>
+                <td>{{ report.findings_by_severity.low }}</td>
+            </tr>
+            <tr>
+                <td><strong>Total</strong></td>
+                <td><strong>{{ report.findings_by_severity.total }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Per-Module Detail -->
+    {% for mod in report.modules %}
+    <div class="module-section">
+        <h3>{{ mod.name | replace("_", " ") | title }}</h3>
+
+        <table>
+            <tr>
+                <td><strong>DQS Score</strong></td>
+                <td>{{ "%.1f" | format(mod.dqs_score) }}</td>
+                <td><strong>Readiness</strong></td>
+                <td>
+                    <span class="severity {{ mod.readiness_status | replace('_', '-') }}">
+                        {{ mod.readiness_status }}
+                    </span>
+                </td>
+            </tr>
+        </table>
+
+        {% if mod.root_causes %}
+        <h4>Root Causes</h4>
+        <ul>
+            {% for rc in mod.root_causes %}
+            <li>
+                <strong>{{ rc.root_cause }}</strong><br>
+                Impact: {{ rc.business_impact }}<br>
+                SAP Context: {{ rc.sap_context }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if mod.remediations %}
+        <h4>Top Remediations</h4>
+        {% for rem in mod.remediations[:5] %}
+        <p><strong>{{ rem.check_id }}</strong> ({{ rem.severity }}) — {{ rem.sap_transaction }}</p>
+        <ol>
+            {% for step in rem.fix_steps %}
+            <li>{{ step }}</li>
+            {% endfor %}
+        </ol>
+        <p><em>Estimated Effort: {{ rem.estimated_effort }}</em></p>
+        {% endfor %}
+        {% endif %}
+
+        {% if mod.blockers %}
+        <h4>Migration Blockers</h4>
+        <ul>
+            {% for blocker in mod.blockers %}
+            <li>{{ blocker }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if mod.conditions %}
+        <h4>Conditions</h4>
+        <ul>
+            {% for cond in mod.conditions %}
+            <li>{{ cond }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Migration Readiness Summary -->
+    <h2>Migration Readiness</h2>
+    <p><strong>Overall Status:</strong> {{ report.migration_readiness.overall_status | upper }}</p>
+    <p><strong>Overall Score:</strong> {{ "%.1f" | format(report.migration_readiness.overall_score) }}</p>
+    <p>{{ report.migration_readiness.summary }}</p>
+
+    <!-- Footer -->
+    <div class="report-footer">
+        Generated by Vantax SAP Data Quality Agent — Confidential
+    </div>
+</body>
+</html>
