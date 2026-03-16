@@ -17,6 +17,22 @@ from llm.provider import get_llm
 logger = logging.getLogger("vantax.agents.remediation")
 
 
+def _trim_finding_for_remediation(finding: dict) -> dict:
+    """Strip large fields the remediation agent doesn't need to keep token count low."""
+    rule_ctx = finding.get("rule_context") or {}
+    return {
+        "check_id": finding.get("check_id"),
+        "severity": finding.get("severity"),
+        "dimension": finding.get("dimension"),
+        "affected_count": finding.get("affected_count"),
+        "total_count": finding.get("total_count"),
+        "pass_rate": finding.get("pass_rate"),
+        "message": finding.get("message"),
+        "why_it_matters": (rule_ctx.get("why_it_matters") or "")[:200],
+        "sap_impact": (rule_ctx.get("sap_impact") or "")[:100],
+    }
+
+
 def _render_user_prompt(findings: list[dict], root_causes: list[dict]) -> str:
     template = Template(REMEDIATION_USER_TEMPLATE)
     return template.render(
@@ -26,19 +42,52 @@ def _render_user_prompt(findings: list[dict], root_causes: list[dict]) -> str:
 
 
 def _parse_response(content: str) -> dict | None:
-    """Parse LLM response JSON. Returns None on failure."""
+    """Parse LLM response JSON. Handles markdown fences and embedded JSON."""
     try:
         text = content.strip()
+
+        # Strip markdown code fences (```json ... ``` or ``` ... ```)
         if text.startswith("```"):
             text = text.split("\n", 1)[1] if "\n" in text else text[3:]
             if text.endswith("```"):
                 text = text[:-3]
             text = text.strip()
-        data = json.loads(text)
-        # Validate expected keys exist
-        if not isinstance(data, dict):
-            return None
-        return data
+
+        # Try direct parse first
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+
+        # Try to extract JSON object from surrounding text
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                data = json.loads(text[start : end + 1])
+                if isinstance(data, dict):
+                    return data
+            except json.JSONDecodeError:
+                pass
+
+        # Handle truncated JSON — close open brackets and retry
+        if start != -1:
+            fragment = text[start:]
+            open_braces = fragment.count("{") - fragment.count("}")
+            open_brackets = fragment.count("[") - fragment.count("]")
+            if open_braces > 0 or open_brackets > 0:
+                repaired = fragment + '""' + "]" * open_brackets + "}" * open_braces
+                try:
+                    data = json.loads(repaired)
+                    if isinstance(data, dict):
+                        logger.warning("Remediation: repaired truncated JSON")
+                        return data
+                except json.JSONDecodeError:
+                    pass
+
+        return None
     except (json.JSONDecodeError, AttributeError):
         return None
 
@@ -61,28 +110,42 @@ def _call_llm(
         {"role": "user", "content": user_prompt},
     ]
 
-    try:
-        response = llm.invoke(messages)
-        result = _parse_response(response.content)
+    import time
 
-        if result is None:
-            # Retry once
-            logger.warning("Remediation: invalid JSON on first attempt, retrying")
+    for attempt in range(3):
+        try:
+            if attempt > 0:
+                logger.info(f"Remediation: attempt {attempt + 1} after {attempt * 5}s backoff")
+                time.sleep(attempt * 5)
+
+            response = llm.invoke(messages, max_tokens=8192)
+            result = _parse_response(response.content)
+
+            if result is not None:
+                return result, None
+
+            # Invalid JSON — log details and try a corrective retry
+            logger.warning(
+                f"Remediation: invalid JSON on attempt {attempt + 1} "
+                f"(len={len(response.content)}, "
+                f"ends='{response.content[-80:]}')"
+            )
             retry_messages = messages + [
                 {"role": "assistant", "content": response.content},
                 {"role": "user", "content": "Your response was not valid JSON. Please respond with ONLY valid JSON matching the schema. No markdown, no explanation."},
             ]
-            response = llm.invoke(retry_messages)
+            response = llm.invoke(retry_messages, max_tokens=8192)
             result = _parse_response(response.content)
 
-            if result is None:
-                return None, "Remediation agent failed: LLM returned invalid JSON after retry"
+            if result is not None:
+                return result, None
 
-        return result, None
+        except Exception as e:
+            logger.warning(f"Remediation attempt {attempt + 1} failed: {e}")
+            if attempt == 2:
+                return None, f"Remediation agent failed after 3 attempts: {e}"
 
-    except Exception as e:
-        logger.error(f"Remediation LLM call failed: {e}")
-        return None, f"Remediation agent failed: {e}"
+    return None, "Remediation agent failed: LLM returned invalid JSON after all attempts"
 
 
 def remediation_node(state: AgentState) -> dict:
@@ -98,8 +161,10 @@ def remediation_node(state: AgentState) -> dict:
             "flags": [],
         }}
 
+    trimmed = [_trim_finding_for_remediation(f) for f in findings]
+
     llm = get_llm()
-    result, error = _call_llm(llm, findings, root_causes)
+    result, error = _call_llm(llm, trimmed, root_causes)
 
     if error:
         return {"error": error}
