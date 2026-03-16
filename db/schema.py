@@ -83,6 +83,9 @@ class Finding(Base):
     pass_rate = Column(Numeric, nullable=True)
     details = Column(JSONB, nullable=True)
     remediation_text = Column(Text, nullable=True)
+    rule_context = Column(JSONB, nullable=True)
+    value_fix_map = Column(JSONB, nullable=True)
+    record_fixes = Column(JSONB, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,

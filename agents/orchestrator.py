@@ -72,11 +72,14 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
         modules = metadata.get("modules", [])
 
         # Load findings — summaries only, never raw data
+        # Include rule_context and value_fix_map so agents know about
+        # deterministic fixes (no raw SAP records are included)
         findings_result = await db.execute(
             text("""
                 SELECT check_id, module, severity, dimension,
                        affected_count, total_count, pass_rate,
-                       details->>'message' as message
+                       details->>'message' as message,
+                       rule_context, value_fix_map
                 FROM findings
                 WHERE version_id = :vid AND tenant_id = :tid
             """),
@@ -88,7 +91,7 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
 
     findings_summary = []
     for r in findings_rows:
-        findings_summary.append({
+        entry = {
             "check_id": r[0],
             "module": r[1],
             "severity": r[2],
@@ -97,7 +100,13 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
             "total_count": r[5],
             "pass_rate": float(r[6]) if r[6] is not None else 0.0,
             "message": r[7] or "",
-        })
+        }
+        # Include deterministic fix context for agents (no raw records)
+        if r[8]:
+            entry["rule_context"] = r[8]
+        if r[9]:
+            entry["value_fix_map"] = r[9]
+        findings_summary.append(entry)
 
     # Build DQS scores dict for state
     dqs_scores = {}
@@ -117,7 +126,7 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
         "findings_summary": findings_summary,
         "dqs_scores": dqs_scores,
         "root_causes": [],
-        "remediations": [],
+        "remediations": {},
         "readiness_scores": {},
         "report": None,
         "error": None,

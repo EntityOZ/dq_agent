@@ -18,6 +18,9 @@ class FindingCreate(BaseModel):
     pass_rate: float | None = None
     details: dict | None = None
     remediation_text: str | None = None
+    rule_context: dict | None = None
+    value_fix_map: dict | None = None
+    record_fixes: list | None = None
 
 
 async def bulk_insert_findings(
@@ -40,6 +43,9 @@ async def bulk_insert_findings(
             pass_rate=f.pass_rate,
             details=f.details,
             remediation_text=f.remediation_text,
+            rule_context=f.rule_context,
+            value_fix_map=f.value_fix_map,
+            record_fixes=f.record_fixes,
         )
         for f in findings
     ]

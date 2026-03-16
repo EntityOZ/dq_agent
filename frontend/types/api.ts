@@ -73,6 +73,32 @@ export type Dimension =
   | "uniqueness"
   | "validity";
 
+export interface RuleContext {
+  why_it_matters: string;
+  rule_authority:
+    | "sap_hard_constraint"
+    | "s4hana_migration"
+    | "best_practice"
+    | "customer_configured";
+  sap_impact: string;
+  valid_values_with_labels?: Record<string, string>;
+}
+
+export interface ValueFixEntry {
+  invalid_value: string;
+  fix_instruction: string;
+  suggested_value: string | null;
+  sql_statement: string | null;
+}
+
+export interface RecordFixEntry {
+  record_id: string;
+  id_field: string;
+  invalid_value: string;
+  fix_instruction: string;
+  sql_statement: string | null;
+}
+
 export interface Finding {
   id: string;
   module: string;
@@ -85,10 +111,44 @@ export interface Finding {
   details: {
     message?: string;
     sample_failing_records?: Record<string, unknown>[];
+    distinct_invalid_values?: Record<string, number>;
+    id_field_used?: string;
+    field_checked?: string;
     [key: string]: unknown;
   };
   remediation_text: string | null;
+  rule_context: RuleContext | null;
+  value_fix_map: Record<string, ValueFixEntry> | null;
+  record_fixes: RecordFixEntry[] | null;
   created_at: string;
+}
+
+export interface FindingReportContext {
+  finding_id: string;
+  check_id: string;
+  module: string;
+  report_context: {
+    cross_finding_patterns: Array<{
+      pattern_description: string;
+      affected_check_ids: string[];
+      shared_record_count: number;
+      recommended_approach: string;
+    }>;
+    effort_estimate: {
+      check_id: string;
+      affected_count: number;
+      fix_complexity: string;
+      estimated_person_hours: number;
+      estimation_basis: string;
+    } | null;
+    fix_sequence: {
+      sequence: number;
+      check_id: string;
+      reason: string;
+    } | null;
+    flags: Array<{ check_id: string; flag: string }>;
+    executive_summary: string | null;
+  } | null;
 }
 
 export interface FindingList {

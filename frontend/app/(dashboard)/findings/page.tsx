@@ -17,13 +17,23 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { getVersions } from "@/lib/api/versions";
-import { getFindings } from "@/lib/api/findings";
+import { getFindings, getFindingReportContext } from "@/lib/api/findings";
 import {
   severityColor,
   formatModuleName,
   passRateColor,
 } from "@/lib/format";
-import type { Finding, Severity, Dimension } from "@/types/api";
+import { Copy, Check } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { AlertTitle } from "@/components/ui/alert";
+import type { Finding, Severity, Dimension, FindingReportContext } from "@/types/api";
 
 const SEVERITIES: Severity[] = ["critical", "high", "medium", "low"];
 const DIMENSIONS: Dimension[] = [
@@ -326,7 +336,7 @@ function FindingsContent() {
           if (!open) setSelectedFinding(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl lg:w-2/3">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-4xl lg:w-3/4">
           {selectedFinding && (
             <FindingDetail
               finding={selectedFinding}
@@ -346,6 +356,60 @@ function FindingsContent() {
   );
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 px-1.5"
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-green-600" />
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </Button>
+  );
+}
+
+function authorityVariant(
+  authority: string,
+): "destructive" | "secondary" | "outline" | "default" {
+  switch (authority) {
+    case "sap_hard_constraint":
+      return "destructive";
+    case "s4hana_migration":
+      return "default";
+    case "best_practice":
+      return "secondary";
+    case "customer_configured":
+      return "outline";
+    default:
+      return "outline";
+  }
+}
+
+function authorityLabel(authority: string): string {
+  switch (authority) {
+    case "sap_hard_constraint":
+      return "SAP Hard Constraint";
+    case "s4hana_migration":
+      return "S/4HANA Migration Requirement";
+    case "best_practice":
+      return "Best Practice";
+    case "customer_configured":
+      return "Customer Configured";
+    default:
+      return authority;
+  }
+}
+
 function FindingDetail({
   finding,
   onRefresh,
@@ -354,30 +418,23 @@ function FindingDetail({
   onRefresh: () => void;
 }) {
   const samples = finding.details?.sample_failing_records ?? [];
-  const distinctInvalid = finding.details?.distinct_invalid_values as
-    | Record<string, number>
-    | undefined;
+  const distinctInvalid = finding.details?.distinct_invalid_values;
+  const ruleCtx = finding.rule_context;
+  const valueFixes = finding.value_fix_map;
+  const recordFixes = finding.record_fixes;
+  const checkField = finding.details?.field_checked as string | undefined;
 
-  // Extract SAP transaction from remediation text
-  const sapTxMatch = finding.remediation_text?.match(
-    /SAP Transaction:\s*(.+?)(?:\n|$)/,
-  );
-  const sapTx = sapTxMatch?.[1]?.trim();
-
-  // Extract estimated effort
-  const effortMatch = finding.remediation_text?.match(
-    /Estimated Effort:\s*(.+?)(?:\n|$)/,
-  );
-  const effort = effortMatch?.[1]?.trim();
-
-  // Clean remediation text (remove the metadata lines for display)
-  const cleanRemediation = finding.remediation_text
-    ?.replace(/\n\nSAP Transaction:.*$/s, "")
-    ?.trim();
+  // Fetch report context for Panel 3
+  const { data: reportCtxData } = useQuery({
+    queryKey: ["finding-report-context", finding.id],
+    queryFn: () => getFindingReportContext(finding.id),
+    enabled: !!finding.id,
+  });
+  const reportCtx = reportCtxData?.report_context;
 
   return (
     <div className="space-y-6">
-      {/* SECTION 1: Summary */}
+      {/* Header */}
       <SheetHeader>
         <SheetTitle className="font-mono text-lg">{finding.check_id}</SheetTitle>
       </SheetHeader>
@@ -391,19 +448,9 @@ function FindingDetail({
           {finding.severity}
         </Badge>
         <Badge variant="outline">{finding.dimension}</Badge>
-        {finding.details?.field_checked && (
+        {checkField && (
           <Badge variant="secondary" className="font-mono text-xs">
-            {String(finding.details.field_checked)}
-          </Badge>
-        )}
-        {sapTx && (
-          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">
-            SAP Transaction: {sapTx}
-          </Badge>
-        )}
-        {effort && (
-          <Badge variant="outline" className="text-xs">
-            {effort}
+            {checkField}
           </Badge>
         )}
       </div>
@@ -432,100 +479,274 @@ function FindingDetail({
         </div>
       </div>
 
-      {/* SECTION 2: Failing records */}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold">
-          {samples.length > 0
-            ? `Sample Failing Records (showing up to ${Math.min(samples.length, 10)})`
-            : "Record Detail"}
-        </h4>
-
-        {samples.length > 0 ? (
-          <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b bg-accent">
-                  {Object.keys(samples[0]).map((k) => (
-                    <th key={k} className="px-3 py-2 text-left font-medium">
-                      {k}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {samples.slice(0, 10).map((row, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-border/50 hover:bg-accent/30"
-                  >
-                    {Object.values(row).map((v, j) => (
-                      <td key={j} className="px-3 py-1.5 font-mono">
-                        {String(v ?? "null")}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">
-            Record detail not available for this check.
-          </p>
-        )}
-      </div>
-
-      {/* Distinct invalid values (for domain_value_check) */}
-      {distinctInvalid && Object.keys(distinctInvalid).length > 0 && (
-        <div>
-          <h4 className="mb-2 text-sm font-semibold">
-            Most Common Invalid Values
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(distinctInvalid)
-              .slice(0, 10)
-              .map(([val, count]) => (
-                <Badge
-                  key={val}
-                  variant="outline"
-                  className="font-mono text-xs"
-                >
-                  {val === "" ? "''" : `"${val}"`}: {count.toLocaleString()}
-                </Badge>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* SECTION 3: Remediation guidance */}
-      {cleanRemediation ? (
-        <Card className="border-[#0F6E56]/30 bg-[#0F6E56]/5">
+      {/* ─── PANEL 1: Why this rule exists ─── */}
+      {ruleCtx && (
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">How to Fix This</CardTitle>
+            <CardTitle className="text-sm">Why this rule exists</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1 text-sm">
-              {cleanRemediation.split("\n").map((line, i) => (
-                <p key={i} className={line.trim() === "" ? "h-2" : ""}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Remediation guidance is being generated. Refresh in a moment.
-            </p>
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              <RefreshCw className="mr-1.5 h-3 w-3" />
-              Refresh findings
-            </Button>
+          <CardContent className="space-y-3">
+            <Badge variant={authorityVariant(ruleCtx.rule_authority)}>
+              {authorityLabel(ruleCtx.rule_authority)}
+            </Badge>
+
+            <p className="text-sm leading-relaxed">{ruleCtx.why_it_matters}</p>
+
+            {finding.severity === "critical" && ruleCtx.sap_impact ? (
+              <Alert variant="destructive">
+                <AlertTitle>SAP impact</AlertTitle>
+                <AlertDescription>{ruleCtx.sap_impact}</AlertDescription>
+              </Alert>
+            ) : ruleCtx.sap_impact ? (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">SAP impact:</span>{" "}
+                {ruleCtx.sap_impact}
+              </p>
+            ) : null}
+
+            {ruleCtx.valid_values_with_labels &&
+              Object.keys(ruleCtx.valid_values_with_labels).length > 0 && (
+                <div>
+                  <h4 className="mb-1 text-xs font-semibold">Valid values</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-20">Code</TableHead>
+                        <TableHead>Meaning</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(ruleCtx.valid_values_with_labels).map(
+                        ([code, label]) => (
+                          <TableRow key={code}>
+                            <TableCell>
+                              <code className="text-xs">{code}</code>
+                            </TableCell>
+                            <TableCell className="text-xs">{label}</TableCell>
+                          </TableRow>
+                        ),
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
           </CardContent>
         </Card>
       )}
+
+      {/* ─── PANEL 2: Failing records with recommended fix ─── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">
+            Failing records
+            <span className="ml-1 font-normal text-muted-foreground">
+              (showing {Math.min(samples.length, 10)} of{" "}
+              {finding.affected_count.toLocaleString()})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {samples.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Record ID</TableHead>
+                    <TableHead>Field</TableHead>
+                    <TableHead>Invalid value</TableHead>
+                    <TableHead>Recommended fix</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {samples.slice(0, 10).map((record, idx) => {
+                    const fix = recordFixes?.[idx];
+                    const idField =
+                      finding.details?.id_field_used as string | undefined;
+                    const invalidVal = checkField
+                      ? String(record[checkField] ?? "")
+                      : "";
+                    const valueFix = valueFixes?.[invalidVal];
+
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="font-mono text-xs">
+                          {fix?.record_id ??
+                            (idField ? String(record[idField] ?? "") : "—")}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {checkField ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {invalidVal === "" ? (
+                              <em>blank</em>
+                            ) : (
+                              invalidVal
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-sm text-xs">
+                          <div className="space-y-1">
+                            <p>
+                              {fix?.fix_instruction ??
+                                valueFix?.fix_instruction ??
+                                "—"}
+                            </p>
+                            {fix?.sql_statement && (
+                              <div className="flex items-center gap-1 rounded bg-accent p-1.5">
+                                <code className="text-[11px]">
+                                  {fix.sql_statement}
+                                </code>
+                                <CopyButton text={fix.sql_statement} />
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-sm italic text-muted-foreground">
+              Record detail not available for this check.
+            </p>
+          )}
+
+          {/* Distinct invalid values summary */}
+          {distinctInvalid &&
+            Object.keys(distinctInvalid).length > 1 && (
+              <div>
+                <h5 className="mb-2 text-xs font-semibold">
+                  All invalid values found in this dataset
+                </h5>
+                <div className="space-y-1">
+                  {Object.entries(distinctInvalid)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([val, count]) => {
+                      const fix = valueFixes?.[val];
+                      return (
+                        <div
+                          key={val}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <Badge variant="outline" className="font-mono">
+                            {val === "" ? "blank" : val}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {count.toLocaleString()} records
+                          </span>
+                          {fix?.fix_instruction && (
+                            <span className="truncate text-muted-foreground">
+                              {fix.fix_instruction.slice(0, 80)}
+                              {fix.fix_instruction.length > 80 ? "..." : ""}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+        </CardContent>
+      </Card>
+
+      {/* ─── PANEL 3: Remediation guidance (updated) ─── */}
+      <Card className="border-[#0F6E56]/30 bg-[#0F6E56]/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Remediation guidance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {reportCtx ? (
+            <>
+              {/* Effort estimate */}
+              {reportCtx.effort_estimate && (
+                <div className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Estimated effort
+                    </span>
+                    <p className="text-lg font-bold">
+                      {reportCtx.effort_estimate.estimated_person_hours}{" "}
+                      person-hours
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {reportCtx.effort_estimate.estimation_basis}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {reportCtx.effort_estimate.fix_complexity} complexity
+                  </Badge>
+                </div>
+              )}
+
+              {/* Fix sequence position */}
+              {reportCtx.fix_sequence && (
+                <div className="rounded-md border border-border bg-background p-3">
+                  <span className="text-sm font-medium">
+                    Fix priority: #{reportCtx.fix_sequence.sequence}
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    {reportCtx.fix_sequence.reason}
+                  </p>
+                </div>
+              )}
+
+              {/* Cross-finding patterns */}
+              {reportCtx.cross_finding_patterns.length > 0 && (
+                <div>
+                  <h5 className="mb-1 text-xs font-semibold">
+                    Connected to other findings
+                  </h5>
+                  {reportCtx.cross_finding_patterns.map((p, i) => (
+                    <div
+                      key={i}
+                      className="mb-2 rounded-md border border-border bg-background p-3"
+                    >
+                      <p className="text-sm">{p.pattern_description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Affects {p.shared_record_count.toLocaleString()} records
+                        across {p.affected_check_ids.join(", ")}
+                      </p>
+                      <p className="text-xs">{p.recommended_approach}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Flags */}
+              {reportCtx.flags.length > 0 && (
+                <Alert>
+                  <AlertTitle>Note from AI analysis</AlertTitle>
+                  {reportCtx.flags.map((f, i) => (
+                    <AlertDescription key={i}>{f.flag}</AlertDescription>
+                  ))}
+                </Alert>
+              )}
+
+              {/* No data from report yet */}
+              {!reportCtx.effort_estimate &&
+                !reportCtx.fix_sequence &&
+                reportCtx.cross_finding_patterns.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No cross-finding patterns detected for this check.
+                  </p>
+                )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Strategic remediation analysis is being generated.
+              </p>
+              <Button variant="outline" size="sm" onClick={onRefresh}>
+                <RefreshCw className="mr-1.5 h-3 w-3" />
+                Refresh
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

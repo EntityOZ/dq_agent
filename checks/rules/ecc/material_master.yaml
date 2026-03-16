@@ -7,6 +7,27 @@ rules:
     severity: critical
     dimension: completeness
     message: "Material type is mandatory — determines procurement and storage behaviour in S/4HANA"
+    why_it_matters: >-
+      Material type is the most fundamental classification in the Material Master.
+      It controls which organisational levels are maintained, which fields are
+      required, which procurement processes apply, and which valuation class is
+      used for accounting. A material without a type cannot be used in any SAP process.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material cannot be created or used in MM, PP, SD, or FI without a valid
+      material type. Affects MRP (MD01), goods movements (MIGO), and all
+      purchasing processes (ME21N).
+    fix_map:
+      __blank__: >-
+        Material type is missing. Determine correct type from the material's
+        purpose: FERT (finished), HALB (semi-finished), ROH (raw), HAWA (trading).
+        Set via transaction MM02 > Organisational levels.
+      __null__: >-
+        Field was never populated. Check source system and classify before
+        migration. All materials must have a type before go-live.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MTART is {actual_value}. Set material type via
+      MM02. Select the correct type based on procurement and production usage.
 
   - id: MM002
     field: MARA.MTART
@@ -15,6 +36,31 @@ rules:
     severity: critical
     dimension: validity
     message: "Material type must be a valid SAP material type for S/4HANA migration"
+    why_it_matters: >-
+      Only standard SAP material types are supported in the target system.
+      Custom or non-standard types must be mapped to valid types before migration
+      or configured via transaction OMS2 in the target system.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Migration conversion rejects unknown material types. Materials with invalid
+      types cannot be created in the target system.
+    valid_values_with_labels:
+      "FERT": "Finished product — manufactured and sold"
+      "HALB": "Semi-finished product — used in production"
+      "ROH": "Raw material — purchased for production"
+      "HAWA": "Trading goods — purchased and sold without processing"
+      "DIEN": "Service — non-physical service item"
+      "NLAG": "Non-stock material — consumed directly on purchase"
+      "ERSA": "Spare part — maintenance and repair"
+      "IBAU": "Maintenance assembly — equipment structure"
+    fix_map:
+      __other__: >-
+        Material type '{invalid_value}' is not in the allowed list for this system.
+        Map to the nearest valid type or extend the allowed values via
+        configuration (transaction OMS2) if this is a custom material type.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MTART is '{actual_value}'. Map to a valid SAP
+      material type or configure via transaction OMS2.
 
   - id: MM003
     field: MARA.MEINS
@@ -22,6 +68,25 @@ rules:
     severity: critical
     dimension: completeness
     message: "Base unit of measure is mandatory for all materials in S/4HANA"
+    why_it_matters: >-
+      MEINS is the base unit of measure for all stock quantities, goods movements,
+      and inventory management. Without it, no quantity-based transaction can
+      process this material — it is a hard requirement for material creation.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material cannot be created. All goods movements (MIGO), purchase orders
+      (ME21N), production orders (CO01), and inventory counts (MI01) fail.
+    fix_map:
+      __blank__: >-
+        Base UoM is empty. Determine the correct unit from the material's
+        primary usage — EA (each), KG (kilogram), L (litre), M (metre).
+        Set via transaction MM02 > Basic Data 1.
+      __null__: >-
+        Base UoM was never populated. All materials must have a UoM.
+        Set via transaction MM02 > Basic Data 1.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MEINS is {actual_value}. Set the base unit of
+      measure via MM02 > Basic Data 1 tab.
 
   - id: MM004
     field: MARA.MBRSH
@@ -29,6 +94,26 @@ rules:
     severity: high
     dimension: completeness
     message: "Industry sector is required for material classification in S/4HANA"
+    why_it_matters: >-
+      Industry sector (MBRSH) determines which user department screens and field
+      selection rules apply to the material master. It must be set at material
+      creation and cannot be changed afterward.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Material master screen layout is incorrect. Field selections defined per
+      industry sector will not apply, leading to missing required fields.
+    fix_map:
+      __blank__: >-
+        Industry sector is empty. Common values: M (mechanical engineering),
+        C (chemical), P (pharmaceutical), A (plant engineering). Set during
+        material creation via MM01 or update via direct table maintenance.
+      __null__: >-
+        Industry sector was never assigned. Must be set before migration.
+        Coordinate with functional team for correct classification.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MBRSH is {actual_value}. Assign the industry
+      sector. Note: this field cannot be changed after material creation —
+      may require material recreation.
 
   - id: MM005
     field: MARA.MATKL
@@ -36,6 +121,24 @@ rules:
     severity: high
     dimension: completeness
     message: "Material group is required for reporting and procurement in S/4HANA"
+    why_it_matters: >-
+      Material group (MATKL) is used for spend analysis, procurement reporting,
+      and automatic source determination. It is a key classification field for
+      all MM reporting and is required for many purchasing workflows.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Spend analysis and procurement reporting are incomplete. Automatic source
+      determination (ME21N) and reporting by material group fail.
+    fix_map:
+      __blank__: >-
+        Material group is empty. Assign based on the material's commodity
+        classification. Check existing material groups in table T023 or via
+        transaction OMSF. Set via MM02 > Basic Data 1.
+      __null__: >-
+        Material group was never populated. Classify and assign via MM02.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MATKL is {actual_value}. Assign a material group
+      via transaction MM02 > Basic Data 1 tab.
 
   - id: MM006
     field: MARA.MATNR
@@ -44,6 +147,23 @@ rules:
     severity: critical
     dimension: validity
     message: "Material number must be 1-18 chars alphanumeric (uppercase), hyphens, or underscores"
+    why_it_matters: >-
+      SAP material numbers are limited to 18 characters and must be uppercase
+      alphanumeric with hyphens and underscores. Lowercase characters and
+      special characters are rejected by the material master.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material cannot be created. All references to this material number in
+      BOMs, purchase orders, and production orders will be invalid.
+    fix_map:
+      __other__: >-
+        Material number does not conform to the required format. Convert to
+        uppercase, remove special characters, and ensure length is 1-18.
+        Use LSMW or a conversion program for bulk reformatting. Update all
+        referencing documents (BOMs, POs, routing) accordingly.
+    record_fix_template: >-
+      Material {MARA.MATNR}: number format is invalid (value: '{actual_value}').
+      Reformat to uppercase alphanumeric (max 18 chars) and update references.
 
   - id: MM007
     field: MARD.WERKS
@@ -51,6 +171,25 @@ rules:
     severity: critical
     dimension: completeness
     message: "Plant is mandatory for material storage location in S/4HANA"
+    why_it_matters: >-
+      Plant (WERKS) is a mandatory organisational level for material storage,
+      procurement, and production planning. Without a plant assignment, the
+      material cannot be stocked, ordered, or produced.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material cannot be used in any plant-level transaction: goods receipt
+      (MIGO), purchase orders (ME21N), production orders (CO01), MRP (MD01).
+    fix_map:
+      __blank__: >-
+        Plant is not assigned. Extend the material to the correct plant via
+        transaction MM01 (extend view) or MM02. Determine the correct plant
+        from the material's procurement or production location.
+      __null__: >-
+        Plant was never assigned. Material must be extended to at least one
+        plant before it can be used. Use MM01 to extend.
+    record_fix_template: >-
+      Material {MARA.MATNR}: WERKS is {actual_value}. Extend the material
+      to the correct plant via transaction MM01.
 
   - id: MM008
     field: MARA.NTGEW
@@ -58,6 +197,24 @@ rules:
     severity: medium
     dimension: completeness
     message: "Net weight is recommended for logistics and shipping calculations"
+    why_it_matters: >-
+      Net weight is used in shipping calculations, transportation planning,
+      and customs declarations. While not always mandatory, missing weight
+      data causes inaccurate logistics planning and may block customs processes.
+    rule_authority: best_practice
+    sap_impact: >-
+      Shipping weight calculations in delivery processing (VL01N) are inaccurate.
+      Transportation planning (VT01N) and customs declarations may fail.
+    fix_map:
+      __blank__: >-
+        Net weight is not populated. Obtain from product specifications or
+        weighing data and set via transaction MM02 > Basic Data 1.
+      __null__: >-
+        Net weight was never entered. Set via MM02 > Basic Data 1 with the
+        correct weight unit (GEWEI).
+    record_fix_template: >-
+      Material {MARA.MATNR}: NTGEW is {actual_value}. Set the net weight
+      via transaction MM02 > Basic Data 1 tab.
 
   - id: MM009
     field: MARA.GEWEI
@@ -66,6 +223,30 @@ rules:
     severity: medium
     dimension: validity
     message: "Weight unit must be a valid ISO unit (KG, G, LB, OZ, T)"
+    why_it_matters: >-
+      Weight unit must be a recognised ISO unit for correct weight conversions
+      across logistics, shipping, and customs. Invalid units cause conversion
+      errors in all weight-dependent calculations.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Weight conversions in delivery processing and transportation planning
+      produce incorrect results. Customs declarations may be rejected.
+    valid_values_with_labels:
+      "KG": "Kilogram"
+      "G": "Gram"
+      "LB": "Pound"
+      "OZ": "Ounce"
+      "T": "Metric ton"
+    fix_map:
+      __blank__: >-
+        Weight unit is empty. If net weight is populated, a unit is required.
+        Set to KG (default) or the appropriate unit via MM02 > Basic Data 1.
+      __other__: >-
+        Weight unit '{invalid_value}' is not a valid ISO unit. Map to the
+        nearest valid unit (KG, G, LB, OZ, T) via transaction MM02.
+    record_fix_template: >-
+      Material {MARA.MATNR}: GEWEI is '{actual_value}'. Set to a valid
+      weight unit via transaction MM02 > Basic Data 1.
 
   - id: MM010
     field: MARA.BISMT
@@ -73,6 +254,24 @@ rules:
     severity: low
     dimension: completeness
     message: "Old material number is recommended for traceability during migration"
+    why_it_matters: >-
+      BISMT stores the old material number from the source system. It is
+      essential for post-migration traceability, allowing users to look up
+      materials by their legacy number during the transition period.
+    rule_authority: best_practice
+    sap_impact: >-
+      Users cannot cross-reference materials between old and new systems.
+      Post-migration support and data reconciliation are more difficult.
+    fix_map:
+      __blank__: >-
+        Old material number is empty. Populate with the source system material
+        number for traceability. Set via transaction MM02 > Basic Data 1.
+      __null__: >-
+        Old material number was never populated. If a legacy number exists,
+        set it via MM02 for migration traceability.
+    record_fix_template: >-
+      Material {MARA.MATNR}: BISMT is {actual_value}. Populate with the
+      source system material number via MM02 > Basic Data 1.
 
   - id: MM011
     field: MARA.LAEDA
@@ -81,6 +280,24 @@ rules:
     severity: medium
     dimension: timeliness
     message: "Material not updated in 2+ years — review if data is still current"
+    why_it_matters: >-
+      Materials not updated in over 2 years may contain obsolete pricing,
+      outdated specifications, or discontinued procurement sources. Migrating
+      stale material data increases post-go-live cleanup effort significantly.
+    rule_authority: best_practice
+    sap_impact: >-
+      Procurement with outdated info sources (ME21N), MRP with stale lead
+      times (MD01), and valuation with old prices (CK11N) produce incorrect
+      results.
+    fix_map:
+      __other__: >-
+        Material has not been updated in over 2 years. Review with the business
+        owner: if still active, refresh all master data views. If discontinued,
+        set status to blocked (MSTAE = KL) before migration to avoid migrating
+        dead data.
+    record_fix_template: >-
+      Material {MARA.MATNR}: last updated {actual_value}. Review if this
+      material is still active. Refresh or block as appropriate.
 
   - id: MM012
     field: MARA.EAN11
@@ -89,6 +306,23 @@ rules:
     severity: medium
     dimension: validity
     message: "GTIN/EAN must be 8-14 digit numeric barcode"
+    why_it_matters: >-
+      EAN/GTIN is the international barcode standard used in warehouse
+      operations, POS systems, and electronic data interchange (EDI).
+      Invalid barcodes cause scanning failures and EDI message rejections.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Warehouse goods movements via barcode scanning (LT01, LT10) fail.
+      EDI purchase orders and delivery notes (DESADV, ORDERS) are rejected
+      by trading partners.
+    fix_map:
+      __other__: >-
+        EAN/GTIN format is invalid. Must be 8-14 numeric digits (EAN-8,
+        EAN-13, GTIN-14). Verify the correct barcode from product packaging
+        or GS1 registry. Update via transaction MM02 > Basic Data 1.
+    record_fix_template: >-
+      Material {MARA.MATNR}: EAN11 is '{actual_value}'. Correct the barcode
+      format (8-14 numeric digits) via MM02 > Basic Data 1.
 
   - id: MM013
     field: MARA.MSTAE
@@ -97,6 +331,35 @@ rules:
     severity: high
     dimension: validity
     message: "Cross-plant material status must be a valid SAP status code"
+    why_it_matters: >-
+      Cross-plant material status (MSTAE) controls which business processes
+      are allowed for the material across all plants. Invalid status codes
+      cause unpredictable behaviour in procurement, production, and sales.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material behaviour is undefined. Procurement (ME21N), production (CO01),
+      and sales (VA01) may allow or block transactions incorrectly.
+    valid_values_with_labels:
+      "10": "Created — basic data maintained"
+      "20": "In preparation — not yet released"
+      "30": "Released — available for all processes"
+      "40": "Blocked — no new transactions allowed"
+      "KK": "Blocked for costing"
+      "KL": "Blocked for storage location"
+      "KP": "Blocked for procurement"
+      "KW": "Blocked for quality management"
+      "VP": "Blocked for production"
+    fix_map:
+      __blank__: >-
+        Material status is not set. Assign the appropriate status code based
+        on the material's lifecycle stage. Use 30 for active materials.
+        Set via transaction MM02 > Basic Data 1.
+      __other__: >-
+        Material status '{invalid_value}' is not a valid SAP status code.
+        Map to the correct status or configure via transaction OMS4.
+    record_fix_template: >-
+      Material {MARA.MATNR}: MSTAE is '{actual_value}'. Assign a valid status
+      code via transaction MM02 > Basic Data 1.
 
   - id: MM014
     field: MBEW.VPRSV
@@ -105,6 +368,29 @@ rules:
     severity: critical
     dimension: validity
     message: "Price control indicator must be S (standard) or V (moving average)"
+    why_it_matters: >-
+      VPRSV determines how the material is valued: S (standard price) uses a
+      fixed price for all movements, V (moving average price) recalculates on
+      each goods receipt. This is a fundamental FI-MM integration control.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material valuation is undefined. All goods movements (MIGO), invoice
+      verification (MIRO), and period-end closing (CKML) fail or produce
+      incorrect financial postings.
+    valid_values_with_labels:
+      "S": "Standard price — fixed price, variances posted separately"
+      "V": "Moving average price — recalculated on each goods receipt"
+    fix_map:
+      __blank__: >-
+        Price control is not set. Determine from finance policy: S for
+        manufactured materials (FERT, HALB), V for purchased materials (ROH,
+        HAWA). Set via transaction MM02 > Accounting 1 view.
+      __other__: >-
+        Value '{invalid_value}' is not valid. Must be S (standard) or V (moving
+        average). Correct via transaction MM02 > Accounting 1 view.
+    record_fix_template: >-
+      Material {MARA.MATNR}: VPRSV is '{actual_value}'. Set to S (standard
+      price) or V (moving average) via MM02 > Accounting 1 view.
 
   - id: MM015
     field: MBEW.STPRS
@@ -112,3 +398,23 @@ rules:
     severity: critical
     dimension: completeness
     message: "Standard price is required when price control is S — missing value blocks valuation"
+    why_it_matters: >-
+      When price control is S (standard), the standard price (STPRS) is the
+      basis for all inventory valuation. Without it, no goods movement can
+      be posted because SAP cannot calculate the financial posting amount.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      All goods movements (MIGO) for this material fail. Invoice verification
+      (MIRO) cannot post price differences. Period-end closing (CKML) reports
+      errors for materials without standard price.
+    fix_map:
+      __blank__: >-
+        Standard price is missing. Run a cost estimate (CK11N/CK40N) to
+        calculate the standard price, or set manually via MM02 > Accounting 1
+        view if a cost estimate is not yet available.
+      __null__: >-
+        Standard price was never set. Required when VPRSV = S. Calculate
+        via CK11N or set manually via MM02 > Accounting 1 view.
+    record_fix_template: >-
+      Material {MARA.MATNR}: STPRS is {actual_value}. Set the standard price
+      via transaction MM02 > Accounting 1 view or run cost estimate CK11N.

@@ -8,6 +8,23 @@ rules:
     severity: critical
     dimension: validity
     message: "GL account number must be 1-10 digit numeric for S/4HANA chart of accounts"
+    why_it_matters: >-
+      GL account numbers in S/4HANA must be numeric only, up to 10 digits.
+      Alphanumeric account numbers from legacy systems are not supported and
+      will be rejected during migration.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Account cannot be migrated. All postings referencing this account in
+      legacy data will fail to transfer.
+    fix_map:
+      __other__: >-
+        Account number contains non-numeric characters or exceeds 10 digits.
+        Create a mapping to a valid numeric account number and repost historical
+        data via a conversion program. Coordinate with FI team on chart of
+        accounts restructure.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: number format is invalid (value: '{actual_value}').
+      Map to numeric equivalent or create new account via FS00.
 
   - id: GL002
     field: SKA1.KTOKS
@@ -15,6 +32,25 @@ rules:
     severity: critical
     dimension: completeness
     message: "Account group is mandatory — controls number range and field status in S/4HANA"
+    why_it_matters: >-
+      Account group controls which fields are required/optional in the GL master
+      and which number ranges apply. Without it the account cannot be classified
+      in the chart of accounts.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      GL master record is incomplete. Account cannot be used in posting
+      transactions (FB50, F-02) or period-end closing (F.16).
+    fix_map:
+      __blank__: >-
+        Account group not assigned. Determine correct group from chart of
+        accounts design. Common groups: GKNT (general), MIXT (reconciliation).
+        Assign via FS00.
+      __null__: >-
+        Account group was never populated. Check chart of accounts design
+        documentation and assign the correct group via FS00.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: KTOKS is {actual_value}. Assign correct
+      account group via transaction FS00 > Control Data tab.
 
   - id: GL003
     field: SKA1.XBILK
@@ -23,6 +59,25 @@ rules:
     severity: critical
     dimension: validity
     message: "Balance sheet indicator must be X (balance sheet) or empty (P&L)"
+    why_it_matters: >-
+      XBILK determines whether the account is a balance sheet account or a
+      P&L account. This classification drives carry-forward behaviour at
+      year-end and affects all financial reporting.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Year-end closing (F.16) processes the account incorrectly. Balance
+      carry-forward either omits a balance sheet account or incorrectly
+      carries forward a P&L account.
+    valid_values_with_labels:
+      "X": "Balance sheet account — balance carries forward at year-end"
+      "": "P&L account — balance resets at year-end"
+    fix_map:
+      __other__: >-
+        Value '{invalid_value}' is not valid. Must be X (balance sheet) or
+        empty (P&L). Correct via transaction FS00 > Type/Description tab.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: XBILK is '{actual_value}'. Set to X (balance
+      sheet) or leave empty (P&L) via transaction FS00.
 
   - id: GL004
     field: SKA1.GVTYP
@@ -30,6 +85,25 @@ rules:
     severity: high
     dimension: completeness
     message: "P&L statement account type is required for financial reporting in S/4HANA"
+    why_it_matters: >-
+      GVTYP classifies P&L accounts into revenue, expense, or other categories.
+      It is required for the financial statement version (FSV) and all P&L
+      reporting. Missing classification causes accounts to be excluded from
+      financial reports.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Financial statement version (FSV) in transaction F.01 excludes
+      unclassified accounts. P&L reporting is incomplete.
+    fix_map:
+      __blank__: >-
+        P&L statement type is empty. For P&L accounts, assign the correct
+        type based on the account's purpose. Set via transaction FS00.
+      __null__: >-
+        P&L statement type was never assigned. Required for all non-balance
+        sheet accounts. Set via FS00.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: GVTYP is {actual_value}. Assign the P&L
+      statement type via transaction FS00.
 
   - id: GL005
     field: SKB1.BUKRS
@@ -37,6 +111,23 @@ rules:
     severity: critical
     dimension: completeness
     message: "Company code is mandatory for all GL account assignments in S/4HANA"
+    why_it_matters: >-
+      Company code (BUKRS) is the primary organisational unit for financial
+      accounting. Every GL account must be assigned to at least one company
+      code to be used in postings. This is a hard requirement.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Account cannot be used for postings in any company code. All financial
+      transactions (FB50, F-02, FB60) referencing this account fail.
+    fix_map:
+      __blank__: >-
+        Company code is not assigned. Extend the GL account to the correct
+        company code via transaction FS00 > Company Code Data.
+      __null__: >-
+        Company code was never assigned. Extend via FS00 > Company Code Data.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: BUKRS is {actual_value}. Extend the account
+      to the correct company code via transaction FS00.
 
   - id: GL006
     field: SKB1.WAERS
@@ -45,6 +136,32 @@ rules:
     severity: critical
     dimension: validity
     message: "Account currency must be a supported ISO currency code"
+    why_it_matters: >-
+      Account currency determines which currency postings are accepted. Only
+      configured currencies are supported in the target system. Posting in
+      an unsupported currency causes the transaction to be rejected.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      All postings to this account in the invalid currency are rejected.
+      FI transactions (FB50, F-02) and automatic postings (clearing, taxes)
+      fail.
+    valid_values_with_labels:
+      "ZAR": "South African Rand"
+      "USD": "United States Dollar"
+      "EUR": "Euro"
+      "GBP": "British Pound Sterling"
+      "AUD": "Australian Dollar"
+    fix_map:
+      __blank__: >-
+        Account currency is empty. Set to the company code's local currency
+        or the appropriate foreign currency via transaction FS00.
+      __other__: >-
+        Currency '{invalid_value}' is not in the supported list. Either add
+        the currency to the system configuration (transaction OY03) or change
+        the account currency via FS00.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: WAERS is '{actual_value}'. Set to a supported
+      currency (ZAR, USD, EUR, GBP, AUD) via transaction FS00.
 
   - id: GL007
     field: SKB1.MWSKZ
@@ -52,6 +169,24 @@ rules:
     severity: medium
     dimension: completeness
     message: "Tax category is recommended for automatic tax determination"
+    why_it_matters: >-
+      Tax category (MWSKZ) enables automatic tax determination during
+      posting. Without it, users must manually enter tax codes on every
+      posting, increasing error rates and processing time.
+    rule_authority: best_practice
+    sap_impact: >-
+      Automatic tax determination (FTXP) does not apply. Users must manually
+      select tax codes, increasing posting errors and audit risk.
+    fix_map:
+      __blank__: >-
+        Tax category is empty. Determine the applicable tax category based
+        on the account's purpose (input tax, output tax, non-taxable).
+        Set via transaction FS00 > Control Data.
+      __null__: >-
+        Tax category was never assigned. Set via FS00 > Control Data.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: MWSKZ is {actual_value}. Assign the tax
+      category via transaction FS00 > Control Data tab.
 
   - id: GL008
     field: SKB1.XOPVW
@@ -60,6 +195,26 @@ rules:
     severity: medium
     dimension: validity
     message: "Open item management flag must be X (enabled) or empty (disabled)"
+    why_it_matters: >-
+      Open item management controls whether individual line items must be
+      explicitly cleared. It is critical for reconciliation accounts (AP/AR)
+      and clearing accounts. Once set, it cannot be changed if open items exist.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Clearing transactions (F-03, F-04) behave incorrectly. AP/AR
+      reconciliation becomes impossible if open item management is not set
+      on reconciliation accounts.
+    valid_values_with_labels:
+      "X": "Open item management enabled — items must be explicitly cleared"
+      "": "Open item management disabled — balance-only management"
+    fix_map:
+      __other__: >-
+        Value '{invalid_value}' is not valid. Must be X (enabled) or empty
+        (disabled). Correct via transaction FS00 > Control Data. Note: cannot
+        be changed if open items exist on the account.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: XOPVW is '{actual_value}'. Set to X or empty
+      via FS00 > Control Data. Warning: cannot change if open items exist.
 
   - id: GL009
     field: SKB1.XKRES
@@ -68,6 +223,24 @@ rules:
     severity: medium
     dimension: validity
     message: "Line item display flag must be X (enabled) or empty (disabled)"
+    why_it_matters: >-
+      Line item display determines whether individual line items are stored
+      and displayable for this account. It is essential for detailed account
+      analysis and audit trails.
+    rule_authority: best_practice
+    sap_impact: >-
+      Account line items cannot be displayed in FBL3N. Detailed account
+      analysis and audit trails are unavailable for this account.
+    valid_values_with_labels:
+      "X": "Line item display enabled — individual items visible in FBL3N"
+      "": "Line item display disabled — only totals available"
+    fix_map:
+      __other__: >-
+        Value '{invalid_value}' is not valid. Must be X (enabled) or empty
+        (disabled). Correct via transaction FS00 > Control Data.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: XKRES is '{actual_value}'. Set to X or empty
+      via transaction FS00 > Control Data tab.
 
   - id: GL010
     field: SKA1.FUNC_AREA
@@ -75,6 +248,25 @@ rules:
     severity: high
     dimension: completeness
     message: "Functional area is required for cost-of-sales accounting in S/4HANA"
+    why_it_matters: >-
+      Functional area enables cost-of-sales accounting, which is required in
+      S/4HANA for the P&L statement by function. Without it, the cost-of-sales
+      P&L cannot be generated, which is a legal requirement in many jurisdictions.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Cost-of-sales P&L (transaction F.01 with FSV by function) is incomplete.
+      Management reporting by function (sales, admin, R&D) is not possible.
+    fix_map:
+      __blank__: >-
+        Functional area is empty. Assign based on the account's business
+        function: sales, administration, production, R&D. Set via transaction
+        FS00 or via automatic derivation rules (transaction OKBD).
+      __null__: >-
+        Functional area was never assigned. Required for S/4HANA cost-of-sales
+        reporting. Set via FS00 or configure derivation rules in OKBD.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: FUNC_AREA is {actual_value}. Assign the
+      functional area via FS00 or configure derivation in OKBD.
 
   - id: GL011
     field: SKB1.ALTKT
@@ -82,6 +274,26 @@ rules:
     severity: low
     dimension: completeness
     message: "Alternative account number aids parallel reporting — recommended for migration"
+    why_it_matters: >-
+      Alternative account number (ALTKT) is used for parallel accounting
+      under a different chart of accounts (e.g., IFRS vs. local GAAP).
+      In S/4HANA, parallel accounting often requires this mapping.
+    rule_authority: best_practice
+    sap_impact: >-
+      Parallel reporting in an alternative chart of accounts is not possible
+      for this account. IFRS or group reporting may be incomplete.
+    fix_map:
+      __blank__: >-
+        Alternative account number is empty. If parallel reporting is required,
+        map to the corresponding account in the alternative chart of accounts.
+        Set via transaction FS00 > Control Data.
+      __null__: >-
+        Alternative account was never assigned. Set via FS00 if parallel
+        reporting is required.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: ALTKT is {actual_value}. Assign the
+      alternative account number via FS00 > Control Data if parallel
+      reporting is required.
 
   - id: GL012
     field: SKA1.SAKNR
@@ -91,3 +303,19 @@ rules:
     severity: critical
     dimension: uniqueness
     message: "Duplicate GL account numbers detected — each account must be unique"
+    why_it_matters: >-
+      Duplicate GL account numbers violate the primary key constraint in the
+      chart of accounts. The migration program will reject duplicates, and
+      any that slip through cause double-posting and incorrect balances.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Migration fails on duplicate key insert. Post-migration, duplicate
+      accounts cause incorrect financial postings and balance discrepancies.
+    fix_map:
+      __other__: >-
+        Duplicate GL account number detected. Identify the canonical account
+        and merge or delete the duplicate. Review all postings to the duplicate
+        account and repost to the canonical account if needed.
+    record_fix_template: >-
+      GL Account {SKA1.SAKNR}: duplicate detected. Review and merge via
+      transaction FS00. Repost any transactions from the duplicate account.

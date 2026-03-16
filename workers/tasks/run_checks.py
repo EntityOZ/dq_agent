@@ -111,11 +111,15 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
                     text("""
                         INSERT INTO findings (
                             id, version_id, tenant_id, module, check_id, severity,
-                            dimension, affected_count, total_count, pass_rate, details
+                            dimension, affected_count, total_count, pass_rate, details,
+                            rule_context, value_fix_map, record_fixes
                         ) VALUES (
                             gen_random_uuid(), :version_id, :tenant_id, :module, :check_id,
                             :severity, :dimension, :affected_count, :total_count, :pass_rate,
-                            CAST(:details AS jsonb)
+                            CAST(:details AS jsonb),
+                            CAST(:rule_context AS jsonb),
+                            CAST(:value_fix_map AS jsonb),
+                            CAST(:record_fixes AS jsonb)
                         )
                     """),
                     {
@@ -129,6 +133,9 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
                         "total_count": check_result.total_count,
                         "pass_rate": check_result.pass_rate,
                         "details": json.dumps(check_result.details) if check_result.details else "{}",
+                        "rule_context": json.dumps(check_result.rule_context) if check_result.rule_context else "{}",
+                        "value_fix_map": json.dumps(check_result.value_fix_map) if check_result.value_fix_map else "{}",
+                        "record_fixes": json.dumps(check_result.record_fixes) if check_result.record_fixes else "[]",
                     },
                 )
 

@@ -48,6 +48,9 @@ class CheckResult(BaseModel):
     message: str
     details: dict
     error: Optional[str] = None
+    rule_context: Optional[dict] = None
+    value_fix_map: Optional[dict] = None
+    record_fixes: Optional[list] = None
 
 
 class BaseCheck(ABC):

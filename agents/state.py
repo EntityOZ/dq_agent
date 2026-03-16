@@ -27,10 +27,10 @@ class AgentState(TypedDict):
     # Each dict: {module, finding_ids: list[str], root_cause: str,
     #             business_impact: str, sap_context: str}
 
-    # Populated by remediation_agent
-    remediations: list[dict]
-    # Each dict: {check_id, module, severity, fix_steps: list[str],
-    #             sap_transaction: str, estimated_effort: str}
+    # Populated by remediation_agent — cross-finding analysis output
+    remediations: dict
+    # {cross_finding_patterns: list[dict], effort_estimates: list[dict],
+    #  fix_sequence: list[dict], flags: list[dict]}
 
     # Populated by readiness_agent
     readiness_scores: dict

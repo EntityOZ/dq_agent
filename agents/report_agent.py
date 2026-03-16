@@ -121,7 +121,9 @@ def report_node(state: AgentState) -> dict:
         mod_dqs = dqs_scores.get(mod, {})
         mod_readiness = readiness_scores.get(mod, {})
         mod_rcs = [rc for rc in root_causes if rc.get("module") == mod]
-        mod_rems = [r for r in remediations if r.get("module") == mod]
+        # Filter effort_estimates for this module from the remediations dict
+        rem_estimates = remediations.get("effort_estimates", []) if isinstance(remediations, dict) else []
+        mod_rems = [r for r in rem_estimates if r.get("module") == mod or r.get("check_id", "").startswith(mod[:2].upper())]
 
         modules_detail.append({
             "name": mod,
@@ -158,6 +160,8 @@ def report_node(state: AgentState) -> dict:
             "overall_score": overall_readiness_score,
             "summary": migration_summary,
         },
+        # Cross-finding remediation analysis (from updated remediation agent)
+        "remediations": remediations if isinstance(remediations, dict) else {},
     }
 
     logger.info(f"Report: assembled for {len(module_names)} modules, status={overall_status}")
