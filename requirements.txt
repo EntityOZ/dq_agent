@@ -1,0 +1,42 @@
+# FastAPI
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+python-multipart>=0.0.18
+pydantic-settings>=2.7.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+psycopg2-binary>=2.9.10
+
+# Celery
+celery>=5.4.0
+redis>=5.2.0
+
+# MinIO
+minio>=7.2.0
+
+# Data processing
+pandas>=2.2.0
+openpyxl>=3.1.0
+
+# LLM
+langchain-core>=0.3.33
+langchain-anthropic>=0.3.5
+langchain-openai>=0.3.0
+langchain-ollama>=0.3.0
+langgraph>=0.2.60
+
+# PDF generation
+weasyprint>=63.0
+jinja2>=3.1.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+
+# HTTP client
+httpx>=0.28.0
+
+# Observability
+sentry-sdk[fastapi]>=2.19.0
