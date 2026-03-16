@@ -40,32 +40,58 @@ ANALYST_USER_TEMPLATE = (
 # Remediation agent
 # ---------------------------------------------------------------------------
 REMEDIATION_SYSTEM = (
-    "You are an SAP remediation specialist. You provide concrete, step-by-step data "
-    "remediation guidance using standard SAP transactions and tools. Your fix steps must "
-    "be executable by an SAP consultant — not generic advice. Always specify the SAP "
-    "transaction code, table name, or program to use. Always estimate the effort in "
-    "person-days for an experienced SAP consultant.\n\n"
-    "Respond only with valid JSON matching the schema provided."
+    "You are an SAP remediation specialist focused on cross-finding analysis, "
+    "effort estimation, and remediation sequencing. You will receive findings "
+    "that already include per-record and per-value fix instructions generated "
+    "deterministically from SAP rule definitions. Your job is NOT to repeat "
+    "those instructions.\n\n"
+    "Your job IS to:\n"
+    "1. Identify patterns across findings — e.g. the same 847 Business Partners "
+    "are failing 4 different checks, suggesting a common root cause\n"
+    "2. Provide realistic effort estimates based on record counts and fix complexity\n"
+    "3. Sequence the fixes — which must be done before others to avoid downstream "
+    "failures\n"
+    "4. Flag any findings where the deterministic fix may not apply — e.g. where "
+    "the fix instruction says 'investigate source system' for a large volume\n\n"
+    "Respond only with valid JSON matching the schema provided.\n"
+    "Never repeat fix instructions that are already in the findings data."
 )
 
 REMEDIATION_USER_TEMPLATE = (
-    "Generate remediation steps for the following data quality findings.\n\n"
-    "Findings:\n{{ findings_json }}\n\n"
+    "Analyse the following data quality findings and provide cross-finding "
+    "remediation strategy.\n\n"
+    "Findings (with deterministic fix context):\n{{ findings_json }}\n\n"
     "Root causes:\n{{ root_causes_json }}\n\n"
     "Respond with valid JSON matching this exact schema:\n"
     "{\n"
-    '  "remediations": [\n'
+    '  "cross_finding_patterns": [\n'
+    "    {\n"
+    '      "pattern_description": "string",\n'
+    '      "affected_check_ids": ["BP001", "BP003"],\n'
+    '      "shared_record_count": 847,\n'
+    '      "recommended_approach": "string — how to tackle these together"\n'
+    "    }\n"
+    "  ],\n"
+    '  "effort_estimates": [\n'
     "    {\n"
     '      "check_id": "BP001",\n'
-    '      "module": "business_partner",\n'
-    '      "severity": "critical",\n'
-    '      "fix_steps": [\n'
-    '        "1. Step description with SAP transaction code.",\n'
-    '        "2. Next step.",\n'
-    '        "3. Bulk approach for large volumes."\n'
-    "      ],\n"
-    '      "sap_transaction": "BP, LSMW",\n'
-    '      "estimated_effort": "2-4 person-days depending on volume"\n'
+    '      "affected_count": 3412,\n'
+    '      "fix_complexity": "low|medium|high",\n'
+    '      "estimated_person_hours": 17,\n'
+    '      "estimation_basis": "string — how you arrived at this estimate"\n'
+    "    }\n"
+    "  ],\n"
+    '  "fix_sequence": [\n'
+    "    {\n"
+    '      "sequence": 1,\n'
+    '      "check_id": "BP001",\n'
+    '      "reason": "string — why this must be fixed before others"\n'
+    "    }\n"
+    "  ],\n"
+    '  "flags": [\n'
+    "    {\n"
+    '      "check_id": "BP002",\n'
+    '      "flag": "string — concern about the deterministic fix for this check"\n'
     "    }\n"
     "  ]\n"
     "}\n\n"

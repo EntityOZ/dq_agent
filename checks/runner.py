@@ -1,10 +1,12 @@
 import logging
+from dataclasses import asdict
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
 from checks.base import BaseCheck, CheckResult
+from checks.fix_generator import FixGenerator
 from checks.types.null_check import NullCheck
 from checks.types.regex_check import RegexCheck
 from checks.types.domain_value_check import DomainValueCheck
@@ -101,4 +103,59 @@ def run_checks(module_name: str, df: pd.DataFrame, tenant_id: str) -> list[Check
             )
 
     logger.info(f"Module '{module}': ran {len(results)} checks, {sum(1 for r in results if r.passed)} passed")
+
+    # Enrich failing results with deterministic fix recommendations
+    fix_gen = FixGenerator()
+    for i, result in enumerate(results):
+        if result.passed or result.error:
+            continue
+
+        try:
+            rule = rules[i]
+
+            # Build rule_context from YAML fields
+            rule_context: dict = {}
+            for key in ("why_it_matters", "rule_authority", "sap_impact", "valid_values_with_labels"):
+                if rule.get(key):
+                    rule_context[key] = rule[key]
+
+            fix_map = rule.get("fix_map", {})
+            if not fix_map:
+                results[i] = result.model_copy(update={"rule_context": rule_context or None})
+                continue
+
+            # Build value_fix_map from distinct_invalid_values in details
+            value_fix_map = None
+            distinct = result.details.get("distinct_invalid_values", {})
+            if distinct:
+                vfm = fix_gen.build_value_fix_map(
+                    distinct, fix_map, rule.get("valid_values_with_labels")
+                )
+                value_fix_map = {k: asdict(v) for k, v in vfm.items()}
+
+            # Build record_fixes from sample_failing_records in details
+            record_fixes = None
+            samples = result.details.get("sample_failing_records", [])
+            if samples:
+                table_name = rule["field"].split(".")[0] if "." in rule["field"] else None
+                check_field = rule["field"].split(".")[-1] if "." in rule["field"] else rule["field"]
+                id_field = result.details.get("id_field_used", df.columns[0])
+                rf_list = fix_gen.build_record_fixes(
+                    sample_failing_records=samples,
+                    id_field=id_field,
+                    check_field=check_field,
+                    fix_map=fix_map,
+                    record_fix_template=rule.get("record_fix_template"),
+                    table_name=table_name,
+                )
+                record_fixes = [asdict(rf) for rf in rf_list]
+
+            results[i] = result.model_copy(update={
+                "rule_context": rule_context or None,
+                "value_fix_map": value_fix_map,
+                "record_fixes": record_fixes,
+            })
+        except Exception as e:
+            logger.warning(f"Fix enrichment failed for {result.check_id}: {e}")
+
     return results

@@ -1,5 +1,5 @@
 import apiClient from "./client";
-import type { FindingList } from "@/types/api";
+import type { FindingList, FindingReportContext } from "@/types/api";
 
 export async function getFindings(params: {
   version_id: string;
@@ -12,5 +12,14 @@ export async function getFindings(params: {
   const { data } = await apiClient.get<FindingList>("/api/v1/findings", {
     params,
   });
+  return data;
+}
+
+export async function getFindingReportContext(
+  findingId: string,
+): Promise<FindingReportContext> {
+  const { data } = await apiClient.get<FindingReportContext>(
+    `/api/v1/findings/${findingId}/report-context`,
+  );
   return data;
 }

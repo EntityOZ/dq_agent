@@ -7,6 +7,28 @@ rules:
     severity: critical
     dimension: completeness
     message: "BP type is mandatory in S/4HANA — missing value blocks migration"
+    why_it_matters: >-
+      BU_TYPE is the Business Partner category in SAP. It drives role determination,
+      credit management, correspondence type, and dunning procedures. In S/4HANA it
+      is mandatory — the migration conversion program FPMD_BP_CONVERT hard-fails on
+      any BP where BU_TYPE is missing.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Blocks FPMD_BP_CONVERT migration program. Breaks BP role assignment, credit
+      management (FD32), dunning (F150), and correspondence.
+    fix_map:
+      __blank__: >-
+        Field is empty. Determine the correct BP category from the business record.
+        For commercial customers use 2 (Organisation). For individuals use 1 (Person).
+        Set via transaction BP or bulk-update with BAPI_BUPA_SET_CENTRAL_DATA for
+        volumes above 500 records.
+      __null__: >-
+        Field was never populated — likely a data migration gap. Check the source
+        system for the original entity type classification, then set via transaction BP.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: BU_TYPE is {actual_value}. Recommended action: set to
+      2 (Organisation) if commercial entity, or 1 (Person) if individual. Use
+      transaction BP, enter partner number, navigate to Overview tab, set Category field.
 
   - id: BP002
     field: BUT000.PARTNER
@@ -15,6 +37,23 @@ rules:
     severity: critical
     dimension: validity
     message: "BP number must be 10-digit numeric for S/4HANA conversion"
+    why_it_matters: >-
+      In S/4HANA, Business Partner numbers must be exactly 10 numeric digits.
+      Non-conforming formats are rejected by the BP conversion program and cannot
+      be used in downstream FI/SD/MM transactions.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Prevents BP conversion. Blocks all downstream SAP transactions that reference
+      this partner number.
+    fix_map:
+      __other__: >-
+        Partner number does not match the required 10-digit format. This usually means
+        the record was migrated from a legacy system with a different numbering scheme.
+        Use LSMW or a conversion program to reformat or renumber before migration.
+        Coordinate with the basis team on number range configuration in the target system.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: number format is invalid (value: {actual_value}).
+      Reformat to 10-digit numeric or assign a new number range via table TNRO.
 
   - id: BP003
     field: ADR6.SMTP_ADDR
@@ -24,6 +63,24 @@ rules:
     severity: warning
     dimension: completeness
     message: "Email required for customer-facing BP in target state"
+    why_it_matters: >-
+      Email address is required for all customer-facing Business Partners in the
+      target state. Without it, SAP correspondence (including dunning letters and
+      order confirmations) cannot be sent electronically.
+    rule_authority: best_practice
+    sap_impact: >-
+      Dunning letters (F150), order confirmations (VA02), and customer correspondence
+      fall back to paper or fail silently.
+    fix_map:
+      __blank__: >-
+        No email address on record. Obtain from the business owner or CRM system
+        and add via transaction BP > Address tab > Communication.
+      __other__: >-
+        Value does not match email format. Check for typos, missing @ symbol, or
+        invalid domain. Correct via transaction BP > Address tab.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: email address is '{actual_value}'.
+      {fix_instruction} Use transaction BP to update.
 
   - id: BP004
     field: BUT000.NAME_ORG1
@@ -31,6 +88,24 @@ rules:
     severity: high
     dimension: completeness
     message: "Organisation name is required for BP type 2 (organisation) in S/4HANA"
+    why_it_matters: >-
+      NAME_ORG1 is the primary organisation name for type-2 Business Partners.
+      In S/4HANA, this field is mandatory for organisation BPs and is used across
+      all correspondence, billing documents, and SD transactions.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Organisation BPs without a name cannot be used in sales orders (VA01),
+      billing (VF01), or customer correspondence. Migration will flag incomplete records.
+    fix_map:
+      __blank__: >-
+        Organisation name is empty. Obtain the legal entity name from the business
+        register or CRM system. Set via transaction BP > Address tab > Name field.
+      __null__: >-
+        Organisation name was never populated. Verify the BP type — if type 2
+        (Organisation), this field must be filled. Set via transaction BP.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: NAME_ORG1 is {actual_value}. Set the organisation
+      name via transaction BP > Address tab.
 
   - id: BP005
     field: BUT000.TITLE
@@ -39,6 +114,37 @@ rules:
     severity: medium
     dimension: validity
     message: "Title key must be a valid SAP title code (0001–0010)"
+    why_it_matters: >-
+      Title key controls the salutation in all SAP correspondence. Invalid title
+      codes cause correspondence output errors and are rejected during BP save
+      in S/4HANA with strict field validation enabled.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      BP creation/change via transaction BP will reject invalid title codes.
+      Correspondence programs (SO10, NACE) produce incorrect salutations.
+    valid_values_with_labels:
+      "0001": "Mr."
+      "0002": "Mrs."
+      "0003": "Company"
+      "0004": "Ms."
+      "0005": "Family"
+      "0006": "Partner"
+      "0007": "Prof."
+      "0008": "Dr."
+      "0009": "Reverend"
+      "0010": "Sir"
+    fix_map:
+      __blank__: >-
+        Title key is empty. Set to the appropriate code based on partner type —
+        0001 (Mr.), 0002 (Mrs.), 0003 (Company), 0004 (Ms.) via transaction BP.
+      __null__: >-
+        Title key was never populated. Assign based on partner type via transaction BP.
+      __other__: >-
+        Title code '{invalid_value}' is not in the valid SAP title key range (0001-0010).
+        Replace with the correct code via transaction BP > General Data tab.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: TITLE is '{actual_value}'. Set to a valid SAP title
+      code (0001-0010) via transaction BP > General Data tab.
 
   - id: BP006
     field: ADRC.COUNTRY
@@ -46,6 +152,24 @@ rules:
     severity: critical
     dimension: completeness
     message: "Country is mandatory for all business partners in S/4HANA"
+    why_it_matters: >-
+      Country code is a mandatory address field in S/4HANA. It drives tax
+      determination, output language, postal formatting, and is required for
+      all partner functions in SD and FI.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      BP cannot be saved without country. Tax determination (FTXP), output
+      determination (NACE), and all address-dependent processes fail.
+    fix_map:
+      __blank__: >-
+        Country code is empty. Determine the correct ISO country code from the
+        business address and set via transaction BP > Address tab.
+      __null__: >-
+        Country was never populated. This is typically a data migration gap.
+        Set the ISO country code via transaction BP > Address tab.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: COUNTRY is {actual_value}. Set the ISO country
+      code via transaction BP > Address tab.
 
   - id: BP007
     field: ADRC.CITY1
@@ -53,6 +177,23 @@ rules:
     severity: high
     dimension: completeness
     message: "City is required for address validation in S/4HANA"
+    why_it_matters: >-
+      City is a mandatory address component for postal validation in S/4HANA.
+      It is used in tax jurisdiction determination, shipping route calculation,
+      and all printed correspondence.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Address validation fails. Shipping route determination (VT01N) and tax
+      jurisdiction assignment produce incorrect results.
+    fix_map:
+      __blank__: >-
+        City field is empty. Obtain from the business address records or postal
+        database and set via transaction BP > Address tab.
+      __null__: >-
+        City was never populated. Set via transaction BP > Address tab.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: CITY1 is {actual_value}. Set the city name
+      via transaction BP > Address tab.
 
   - id: BP008
     field: ADRC.POST_CODE1
@@ -60,6 +201,24 @@ rules:
     severity: medium
     dimension: completeness
     message: "Postal code improves address quality — recommended for migration"
+    why_it_matters: >-
+      Postal code is used for address validation, tax jurisdiction determination,
+      and logistics routing. While not always mandatory, missing postal codes
+      reduce address quality and may cause issues in countries with strict
+      postal validation (e.g., Germany, UK).
+    rule_authority: best_practice
+    sap_impact: >-
+      Tax jurisdiction determination may be inaccurate. Shipping cost calculation
+      and delivery route optimization are affected.
+    fix_map:
+      __blank__: >-
+        Postal code is empty. Obtain from the business address records and set
+        via transaction BP > Address tab.
+      __null__: >-
+        Postal code was never populated. Set via transaction BP > Address tab.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: POST_CODE1 is {actual_value}. Set the postal
+      code via transaction BP > Address tab.
 
   - id: BP009
     field: BUT000.PARTNER_GUID
@@ -68,6 +227,22 @@ rules:
     severity: critical
     dimension: validity
     message: "Partner GUID must be valid UUID format for S/4HANA BP mapping"
+    why_it_matters: >-
+      PARTNER_GUID is the globally unique identifier used for BP cross-system
+      replication and S/4HANA migration mapping. Invalid GUIDs break the
+      migration mapping table (BUT000_GUID) and prevent cross-system BP matching.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      BP migration mapping fails. Cross-system replication via ALE/IDoc and
+      MDG-BP cannot match partner records.
+    fix_map:
+      __other__: >-
+        Partner GUID is not a valid UUID format. Regenerate using SAP GUID
+        generator (function module GUID_CREATE) or correct the format manually.
+        Coordinate with basis team before changing GUIDs in production.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: PARTNER_GUID is '{actual_value}'. Regenerate a
+      valid UUID via function module GUID_CREATE or correct the format.
 
   - id: BP010
     field: BUT100.RLTYP
@@ -75,6 +250,26 @@ rules:
     severity: high
     dimension: completeness
     message: "BP role type is required — determines partner function in S/4HANA"
+    why_it_matters: >-
+      RLTYP defines the Business Partner role (e.g., customer, vendor, contact
+      person). In S/4HANA, roles drive which views are available and which
+      business processes the BP can participate in.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      BP without a role cannot be used as a customer in SD or a vendor in MM.
+      Role assignment is required for the customer-vendor integration (CVI)
+      mapping in S/4HANA.
+    fix_map:
+      __blank__: >-
+        BP role type is empty. Determine the correct role from the business
+        context — BUR001 (customer), BUR002 (vendor), BUR010 (contact person).
+        Assign via transaction BP > Business Partner Role.
+      __null__: >-
+        BP role was never assigned. This BP may have been created without proper
+        role classification. Assign via transaction BP > Business Partner Role.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: RLTYP is {actual_value}. Assign the correct
+      BP role via transaction BP > Business Partner Role tab.
 
   - id: BP011
     field: BUT000.BU_SORT1
@@ -82,6 +277,23 @@ rules:
     severity: medium
     dimension: completeness
     message: "Search term 1 is recommended for efficient BP lookup in S/4HANA"
+    why_it_matters: >-
+      BU_SORT1 is the primary search term used in BP matchcode searches across
+      all SAP transactions. Without it, users cannot efficiently find Business
+      Partners, leading to duplicates and process delays.
+    rule_authority: best_practice
+    sap_impact: >-
+      BP search in transactions VA01, ME21N, and BP is degraded. Users may
+      create duplicate BPs when they cannot find existing records.
+    fix_map:
+      __blank__: >-
+        Search term is empty. Populate with the first 20 characters of the
+        company name or person surname. Set via transaction BP > General Data.
+      __null__: >-
+        Search term was never populated. Set via transaction BP > General Data.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: BU_SORT1 is {actual_value}. Set the search
+      term via transaction BP > General Data tab.
 
   - id: BP012
     field: ADR6.SMTP_ADDR
@@ -90,6 +302,22 @@ rules:
     severity: medium
     dimension: validity
     message: "Email address format is invalid — must be a valid SMTP address"
+    why_it_matters: >-
+      Invalid email formats cause SAP correspondence to fail silently. The
+      email address must conform to RFC 5322 for SMTP delivery to succeed.
+      S/4HANA validates email format on save when address validation is active.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Correspondence via SAPconnect fails. Dunning letters (F150) and order
+      confirmations (VA02) sent by email are not delivered.
+    fix_map:
+      __other__: >-
+        Email format is invalid. Check for common issues: missing @ symbol,
+        spaces, special characters, or invalid domain. Correct via transaction
+        BP > Address tab > Communication > Email.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: email '{actual_value}' is invalid. Correct the
+      format via transaction BP > Address tab > Communication.
 
   - id: BP013
     field: BUT000.CREATED_AT
@@ -98,6 +326,22 @@ rules:
     severity: low
     dimension: timeliness
     message: "BP record older than 1 year — review if data is still current"
+    why_it_matters: >-
+      Business Partner records not updated in over a year may contain stale
+      addresses, outdated contact information, or inactive business relationships.
+      Migrating stale data increases post-go-live cleanup effort.
+    rule_authority: best_practice
+    sap_impact: >-
+      Stale BP records may cause returned correspondence, failed deliveries,
+      and incorrect tax reporting after migration.
+    fix_map:
+      __other__: >-
+        Record has not been updated in over 1 year. Review with the business
+        owner whether this BP is still active. If active, refresh address and
+        contact data. If inactive, flag for archival before migration.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: last updated {actual_value}. Review if this
+      BP is still active and refresh data if needed.
 
   - id: BP014
     field: BUT000.PARTNER
@@ -107,6 +351,23 @@ rules:
     severity: critical
     dimension: uniqueness
     message: "Duplicate BP numbers detected — each partner must have a unique number"
+    why_it_matters: >-
+      Duplicate Business Partner numbers violate the primary key constraint in
+      S/4HANA. The migration program will reject duplicate records, and any
+      duplicates that slip through cause data corruption in customer/vendor
+      master data.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Migration conversion fails on duplicate key insert. Post-migration,
+      duplicate BPs cause incorrect financial postings and order assignment.
+    fix_map:
+      __other__: >-
+        Duplicate BP number detected. Identify the canonical record and merge
+        or deactivate duplicates. Use transaction BP to review both records.
+        For bulk deduplication, use SAP MDG-BP or a custom ABAP program.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: duplicate detected. Review and merge or
+      deactivate via transaction BP or MDG-BP deduplication.
 
   - id: BP015
     field: BUT000.BU_TYPE
@@ -115,3 +376,29 @@ rules:
     severity: critical
     dimension: validity
     message: "BP category must be 1 (person), 2 (organisation), or 3 (group)"
+    why_it_matters: >-
+      BU_TYPE must be exactly 1, 2, or 3. Any other value is rejected by SAP
+      during BP creation and by the migration conversion program. This field
+      controls the entire BP data model — person-specific vs. organisation-specific
+      fields are determined by this value.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      BP cannot be created or modified. All dependent transactions (SD, FI, MM)
+      that reference this BP will fail.
+    valid_values_with_labels:
+      "1": "Person — individual natural person"
+      "2": "Organisation — company, legal entity, or institution"
+      "3": "Group — collection of persons or organisations"
+    fix_map:
+      __blank__: >-
+        BP category is empty. Determine from the business context: 1 (Person)
+        for individuals, 2 (Organisation) for companies, 3 (Group) for
+        collections. Set via transaction BP.
+      __null__: >-
+        BP category was never set. Classify the partner and set via transaction BP.
+      __other__: >-
+        Value '{invalid_value}' is not a valid BP category. Must be 1 (Person),
+        2 (Organisation), or 3 (Group). Correct via transaction BP.
+    record_fix_template: >-
+      Partner {BUT000.PARTNER}: BU_TYPE is '{actual_value}'. Set to 1 (Person),
+      2 (Organisation), or 3 (Group) via transaction BP > Overview tab.

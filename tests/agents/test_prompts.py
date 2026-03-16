@@ -33,8 +33,8 @@ def test_analyst_system_requires_json():
     assert "respond only with valid json" in ANALYST_SYSTEM.lower()
 
 
-def test_remediation_system_mentions_transaction_code():
-    assert "SAP transaction code" in REMEDIATION_SYSTEM
+def test_remediation_system_mentions_cross_finding():
+    assert "cross-finding" in REMEDIATION_SYSTEM.lower()
 
 
 def test_report_prompt_mentions_board_level():

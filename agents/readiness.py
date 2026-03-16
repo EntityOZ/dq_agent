@@ -65,7 +65,9 @@ def readiness_node(state: AgentState) -> dict:
     """LangGraph node: compute migration readiness per module."""
     dqs_scores = state.get("dqs_scores", {})
     root_causes = state.get("root_causes", [])
-    remediations = state.get("remediations", [])
+    remediations_raw = state.get("remediations", {})
+    # Flatten effort_estimates to a list for backwards-compatible filtering
+    remediations = remediations_raw.get("effort_estimates", []) if isinstance(remediations_raw, dict) else remediations_raw
     module_names = state.get("module_names", [])
 
     if not module_names:

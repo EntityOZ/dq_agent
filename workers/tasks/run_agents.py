@@ -77,27 +77,43 @@ def run_agents(self, version_id: str, tenant_id: str):
                 session.commit()
             return {"version_id": version_id, "status": "agents_failed", "error": final_state["error"]}
 
-        # Update findings with remediation text
-        remediations = final_state.get("remediations", [])
-        logger.info(f"Writing remediation text for {len(remediations)} findings")
+        # Update findings with remediation text from cross-finding analysis
+        remediations = final_state.get("remediations", {})
+        logger.info(f"Processing remediation output: {type(remediations)}")
 
-        if remediations:
+        if remediations and isinstance(remediations, dict):
+            effort_estimates = remediations.get("effort_estimates", [])
+            fix_sequence = remediations.get("fix_sequence", [])
+
+            # Build per-check_id remediation text from effort estimates and sequencing
             with Session(engine) as session:
                 session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
 
                 total_updated = 0
-                for rem in remediations:
-                    check_id = rem.get("check_id")
-                    fix_steps = rem.get("fix_steps", [])
-                    sap_tx = rem.get("sap_transaction", "")
-                    effort = rem.get("estimated_effort", "")
-                    remediation_text = "\n".join(fix_steps)
-                    if sap_tx:
-                        remediation_text += f"\n\nSAP Transaction: {sap_tx}"
-                    if effort:
-                        remediation_text += f"\nEstimated Effort: {effort}"
+                for estimate in effort_estimates:
+                    check_id = estimate.get("check_id")
+                    if not check_id:
+                        continue
 
-                    logger.info(f"  Updating check_id={check_id} with {len(remediation_text)} chars")
+                    # Build remediation text from cross-finding analysis
+                    parts = []
+                    complexity = estimate.get("fix_complexity", "")
+                    hours = estimate.get("estimated_person_hours", "")
+                    basis = estimate.get("estimation_basis", "")
+                    if hours:
+                        parts.append(f"Estimated effort: {hours} person-hours ({complexity} complexity)")
+                    if basis:
+                        parts.append(f"Basis: {basis}")
+
+                    # Add sequence position
+                    seq = next(
+                        (s for s in fix_sequence if s.get("check_id") == check_id),
+                        None,
+                    )
+                    if seq:
+                        parts.append(f"Fix priority: #{seq.get('sequence', '?')} — {seq.get('reason', '')}")
+
+                    remediation_text = "\n".join(parts)
 
                     result = session.execute(
                         text("""
@@ -111,20 +127,7 @@ def run_agents(self, version_id: str, tenant_id: str):
                             "rem_text": remediation_text,
                         },
                     )
-                    rows_updated = result.rowcount
-                    total_updated += rows_updated
-                    logger.info(f"  Rows updated: {rows_updated}")
-
-                    if rows_updated == 0:
-                        existing = session.execute(
-                            text("SELECT DISTINCT check_id FROM findings WHERE version_id = :vid"),
-                            {"vid": version_id},
-                        )
-                        existing_ids = [r[0] for r in existing.fetchall()]
-                        logger.warning(
-                            f"check_id '{check_id}' not found in findings for version {version_id}. "
-                            f"Existing check_ids: {existing_ids[:10]}"
-                        )
+                    total_updated += result.rowcount
 
                 session.commit()
 
