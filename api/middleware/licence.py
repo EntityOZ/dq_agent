@@ -1,8 +1,11 @@
 import hashlib
+import json
 import logging
 import platform
 import time
 import uuid
+from datetime import datetime, timezone
+from typing import Optional
 
 import httpx
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -19,6 +22,8 @@ _cache: dict = {
     "expires_at": 0.0,
 }
 
+_last_checked_at: Optional[float] = None
+
 CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
 
 
@@ -33,12 +38,83 @@ def _get_machine_fingerprint() -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def get_cached_licence() -> dict:
+    """Return the cached licence data for the health endpoint.
+
+    Returns a dict with licence details or a 'not_yet_checked' status
+    if no cache exists.
+    """
+    cached = _cache.get("response")
+    if cached is None:
+        return {"valid": None, "status": "not_yet_checked"}
+
+    result: dict = {
+        "valid": cached.get("valid"),
+        "modules": cached.get("modules", []),
+        "expires_at": cached.get("expiresAt"),
+        "last_checked": (
+            datetime.fromtimestamp(_last_checked_at, tz=timezone.utc).isoformat()
+            if _last_checked_at
+            else None
+        ),
+    }
+
+    expires_at = cached.get("expiresAt")
+    if expires_at:
+        try:
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            now_dt = datetime.now(timezone.utc)
+            days = (exp_dt - now_dt).days
+            result["days_remaining"] = days
+        except (ValueError, TypeError):
+            result["days_remaining"] = None
+    else:
+        result["days_remaining"] = None
+
+    if not cached.get("valid"):
+        result["reason"] = cached.get("reason")
+
+    return result
+
+
+def _read_offline_licence() -> dict | None:
+    """Read licence from a local JSON file for air-gapped deployments."""
+    if not settings.licence_file:
+        return None
+    try:
+        with open(settings.licence_file, "r") as f:
+            data = json.load(f)
+        # Check expiry locally
+        expires_at = data.get("expiresAt", "")
+        if expires_at:
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            if exp_dt < datetime.now(timezone.utc):
+                return {"valid": False, "reason": "expired"}
+        return {
+            "valid": data.get("valid", True),
+            "modules": data.get("modules", []),
+            "tenantId": data.get("tenantId", ""),
+            "expiresAt": expires_at,
+        }
+    except Exception as e:
+        logger.warning(f"Failed to read offline licence file: {e}")
+        return None
+
+
 async def _validate_licence() -> dict | None:
-    """Call the licence server. Returns the response dict or None on failure."""
+    """Call the licence server or read offline file. Returns the response dict or None on failure."""
+    global _last_checked_at
+    _last_checked_at = time.time()
+
+    # Check offline licence file first
+    offline = _read_offline_licence()
+    if offline is not None:
+        return offline
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
-                settings.licence_server_url,
+                f"{settings.licence_server_url}/validate",
                 json={
                     "licenceKey": settings.licence_key,
                     "machineFingerprint": _get_machine_fingerprint(),

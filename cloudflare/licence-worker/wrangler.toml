@@ -1,0 +1,14 @@
+name = "vantax-licence-server"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "LICENCE_KV"
+id = "placeholder"              # filled in after wrangler kv:namespace create
+preview_id = "placeholder"      # filled in after wrangler kv:namespace create --preview
+
+[vars]
+ENVIRONMENT = "production"
+
+# Secrets set via: wrangler secret put LICENCE_ADMIN_SECRET
+# Secrets set via: wrangler secret put LICENCE_SECRET
