@@ -1,0 +1,146 @@
+﻿docker : time="2026-03-17T19:12:25+02:00" level=warning msg="project has been loaded without an explicit name from a symlink. Using name \"dq_agent\""
+At line:1 char:1
++ docker compose -f docker-compose.yml -f docker-compose.build.yml buil ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-03-1...e \"dq_agent\"":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Image ghcr.io/entityoz/dq_agent/vantax-frontend:latest Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 741B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 949B 0.0s done
+#2 DONE 0.1s
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/node:20-alpine
+#4 DONE 1.5s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 73B done
+#5 DONE 0.0s
+
+#6 [deps 1/4] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+#6 resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa 0.0s done
+#6 DONE 0.0s
+
+#7 [deps 2/4] WORKDIR /app
+#7 CACHED
+
+#8 [internal] load build context
+#8 transferring context: 10.43kB 0.0s done
+#8 DONE 0.0s
+
+#9 [deps 3/4] COPY package.json package-lock.json ./
+#9 DONE 0.0s
+
+#10 [runner 3/6] RUN addgroup --system --gid 1001 nodejs &&     adduser --system --uid 1001 nextjs
+#10 DONE 0.3s
+
+#11 [deps 4/4] RUN npm ci --production=false --prefer-offline || npm install --production=false
+#11 0.693 npm warn config production Use `--omit=dev` instead.
+#11 5.924 npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+#11 71.26 
+#11 71.26 added 749 packages, and audited 750 packages in 1m
+#11 71.26 
+#11 71.26 242 packages are looking for funding
+#11 71.26   run `npm fund` for details
+#11 71.31 
+#11 71.31 1 moderate severity vulnerability
+#11 71.31 
+#11 71.31 To address all issues, run:
+#11 71.31   npm audit fix --force
+#11 71.31 
+#11 71.31 Run `npm audit` for details.
+#11 71.31 npm notice
+#11 71.31 npm notice New major version of npm available! 10.8.2 -> 11.11.1
+#11 71.31 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.11.1
+#11 71.31 npm notice To update run: npm install -g npm@11.11.1
+#11 71.31 npm notice
+#11 DONE 71.6s
+
+#12 [builder 3/5] COPY --from=deps /app/node_modules ./node_modules
+#12 DONE 3.3s
+
+#13 [builder 4/5] COPY . .
+#13 DONE 0.2s
+
+#14 [builder 5/5] RUN npm run build
+#14 0.412 
+#14 0.412 > frontend@0.1.0 build
+#14 0.412 > next build
+#14 0.412 
+#14 1.116 Γû▓ Next.js 16.1.6 (Turbopack)
+#14 1.117 
+#14 1.119 ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#14 1.144   Creating an optimized production build ...
+#14 10.73 Γ£ô Compiled successfully in 9.2s
+#14 10.76   Running TypeScript ...
+#14 16.63   Collecting page data using 7 workers ...
+#14 17.27   Generating static pages using 7 workers (0/17) ...
+#14 17.69   Generating static pages using 7 workers (4/17) 
+#14 17.69   Generating static pages using 7 workers (8/17) 
+#14 17.92   Generating static pages using 7 workers (12/17) 
+#14 17.93 Γ£ô Generating static pages using 7 workers (17/17) in 661.8ms
+#14 17.94   Finalizing page optimization ...
+#14 18.25 
+#14 18.25 Route (app)
+#14 18.25 Γöî Γùï /
+#14 18.25 Γö£ Γùï /_not-found
+#14 18.25 Γö£ Γùï /analytics
+#14 18.25 Γö£ Γùï /cleaning
+#14 18.25 Γö£ Γùï /contracts
+#14 18.25 Γö£ Γùï /dedup
+#14 18.25 Γö£ Γùï /exceptions
+#14 18.25 Γö£ Γùï /findings
+#14 18.25 Γö£ Γùï /licence-error
+#14 18.25 Γö£ Γùï /nlp
+#14 18.25 Γö£ Γùï /notifications
+#14 18.25 Γö£ Γùï /reports
+#14 18.25 Γö£ Γùï /settings
+#14 18.25 Γö£ ╞Æ /sign-in/[[...sign-in]]
+#14 18.25 Γö£ ╞Æ /sign-up/[[...sign-up]]
+#14 18.25 Γö£ Γùï /upload
+#14 18.25 Γöö Γùï /versions
+#14 18.25 
+#14 18.25 
+#14 18.25 ╞Æ Proxy (Middleware)
+#14 18.25 
+#14 18.25 Γùï  (Static)   prerendered as static content
+#14 18.25 ╞Æ  (Dynamic)  server-rendered on demand
+#14 18.25 
+#14 18.31 npm notice
+#14 18.31 npm notice New major version of npm available! 10.8.2 -> 11.11.1
+#14 18.31 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.11.1
+#14 18.31 npm notice To update run: npm install -g npm@11.11.1
+#14 18.31 npm notice
+#14 DONE 18.4s
+
+#15 [runner 4/6] COPY --from=builder /app/public ./public
+#15 DONE 0.0s
+
+#16 [runner 5/6] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#16 DONE 0.2s
+
+#17 [runner 6/6] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#17 DONE 0.1s
+
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 2.0s done
+#18 exporting manifest sha256:97fc29eba9ab8313dce1baf37f6cc84f68994668751efa555146ca047e9d1091 0.0s done
+#18 exporting config sha256:7f3f7b703efacf4f6e2bd5a78fc35ea2223abbef96bdd1108e124fb2e4393255 0.0s done
+#18 exporting attestation manifest sha256:69cb8059618dde7df2cdf39ee871ba08b877a95527e7d9a2c24b46e0a9a32c6d 0.0s done
+#18 exporting manifest list sha256:b006f8fe6264929339a886156600523061115c4c2b2fdeba5c1815eeb0134604 0.0s done
+#18 naming to ghcr.io/entityoz/dq_agent/vantax-frontend:latest done
+#18 unpacking to ghcr.io/entityoz/dq_agent/vantax-frontend:latest
+#18 unpacking to ghcr.io/entityoz/dq_agent/vantax-frontend:latest 0.5s done
+#18 DONE 2.6s
+
+#19 resolving provenance for metadata file
+#19 DONE 0.1s
+ Image ghcr.io/entityoz/dq_agent/vantax-frontend:latest Built 

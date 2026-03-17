@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import type { LineageGraph, LineageNode, LineageEdge } from "@/types/api";
+import type { LineageGraph, LineageNode } from "@/types/api";
 
 const NODE_COLOURS: Record<string, string> = {
-  record: "#0695A8",    // teal
-  finding: "#0F2137",   // navy
-  exception: "#DC2626", // red
-  cleaning: "#D97706",  // amber
-  dedup: "#7C3AED",     // purple
+  record: "#0695A8",
+  finding: "#0F2137",
+  exception: "#DC2626",
+  cleaning: "#D97706",
+  dedup: "#7C3AED",
 };
 
 const NODE_RADIUS = 18;
@@ -51,7 +51,6 @@ export default function LineageGraphComponent({
 
     const g = svg.append("g");
 
-    // Zoom and pan
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.3, 3])
       .on("zoom", (event) => {
@@ -59,7 +58,6 @@ export default function LineageGraphComponent({
       });
     svg.call(zoom);
 
-    // Build simulation data
     const nodes: SimNode[] = graph.nodes.map((n) => ({ ...n }));
     const links: SimLink[] = graph.edges.map((e) => ({
       source: e.source,
@@ -79,7 +77,6 @@ export default function LineageGraphComponent({
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide(NODE_RADIUS + 10));
 
-    // Edges
     const link = g
       .append("g")
       .selectAll("line")
@@ -89,7 +86,6 @@ export default function LineageGraphComponent({
       .attr("stroke-width", 1.5)
       .attr("stroke-opacity", 0.7);
 
-    // Edge labels
     const linkLabel = g
       .append("g")
       .selectAll("text")
@@ -100,7 +96,22 @@ export default function LineageGraphComponent({
       .attr("fill", "#6B92AD")
       .attr("text-anchor", "middle");
 
-    // Nodes
+    const dragBehavior = d3.drag<SVGCircleElement, SimNode>()
+      .on("start", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on("drag", (event, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
+      })
+      .on("end", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      });
+
     const node = g
       .append("g")
       .selectAll("circle")
@@ -116,26 +127,8 @@ export default function LineageGraphComponent({
         setTooltip({ x, y, node: d as LineageNode });
       })
       .on("mouseout", () => setTooltip(null))
-      .call(
-        d3
-          .drag<SVGCircleElement, SimNode>()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          }),
-      );
+      .call(dragBehavior as any);
 
-    // Node labels
     const nodeLabel = g
       .append("g")
       .selectAll("text")
@@ -192,8 +185,6 @@ export default function LineageGraphComponent({
         height={height}
         className="rounded-lg border border-[#D6E4F0] bg-white"
       />
-
-      {/* Legend */}
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
         {Object.entries(NODE_COLOURS).map(([type, colour]) => (
           <div key={type} className="flex items-center gap-1">
@@ -205,8 +196,6 @@ export default function LineageGraphComponent({
           </div>
         ))}
       </div>
-
-      {/* Tooltip */}
       {tooltip && (
         <div
           className="pointer-events-none absolute z-50 rounded-lg border border-[#D6E4F0] bg-white px-3 py-2 shadow-lg"
@@ -220,7 +209,7 @@ export default function LineageGraphComponent({
             .slice(0, 4)
             .map(([k, v]) => (
               <p key={k} className="text-[10px] text-[#4A6B84]">
-                {k}: {String(v ?? "—")}
+                {k}: {String(v ?? "-")}
               </p>
             ))}
         </div>

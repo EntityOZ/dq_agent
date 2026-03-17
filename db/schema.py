@@ -314,7 +314,7 @@ class ExceptionComment(Base):
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), nullable=True)
     user_name = Column(Text, nullable=False)
-    text = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 
     exception = relationship("Exception_", back_populates="comments")
@@ -532,3 +532,4 @@ class Notification(Base):
     __table_args__ = (
         Index("ix_notifications_tenant_user_read_created", "tenant_id", "user_id", "is_read", "created_at"),
     )
+

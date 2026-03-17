@@ -111,7 +111,7 @@ function NotificationBell() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger>
         <button
           type="button"
           className="relative flex h-8 w-8 items-center justify-center rounded-lg text-[#6B92AD] hover:bg-[#F0F5FA] hover:text-[#0F2137] transition-colors"
@@ -307,3 +307,4 @@ export default function DashboardLayout({
     </div>
   );
 }
+

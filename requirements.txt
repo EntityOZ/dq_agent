@@ -53,3 +53,4 @@ stripe>=11.0.0
 
 # Observability
 sentry-sdk[fastapi]>=2.19.0
+scikit-learn==1.6.1

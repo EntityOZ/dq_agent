@@ -69,7 +69,7 @@ function NlpChart({
             cx="50%"
             cy="50%"
             outerRadius={80}
-            label={(entry) => String(entry[labelKey])}
+            label={(entry) => String(entry[labelKey as keyof typeof entry])}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={CHART_COLOURS[i % CHART_COLOURS.length]} />
@@ -321,3 +321,4 @@ export default function NlpPage() {
     </div>
   );
 }
+
