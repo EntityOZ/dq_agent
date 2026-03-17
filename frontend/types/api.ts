@@ -233,3 +233,105 @@ export interface TenantSettings {
   } | null;
   stripe_customer_id: string | null;
 }
+
+/* ─── Exceptions ─── */
+
+export type ExceptionType =
+  | "sap_transaction"
+  | "dq_rule"
+  | "custom_business"
+  | "anomaly"
+  | "contract_violation";
+
+export type ExceptionStatus =
+  | "open"
+  | "investigating"
+  | "pending_approval"
+  | "resolved"
+  | "verified"
+  | "closed";
+
+export interface Exception {
+  id: string;
+  tenant_id: string;
+  type: ExceptionType;
+  category: string;
+  severity: Severity;
+  status: ExceptionStatus;
+  title: string;
+  description: string;
+  source_system: string | null;
+  source_reference: string | null;
+  affected_records: Record<string, unknown> | null;
+  estimated_impact_zar: number | null;
+  assigned_to: string | null;
+  escalation_tier: number;
+  sla_deadline: string | null;
+  root_cause_category: string | null;
+  resolution_type: string | null;
+  resolution_notes: string | null;
+  linked_finding_id: string | null;
+  linked_cleaning_id: string | null;
+  linked_finding?: Record<string, unknown> | null;
+  linked_cleaning?: Record<string, unknown> | null;
+  billing_tier: number | null;
+  created_at: string;
+  resolved_at: string | null;
+  closed_at: string | null;
+  comments?: ExceptionComment[];
+}
+
+export interface ExceptionComment {
+  id: string;
+  exception_id: string;
+  user_id: string | null;
+  user_name: string;
+  text: string;
+  created_at: string;
+}
+
+export interface ExceptionRule {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string;
+  rule_type: string;
+  object_type: string;
+  condition: string;
+  severity: Severity;
+  auto_assign_to: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ExceptionMetrics {
+  open_count: number;
+  resolved_count: number;
+  avg_resolution_hours: number;
+  sla_compliance_pct: number;
+  overdue_count: number;
+  by_type: Record<string, number>;
+  by_severity: Record<string, number>;
+}
+
+export interface ExceptionBilling {
+  period: string;
+  tier1_count: number;
+  tier2_count: number;
+  tier3_count: number;
+  tier4_count: number;
+  tier1_amount: number;
+  tier2_amount: number;
+  tier3_amount: number;
+  tier4_amount: number;
+  base_fee: number;
+  total_amount: number;
+}
+
+export interface ExceptionListResponse {
+  exceptions: Exception[];
+  total: number;
+  page: number;
+  per_page: number;
+}
