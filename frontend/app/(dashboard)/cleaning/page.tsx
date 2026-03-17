@@ -11,6 +11,7 @@ import {
   ChevronRight,
   X,
   Search,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,14 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   getCleaningQueue,
   getCleaningItem,
   approveCleaning,
@@ -31,7 +40,9 @@ import {
   applyCleaning,
   rollbackCleaning,
   getCleaningMetrics,
+  downloadCleaningExport,
   type CleaningQueueItem,
+  type ExportFormat,
 } from "@/lib/api/cleaning";
 import { toast } from "sonner";
 
@@ -62,6 +73,9 @@ export default function CleaningPage() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
+  const [exportLoading, setExportLoading] = useState(false);
 
   const { data: metricsData } = useQuery({
     queryKey: ["cleaning-metrics"],
@@ -134,7 +148,12 @@ export default function CleaningPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Cleaning Workbench</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Cleaning Workbench</h1>
+        <Button onClick={() => setExportOpen(true)} variant="outline">
+          <Download className="mr-2 h-4 w-4" /> Export
+        </Button>
+      </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-4">
@@ -313,6 +332,87 @@ export default function CleaningPage() {
           </Button>
         </div>
       )}
+
+      {/* Export modal */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Cleaning Data</DialogTitle>
+            <DialogDescription>
+              Export applied cleaning items in SAP-compatible formats.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-3">
+              <span className="text-sm font-medium">Format</span>
+              {([
+                { value: "csv" as const, label: "CSV (SAP field headers)" },
+                { value: "lsmw" as const, label: "LSMW Recording" },
+                { value: "bapi" as const, label: "BAPI Call JSON" },
+                { value: "idoc" as const, label: "IDoc JSON" },
+                { value: "sf_csv" as const, label: "SuccessFactors CSV" },
+              ]).map((opt) => (
+                <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="export-format"
+                    value={opt.value}
+                    checked={exportFormat === opt.value}
+                    onChange={() => setExportFormat(opt.value)}
+                    className="accent-[#0695A8]"
+                  />
+                  <span className="text-sm">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Object Type</span>
+              <select
+                value={objectType}
+                onChange={(e) => setObjectType(e.target.value)}
+                className="w-full rounded-md border border-border bg-accent px-3 py-1.5 text-sm"
+              >
+                <option value="">All object types</option>
+                <option value="customer">Customer</option>
+                <option value="vendor">Vendor</option>
+                <option value="material">Material</option>
+                <option value="equipment">Equipment</option>
+                <option value="employee">Employee</option>
+                <option value="financial">Financial</option>
+              </select>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              {totalItems} applied items will be exported
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={exportLoading}
+              onClick={async () => {
+                setExportLoading(true);
+                try {
+                  await downloadCleaningExport(exportFormat, objectType || undefined);
+                  toast.success(`Exported as ${exportFormat.toUpperCase()}`);
+                  setExportOpen(false);
+                } catch {
+                  toast.error("Export failed");
+                } finally {
+                  setExportLoading(false);
+                }
+              }}
+            >
+              {exportLoading ? "Exporting..." : "Export"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
