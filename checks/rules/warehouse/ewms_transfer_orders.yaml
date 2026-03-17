@@ -1,0 +1,180 @@
+module: ewms_transfer_orders
+target_state: EWMS_CURRENT
+rules:
+
+  - id: EWTO001
+    field: LTAP.TANUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Transfer order number is the primary key — mandatory for all TO items"
+    why_it_matters: >-
+      TANUM is the transfer order number and primary key for all transfer order items.
+      Without it, the TO item cannot be identified, confirmed, or processed. The entire
+      warehouse movement chain depends on this key.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer order item is unprocessable. Cannot be confirmed, reversed, or reported on.
+      Warehouse movement is lost.
+    fix_map:
+      __blank__: >-
+        Transfer order number is empty. This record cannot be processed. Investigate the
+        source of the data — TO numbers are assigned automatically by the system during
+        TO creation (LT01/LT0A). A blank TANUM indicates a data corruption or load error.
+      __null__: >-
+        Transfer order number was never assigned. This is a system-generated field —
+        investigate the data load or creation process for errors.
+    record_fix_template: >-
+      TO item: TANUM is {actual_value}. This is a system-assigned key — investigate
+      the data source for corruption.
+
+  - id: EWTO002
+    field: LTAP.LGNUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Warehouse number is mandatory on transfer order — identifies the warehouse"
+    why_it_matters: >-
+      LGNUM identifies which warehouse the transfer order operates in. Without it, the
+      system cannot determine the source and destination bins, cannot validate storage
+      type rules, and cannot confirm the movement.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer order cannot be processed. Source and destination bins cannot be validated.
+      Confirmation fails.
+    fix_map:
+      __blank__: >-
+        Warehouse number is empty on the transfer order. Determine the correct warehouse
+        from the linked delivery or material document and correct the data.
+      __null__: >-
+        Warehouse number was never populated. Check the originating document (delivery,
+        posting change) for the correct warehouse assignment.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: LGNUM is {actual_value}. Assign the correct warehouse number
+      from the originating document.
+
+  - id: EWTO003
+    field: LTAP.MATNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Material number is mandatory on transfer order line"
+    why_it_matters: >-
+      MATNR identifies which material is being moved by the transfer order. Without it,
+      the system cannot update bin stock, cannot validate batch or serial number requirements,
+      and the movement is meaningless.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer order line has no material identity. Stock updates cannot be posted.
+      Bin quantities will not reflect the movement.
+    fix_map:
+      __blank__: >-
+        Material number is empty on the TO line. Identify the correct material from the
+        originating document (delivery, production order) and correct the data.
+      __null__: >-
+        Material was never assigned to this TO line. Check the source document for the
+        correct material number.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: MATNR is {actual_value}. Assign the correct material number
+      from the source document.
+
+  - id: EWTO004
+    field: LTAP.NLTYP
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Destination storage type is mandatory — determines where goods are moved to"
+    why_it_matters: >-
+      NLTYP (destination storage type) tells the WM system where goods are
+      being moved to. Without it the transfer order cannot determine the destination bin and
+      will fail to confirm, leaving stock in an undefined state.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer order cannot determine destination. Confirmation fails. Stock remains in
+      source bin with an open, unconfirmable TO — creating a permanent discrepancy.
+    fix_map:
+      __blank__: >-
+        Destination storage type is empty. The TO cannot be confirmed without it.
+        Determine the correct destination type from the putaway strategy or warehouse
+        layout and update via LT0A.
+      __null__: >-
+        Destination storage type was never assigned. Check the putaway strategy
+        configuration and the originating document for the intended destination.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: NLTYP is {actual_value}. Assign the correct destination storage
+      type via transaction LT0A.
+
+  - id: EWTO005
+    field: LTAP.NLPLA
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Destination bin is mandatory — identifies exact target location"
+    why_it_matters: >-
+      NLPLA is the destination storage bin. Without it, the transfer order knows the
+      destination type but not the specific bin. Confirmation fails because the system
+      cannot update bin-level stock quantities at the destination.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer order cannot be confirmed. Stock is not posted to the destination bin.
+      Physical stock and system stock diverge permanently.
+    fix_map:
+      __blank__: >-
+        Destination bin is empty. Determine the correct bin from the putaway strategy
+        or physical warehouse and assign via LT0A.
+      __null__: >-
+        Destination bin was never assigned. Check the putaway strategy or manually
+        assign via LT0A.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: NLPLA is {actual_value}. Assign the correct destination bin
+      via transaction LT0A.
+
+  - id: EWTO006
+    field: LTAP.MENGE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Transfer order quantity is mandatory — zero or blank means no stock movement"
+    why_it_matters: >-
+      Zero or blank quantity means the transfer order records no stock movement.
+      The bin quantities in the source and destination are not updated, causing permanent
+      discrepancy between WM stock and IM stock levels.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      No stock movement recorded. Source and destination bin quantities unchanged.
+      Permanent WM/IM stock discrepancy.
+    fix_map:
+      __blank__: >-
+        Transfer order quantity is blank. Determine the correct quantity from the
+        originating document (delivery, production order) and correct via LT0A.
+      __null__: >-
+        Quantity was never populated. Check the source document for the intended
+        movement quantity.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: MENGE is {actual_value}. Assign the correct movement quantity
+      via transaction LT0A.
+
+  - id: EWTO007
+    field: LTAP.MEINS
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Unit of measure required for transfer order quantity interpretation"
+    why_it_matters: >-
+      MEINS (unit of measure) is required to interpret the MENGE quantity correctly.
+      Without it, the system cannot validate the quantity against the material master
+      base unit and conversion factors may be applied incorrectly.
+    rule_authority: best_practice
+    sap_impact: >-
+      Quantity interpretation is ambiguous. Unit conversion may fail. Stock postings
+      may use incorrect quantities.
+    fix_map:
+      __blank__: >-
+        Unit of measure is empty. The system typically copies this from the material
+        master. Check the material master for the correct base unit and update the TO.
+      __null__: >-
+        Unit of measure was never assigned. Verify the material master base unit of
+        measure and correct the data.
+    record_fix_template: >-
+      TO {LTAP.TANUM}: MEINS is {actual_value}. Set to the material's base unit of
+      measure from the material master (MM03).

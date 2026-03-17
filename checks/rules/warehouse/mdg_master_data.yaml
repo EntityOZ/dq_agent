@@ -1,0 +1,218 @@
+module: mdg_master_data
+target_state: S4HANA_2023
+rules:
+
+  - id: MDG001
+    field: USMD_CREQU.ENTITY_TYPE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Entity type is mandatory — identifies what kind of master data the change request governs"
+    why_it_matters: >-
+      ENTITY_TYPE identifies whether the change request governs a material, vendor, customer,
+      business partner, or other master data object. Without it, the MDG workflow engine
+      cannot route the request to the correct governance process, approval chain, or
+      data model. The change request is effectively unprocessable.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Change request cannot be routed. Governance workflow cannot start. Master data
+      change is blocked.
+    fix_map:
+      __blank__: >-
+        Entity type is empty. Determine the correct type from the change request content
+        (e.g. BP for business partner, MAT for material) and update via MDG change
+        request maintenance.
+      __null__: >-
+        Entity type was never assigned. This is mandatory for all change requests.
+        Investigate the creation process for errors.
+    record_fix_template: >-
+      Change request {USMD_CREQU.ENTITY_ID}: ENTITY_TYPE is {actual_value}. Set the
+      correct entity type via MDG change request maintenance.
+
+  - id: MDG002
+    field: USMD_CREQU.CREATED_BY
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Creator is required for audit trail and accountability"
+    why_it_matters: >-
+      CREATED_BY records who initiated the master data change request. Without it, the
+      audit trail is broken — compliance teams cannot trace who requested the change,
+      and the governance process loses accountability. This is especially critical for
+      SOX-relevant master data changes.
+    rule_authority: best_practice
+    sap_impact: >-
+      Audit trail incomplete. Cannot trace change request originator. SOX compliance
+      finding for unattributed master data changes.
+    fix_map:
+      __blank__: >-
+        Creator is empty. Check the change request creation log for the original user
+        and update the record. For bulk imports, set to the import user ID.
+      __null__: >-
+        Creator was never recorded. Investigate the change request creation process
+        and assign the correct user.
+    record_fix_template: >-
+      Change request {USMD_CREQU.ENTITY_ID}: CREATED_BY is {actual_value}. Assign
+      the correct creator from the creation log.
+
+  - id: MDG003
+    field: USMD_CREQU.STATUS
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "Change request status must be a valid MDG workflow state"
+    allowed_values: ["DR", "IP", "AP", "RJ", "CA"]
+    valid_values_with_labels:
+      DR: "Draft — change request created but not yet submitted"
+      IP: "In Process — submitted and undergoing review/approval"
+      AP: "Approved — change request approved and ready for activation"
+      RJ: "Rejected — change request rejected by approver"
+      CA: "Cancelled — change request cancelled by requester"
+    why_it_matters: >-
+      The status field controls which actions are available on the change request and
+      determines whether the master data change can be activated. An invalid status means
+      the governance workflow is in an undefined state — approved changes may not activate,
+      and rejected changes may appear as pending.
+    rule_authority: best_practice
+    sap_impact: >-
+      Governance workflow in undefined state. Approved changes may not activate. MDG
+      cockpit displays unreliable. Process metrics (approval time, rejection rate)
+      are inaccurate.
+    fix_map:
+      __other__: >-
+        Status '{actual_value}' is not a valid MDG workflow state. Valid values are:
+        DR (draft), IP (in process), AP (approved), RJ (rejected), CA (cancelled).
+        Correct via MDG change request maintenance.
+    record_fix_template: >-
+      Change request {USMD_CREQU.ENTITY_ID}: STATUS is '{actual_value}'. Set to a
+      valid state (DR/IP/AP/RJ/CA) via MDG change request maintenance.
+
+  - id: MDG004
+    field: USMD_CREQU.APPROVAL_DATE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Approval date required on approved change requests for audit compliance"
+    why_it_matters: >-
+      APPROVAL_DATE records when the change request was approved. For approved CRs, this is
+      essential for the audit trail — it proves the change went through the governance
+      process and when the approval was granted. Missing dates on approved CRs indicate
+      a governance gap.
+    rule_authority: best_practice
+    sap_impact: >-
+      Audit trail incomplete for approved changes. Cannot determine approval timeline.
+      SOX compliance finding for undated approvals.
+    fix_map:
+      __blank__: >-
+        Approval date is empty on an approved change request. Check the workflow log
+        for the actual approval timestamp and update the record.
+      __null__: >-
+        Approval date was never recorded. Investigate the approval workflow for the
+        correct date.
+    record_fix_template: >-
+      Change request {USMD_CREQU.ENTITY_ID}: APPROVAL_DATE is {actual_value}. Set
+      from the workflow approval log.
+
+  - id: MDG005
+    field: USMD_CREQU.APPROVER
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Approver is mandatory on approved CRs — missing means governance was bypassed"
+    why_it_matters: >-
+      An approved change request without an approver means the governance
+      process was bypassed. The audit trail is incomplete and the change cannot be traced
+      back to an authorised person.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Governance bypass. Change cannot be traced to an authorised approver. SOX critical
+      finding. Master data change may need to be reversed and re-approved.
+    fix_map:
+      __blank__: >-
+        Approver is empty on an approved change request. This is a governance violation.
+        Check the workflow log for the approving user and update the record. If no
+        approver can be identified, the change request must be re-submitted for approval.
+      __null__: >-
+        Approver was never recorded. Investigate the approval workflow — the change may
+        have bypassed the governance process entirely.
+    record_fix_template: >-
+      Change request {USMD_CREQU.ENTITY_ID}: APPROVER is {actual_value}. Critical
+      governance gap — identify the approver from workflow logs or re-submit for approval.
+
+  - id: MDG006
+    field: USMD_VALUE.FIELD_NAME
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Field name is mandatory — identifies which master data attribute was changed"
+    why_it_matters: >-
+      FIELD_NAME identifies which specific master data attribute is being created or changed
+      in the change request. Without it, the change request records that something changed
+      but not what — making the audit trail meaningless and preventing data stewards from
+      reviewing the actual change.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Change audit trail is meaningless — no record of what was changed. Data steward
+      review impossible. Compliance reporting has gaps.
+    fix_map:
+      __blank__: >-
+        Field name is empty on the change value record. Identify the correct field from
+        the change request context and update via MDG maintenance.
+      __null__: >-
+        Field name was never assigned. This makes the change record uninterpretable.
+        Investigate the change request creation process.
+    record_fix_template: >-
+      Change request value record: FIELD_NAME is {actual_value}. Identify and assign
+      the correct field name via MDG maintenance.
+
+  - id: MDG007
+    field: USMD_VALUE.NEW_VALUE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "New value should be populated — records what the field is being changed to"
+    why_it_matters: >-
+      NEW_VALUE records the target value for the master data change. Without it, the change
+      request records an intent to change a field but not what the new value should be. This
+      prevents automated activation and forces manual intervention to determine the intended
+      change.
+    rule_authority: best_practice
+    sap_impact: >-
+      Automated activation cannot set the correct value. Manual intervention required.
+      Change request review cannot assess the impact of the change.
+    fix_map:
+      __blank__: >-
+        New value is empty. If this is a deletion (clearing a field), this may be
+        intentional. Otherwise, enter the intended new value via MDG change request
+        maintenance.
+      __null__: >-
+        New value was never set. Determine the intended value from the change request
+        description and update via MDG maintenance.
+    record_fix_template: >-
+      Change request value for {USMD_VALUE.FIELD_NAME}: NEW_VALUE is {actual_value}.
+      Enter the intended new value via MDG change request maintenance.
+
+  - id: MDG008
+    field: USMD_CREQU.ENTITY_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Entity ID is mandatory — identifies which master data record is being changed"
+    why_it_matters: >-
+      ENTITY_ID identifies the specific master data record (e.g. the business partner number,
+      material number) that the change request governs. Without it, the change request
+      cannot be linked to a master data record and the change cannot be applied.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Change request has no target record. Cannot be activated or applied. Governance
+      process has no subject.
+    fix_map:
+      __blank__: >-
+        Entity ID is empty. Determine the correct master data record number from the
+        change request context and assign via MDG change request maintenance.
+      __null__: >-
+        Entity ID was never assigned. This is mandatory — investigate the change request
+        creation process for errors.
+    record_fix_template: >-
+      Change request: ENTITY_ID is {actual_value}. Assign the correct master data
+      record identifier via MDG change request maintenance.

@@ -1,0 +1,180 @@
+module: transport_management
+target_state: TM_CURRENT
+rules:
+
+  - id: TM001
+    field: VTTK.TKNUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Shipment number is the primary key — mandatory for all transport documents"
+    why_it_matters: >-
+      TKNUM is the shipment number and primary key for all transport management documents.
+      Without it, the shipment cannot be tracked, costed, or linked to deliveries. The entire
+      transport chain depends on this key.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Shipment is untrackable. Freight costs cannot be calculated. Deliveries cannot be
+      linked to transport. Carrier communication fails.
+    fix_map:
+      __blank__: >-
+        Shipment number is empty. This is a system-generated field assigned during
+        shipment creation (VT01N). A blank TKNUM indicates a data corruption or load error.
+        Investigate the data source.
+      __null__: >-
+        Shipment number was never assigned. Create the shipment via VT01N or
+        investigate the data load for errors.
+    record_fix_template: >-
+      Shipment: TKNUM is {actual_value}. This is system-assigned — investigate the
+      data source or create via VT01N.
+
+  - id: TM002
+    field: VTTK.VSART
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Shipment type determines carrier selection and transport mode — mandatory"
+    why_it_matters: >-
+      VSART (shipment type) determines the transport mode (road, rail, sea, air), carrier
+      selection rules, and freight cost calculation method. Without it, the system cannot
+      determine how goods are transported, which carrier to use, or how to calculate freight.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Carrier selection fails. Freight cost calculation impossible. Transport mode
+      undetermined — routing and scheduling cannot proceed.
+    fix_map:
+      __blank__: >-
+        Shipment type is empty. Determine the correct type based on the transport mode
+        (e.g. 0001 for road, 0002 for rail) and update via VT02N.
+      __null__: >-
+        Shipment type was never assigned. Check the transport planning requirements
+        and set via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: VSART is {actual_value}. Set the correct shipment type
+      via transaction VT02N.
+
+  - id: TM003
+    field: VTTK.SHTYP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Shipping type provides additional transport classification"
+    why_it_matters: >-
+      SHTYP provides further classification of the shipment beyond the basic type. It
+      influences route determination, carrier selection, and freight cost schemas. While
+      the shipment can technically be created without it, missing values degrade transport
+      planning accuracy and freight costing.
+    rule_authority: best_practice
+    sap_impact: >-
+      Route determination less accurate. Freight cost schema may default to generic
+      rates. Carrier selection not optimised.
+    fix_map:
+      __blank__: >-
+        Shipping type is empty. Determine the correct classification from the transport
+        planning requirements and update via VT02N.
+      __null__: >-
+        Shipping type was never assigned. Set the appropriate value based on transport
+        mode and requirements via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: SHTYP is {actual_value}. Set the shipping type via VT02N.
+
+  - id: TM004
+    field: VTTK.ROUTE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Route is required for freight cost calculation — missing means no freight charged"
+    why_it_matters: >-
+      The route determines distance, transit time, and freight cost calculation. Without
+      a route, the system cannot calculate freight charges, leading to either zero freight
+      cost (a revenue loss for the carrier) or manual freight entry that bypasses all
+      automated costing and validation.
+    rule_authority: best_practice
+    sap_impact: >-
+      Freight cost calculation returns zero or fails. Transit time unknown. Delivery
+      scheduling cannot account for transport lead time.
+    fix_map:
+      __blank__: >-
+        Route is empty. Determine the correct route based on the shipping point and
+        destination. Maintain routes via transaction OVTC and assign to the shipment
+        via VT02N.
+      __null__: >-
+        Route was never assigned. Create or select the correct route in OVTC and
+        assign to the shipment via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: ROUTE is {actual_value}. Assign the correct route
+      via transaction VT02N.
+
+  - id: TM005
+    field: VTTP.VBELN
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Delivery number links the shipment to the delivery document — mandatory"
+    why_it_matters: >-
+      VBELN links the shipment to the outbound delivery. Without it, the shipment has no
+      deliveries to transport — it exists as an empty container with no goods movement.
+      Proof of delivery, goods issue, and billing all depend on this link.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Shipment has no deliveries. Goods issue cannot post. Proof of delivery not possible.
+      Billing for transport services has no reference.
+    fix_map:
+      __blank__: >-
+        Delivery number is empty on the shipment item. Assign the correct delivery via
+        VT02N > Deliveries tab. Ensure the delivery is released for transport.
+      __null__: >-
+        Delivery was never linked to this shipment. Add the delivery document via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: delivery VBELN is {actual_value}. Link the correct
+      delivery via VT02N > Deliveries tab.
+
+  - id: TM006
+    field: VTTK.TDLNR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Forwarding agent required for 3PL integration and freight settlement"
+    why_it_matters: >-
+      TDLNR identifies the forwarding agent (carrier/3PL). Without it, the system cannot
+      route the shipment to a carrier for execution, cannot calculate carrier-specific
+      freight rates, and freight settlement has no vendor to post costs against.
+    rule_authority: best_practice
+    sap_impact: >-
+      Carrier assignment missing. Freight settlement cannot post to a vendor. 3PL
+      integration (EDI/API) has no recipient. Shipment cannot be tendered.
+    fix_map:
+      __blank__: >-
+        Forwarding agent is empty. Assign the correct carrier vendor number via VT02N.
+        The vendor must be created with vendor account group for forwarding agents.
+      __null__: >-
+        Forwarding agent was never assigned. Determine the carrier from the transport
+        agreement and assign via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: TDLNR is {actual_value}. Assign the forwarding agent
+      vendor number via VT02N.
+
+  - id: TM007
+    field: VTTK.DISTZ
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Distance required for freight costing and carbon reporting"
+    why_it_matters: >-
+      DISTZ (distance) is used for distance-based freight cost calculation and increasingly
+      for carbon emissions reporting. Without it, freight costs may be understated and
+      sustainability reporting is incomplete for this shipment.
+    rule_authority: best_practice
+    sap_impact: >-
+      Distance-based freight rates cannot be calculated. Carbon emissions for this
+      shipment are unreported. Transport KPI dashboards have incomplete data.
+    fix_map:
+      __blank__: >-
+        Distance is empty. Enter the transport distance via VT02N or configure automatic
+        distance determination via route maintenance (OVTC).
+      __null__: >-
+        Distance was never populated. Set up automatic distance determination or enter
+        manually via VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: DISTZ is {actual_value}. Enter the distance via VT02N
+      or configure automatic determination in OVTC.

@@ -1,0 +1,212 @@
+module: ewms_stock
+target_state: EWMS_CURRENT
+rules:
+
+  - id: EWMS001
+    field: LGPLA.LGNUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Warehouse number is mandatory — part of the three-part bin address"
+    why_it_matters: >-
+      In SAP Extended Warehouse Management, every storage location is addressed
+      by warehouse number (LGNUM), storage type (LGTYP), and storage bin (LGPLA). Missing any
+      one makes the bin unaddressable and prevents all warehouse movements to or from this bin.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer orders cannot be created. Goods movements fail. Stock in this bin
+      is effectively orphaned and invisible to WM processes.
+    fix_map:
+      __blank__: >-
+        Warehouse number is empty. Every storage bin must belong to a warehouse.
+        Determine the correct warehouse number from the physical location and assign
+        via transaction LX04 or correct the data load.
+      __null__: >-
+        Warehouse number was never populated — likely a data migration gap. Check the
+        source system for the correct warehouse assignment and update via LX04.
+    record_fix_template: >-
+      Bin {LGPLA.LGPLA}: LGNUM is {actual_value}. Assign the correct warehouse number
+      via transaction LX04 or LS01N.
+
+  - id: EWMS002
+    field: LGPLA.LGTYP
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Storage type is mandatory — part of the three-part bin address"
+    why_it_matters: >-
+      In SAP Extended Warehouse Management, every storage location is addressed
+      by warehouse number (LGNUM), storage type (LGTYP), and storage bin (LGPLA). Missing any
+      one makes the bin unaddressable and prevents all warehouse movements to or from this bin.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer orders cannot be created. Goods movements fail. Stock in this bin
+      is effectively orphaned and invisible to WM processes.
+    fix_map:
+      __blank__: >-
+        Storage type is empty. Every bin must have a storage type that defines its
+        characteristics (e.g. high-rack, floor, picking). Assign via transaction LX04.
+      __null__: >-
+        Storage type was never populated. Determine the correct type from the physical
+        warehouse layout and update via LX04 or LS01N.
+    record_fix_template: >-
+      Bin {LGPLA.LGPLA}: LGTYP is {actual_value}. Assign the correct storage type
+      via transaction LX04 or LS01N.
+
+  - id: EWMS003
+    field: LGPLA.LGPLA
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Storage bin is mandatory — part of the three-part bin address"
+    why_it_matters: >-
+      In SAP Extended Warehouse Management, every storage location is addressed
+      by warehouse number (LGNUM), storage type (LGTYP), and storage bin (LGPLA). Missing any
+      one makes the bin unaddressable and prevents all warehouse movements to or from this bin.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transfer orders cannot be created. Goods movements fail. Stock in this bin
+      is effectively orphaned and invisible to WM processes.
+    fix_map:
+      __blank__: >-
+        Storage bin identifier is empty. Every physical location must have a unique bin
+        code. Create the bin via transaction LS01N with the correct warehouse and type.
+      __null__: >-
+        Storage bin was never assigned. Create via LS01N or correct the data load to
+        include the bin identifier from the physical warehouse layout.
+    record_fix_template: >-
+      Record missing LGPLA. Create the storage bin via transaction LS01N with the
+      correct warehouse number and storage type.
+
+  - id: EWMS004
+    field: LQUA.MATNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Material number is mandatory on warehouse quant — identifies what is stored"
+    why_it_matters: >-
+      MATNR on the warehouse quant (LQUA) identifies which material occupies the bin.
+      Without it, the WM system cannot determine what is physically stored, making
+      inventory counts, goods movements, and picking impossible for this quant.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Quant is unidentifiable. Picking, putaway, and inventory management all fail.
+      Stock appears in WM but cannot be allocated to any process.
+    fix_map:
+      __blank__: >-
+        Material number is empty on this quant. Identify the physical material in the
+        bin and assign the correct MATNR via transaction LQ02 or correct the data load.
+      __null__: >-
+        Material number was never populated. This quant cannot be used until MATNR is
+        assigned. Verify the physical stock and update via LQ02.
+    record_fix_template: >-
+      Quant in bin {LGPLA.LGPLA}: MATNR is {actual_value}. Identify the physical
+      material and assign via transaction LQ02.
+
+  - id: EWMS005
+    field: LQUA.WERKS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Plant is mandatory on warehouse quant — links WM stock to IM stock"
+    why_it_matters: >-
+      WERKS links the warehouse quant to the inventory management (IM) plant. Without
+      it, WM stock cannot be reconciled with IM stock, goods receipts and issues cannot
+      post correctly, and the quant is orphaned from the logistics chain.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      WM-IM reconciliation fails. Goods movements cannot post to inventory management.
+      Stock value cannot be determined for this quant.
+    fix_map:
+      __blank__: >-
+        Plant is empty. Determine the correct plant from the warehouse-plant assignment
+        table and update via transaction LQ02 or correct the data load.
+      __null__: >-
+        Plant was never assigned to this quant. Check the warehouse configuration for
+        the correct plant assignment and update via LQ02.
+    record_fix_template: >-
+      Quant {LQUA.MATNR} in bin {LGPLA.LGPLA}: WERKS is {actual_value}. Assign the
+      correct plant via transaction LQ02.
+
+  - id: EWMS006
+    field: LQUA.BESTQ
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "Stock category must be a valid WM stock type"
+    allowed_values: ["", "Q", "S", "R", "K"]
+    valid_values_with_labels:
+      "": "Unrestricted use"
+      Q: "Quality inspection"
+      S: "Blocked"
+      R: "Returns"
+      K: "Consignment"
+    why_it_matters: >-
+      Stock category (BESTQ) determines which processes can consume this stock. An invalid
+      value means the WM system cannot classify the stock correctly — it may be treated as
+      unrestricted when it should be blocked, or vice versa. This leads to incorrect picking,
+      quality inspection bypass, or blocked stock being shipped to customers.
+    rule_authority: best_practice
+    sap_impact: >-
+      Incorrect stock categorisation. Quality inspection stock may be picked for delivery.
+      Blocked stock may be incorrectly released. Returns may not be routed to inspection.
+    fix_map:
+      __other__: >-
+        BESTQ value '{actual_value}' is not a valid stock category. Valid values are:
+        blank (unrestricted), Q (quality inspection), S (blocked), R (returns), K (consignment).
+        Correct via transaction LQ02 or adjust the data load.
+    record_fix_template: >-
+      Quant {LQUA.MATNR} in bin {LGPLA.LGPLA}: BESTQ is '{actual_value}'. Set to a valid
+      stock category via transaction LQ02.
+
+  - id: EWMS007
+    field: LQUA.CHARG
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Batch number required for batch-managed materials — missing breaks FEFO"
+    why_it_matters: >-
+      For batch-managed materials, the batch number (CHARG) is required on every quant.
+      Without it, FEFO (first expiry first out) picking strategy cannot function because
+      the system cannot determine which batch expires first. This creates a compliance and
+      safety risk for perishable or regulated goods.
+    rule_authority: best_practice
+    sap_impact: >-
+      FEFO picking strategy fails. Expired batches may be picked ahead of valid ones.
+      Batch traceability is broken for recalls and audit purposes.
+    fix_map:
+      __blank__: >-
+        Batch number is empty on a batch-managed material quant. Identify the correct
+        batch from the physical label or goods receipt and assign via LQ02.
+      __null__: >-
+        Batch was never assigned. For batch-managed materials this is required. Check
+        the goods receipt documentation and update via LQ02.
+    record_fix_template: >-
+      Quant {LQUA.MATNR} in bin {LGPLA.LGPLA}: CHARG is {actual_value}. Assign the
+      correct batch number via transaction LQ02.
+
+  - id: EWMS008
+    field: LGPLA.LGBER
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Storage section improves warehouse organisation and putaway strategy"
+    why_it_matters: >-
+      Storage section (LGBER) groups bins within a storage type for organisational and
+      putaway strategy purposes. While not strictly mandatory, missing values degrade
+      putaway optimisation — the system cannot apply section-based strategies and defaults
+      to less efficient placement logic.
+    rule_authority: best_practice
+    sap_impact: >-
+      Putaway strategy cannot use section-based logic. Warehouse organisation is degraded.
+      Reporting by section is incomplete.
+    fix_map:
+      __blank__: >-
+        Storage section is empty. Assign the correct section based on the physical
+        warehouse layout via transaction LX04.
+      __null__: >-
+        Storage section was never populated. Determine the correct section from the
+        warehouse layout and update via LX04.
+    record_fix_template: >-
+      Bin {LGPLA.LGPLA}: LGBER is {actual_value}. Assign the correct storage section
+      via transaction LX04.

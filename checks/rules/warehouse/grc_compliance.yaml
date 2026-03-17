@@ -1,0 +1,168 @@
+module: grc_compliance
+target_state: S4HANA_2023
+rules:
+
+  - id: GRC001
+    field: GRACUSERROLE.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — identifies the user for role assignment and access control"
+    why_it_matters: >-
+      USERID is the primary identifier linking a user to their role assignments in SAP GRC
+      Access Control. Without it, the role assignment has no owner — the system cannot
+      determine who has this access, making access reviews, SoD analysis, and audit
+      reporting impossible for this record.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Role assignment has no user. SoD (Segregation of Duties) analysis cannot include
+      this assignment. Access review and certification incomplete. Audit finding.
+    fix_map:
+      __blank__: >-
+        User ID is empty on the role assignment. Identify the correct user from the
+        access request or HR records and update in GRC Access Control.
+      __null__: >-
+        User ID was never assigned. This is the primary key for the assignment —
+        investigate the data source for corruption.
+    record_fix_template: >-
+      Role assignment for {GRACUSERROLE.ROLENAME}: USERID is {actual_value}. Assign
+      the correct user via GRC Access Control.
+
+  - id: GRC002
+    field: GRACUSERROLE.ROLENAME
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Role name is mandatory — identifies what access is granted"
+    why_it_matters: >-
+      ROLENAME identifies which SAP role is assigned to the user. Without it, the system
+      knows a user has an assignment but not what access it grants. SoD analysis cannot
+      evaluate the risk, and the access review process cannot determine whether the
+      assignment is appropriate.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Access level unknown. SoD analysis incomplete — potential risks undetected.
+      Access certification cannot evaluate this assignment.
+    fix_map:
+      __blank__: >-
+        Role name is empty. Identify the correct role from the original access request
+        or provisioning system and update in GRC Access Control.
+      __null__: >-
+        Role name was never assigned. Investigate the provisioning workflow for this
+        user's access request.
+    record_fix_template: >-
+      User {GRACUSERROLE.USERID}: ROLENAME is {actual_value}. Assign the correct
+      role name via GRC Access Control.
+
+  - id: GRC003
+    field: GRACUSERROLE.VALID_FROM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Valid-from date required for access lifecycle management"
+    why_it_matters: >-
+      VALID_FROM defines when the role assignment becomes effective. Without it, the system
+      cannot determine if the access is currently active or scheduled for the future. Access
+      reviews cannot assess the temporal scope of the assignment, and time-based SoD analysis
+      is incomplete.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Access lifecycle undefined. Cannot determine when access was granted. Time-based
+      access reviews incomplete. Audit trail has temporal gap.
+    fix_map:
+      __blank__: >-
+        Valid-from date is empty. Set to the date the access was originally granted or
+        the role assignment creation date. Update via GRC Access Control.
+      __null__: >-
+        Valid-from date was never set. Determine the correct date from the access request
+        history and update in GRC.
+    record_fix_template: >-
+      User {GRACUSERROLE.USERID} / Role {GRACUSERROLE.ROLENAME}: VALID_FROM is
+      {actual_value}. Set the correct start date via GRC Access Control.
+
+  - id: GRC004
+    field: GRACUSERROLE.VALID_TO
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Valid-to date required — missing means permanent access with no expiry"
+    why_it_matters: >-
+      Missing VALID_TO means the role assignment has no expiry date —
+      effectively granting permanent access. This is a governance bypass and creates a
+      significant audit finding.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Role assignment never expires. User retains access indefinitely even after role
+      change or departure. Audit finding for unlimited access. Regulatory non-compliance
+      for SOX, GDPR access minimisation.
+    fix_map:
+      __blank__: >-
+        Valid-to date is empty — this means the access never expires. Set an appropriate
+        expiry based on the access policy (e.g. annual review date, contract end date).
+        Update via GRC Access Control.
+      __null__: >-
+        Expiry date was never set. Apply the organisation's access duration policy and
+        set via GRC Access Control. Typical maximum is 12 months for privileged roles.
+    record_fix_template: >-
+      User {GRACUSERROLE.USERID} / Role {GRACUSERROLE.ROLENAME}: VALID_TO is
+      {actual_value}. Set an expiry date per access policy via GRC Access Control.
+
+  - id: GRC005
+    field: GRACRISK.RISK_LEVEL
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "Risk level must be a valid GRC risk classification"
+    allowed_values: ["C", "H", "M", "L"]
+    valid_values_with_labels:
+      C: "Critical — immediate action required, significant financial/compliance exposure"
+      H: "High — requires urgent remediation within defined SLA"
+      M: "Medium — should be addressed in next review cycle"
+      L: "Low — acceptable risk, monitor in regular review"
+    why_it_matters: >-
+      The risk level classification drives the urgency and escalation of risk mitigation.
+      An invalid value means the risk cannot be properly prioritised — critical risks may
+      be overlooked while low risks consume remediation resources. The entire GRC risk
+      management workflow depends on this classification.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Risk prioritisation fails. Critical risks may not be escalated. Mitigation SLAs
+      not applied correctly. GRC dashboards and reports are unreliable.
+    fix_map:
+      __other__: >-
+        Risk level '{actual_value}' is not a valid classification. Valid values are:
+        C (critical), H (high), M (medium), L (low). Review the risk assessment and
+        assign the correct level in GRC Risk Management.
+    record_fix_template: >-
+      Risk record: RISK_LEVEL is '{actual_value}'. Set to a valid level (C/H/M/L)
+      via GRC Risk Management.
+
+  - id: GRC006
+    field: GRACRISK.CONTROL_STATUS
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "Control status must indicate whether mitigating controls are in place"
+    allowed_values: ["A", "I", "P", "N"]
+    valid_values_with_labels:
+      A: "Active — mitigating control is in place and effective"
+      I: "Inactive — control exists but is not currently operating"
+      P: "Planned — control is designed but not yet implemented"
+      N: "None — no mitigating control exists"
+    why_it_matters: >-
+      Control status indicates whether a mitigating control exists and is effective for a
+      given risk. An invalid value means the GRC system cannot determine the residual risk
+      level — it may show risks as mitigated when controls are not in place, creating a
+      false sense of security.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Residual risk calculation incorrect. Mitigated risks shown as unmitigated or vice
+      versa. GRC dashboards misleading. Audit findings for control status accuracy.
+    fix_map:
+      __other__: >-
+        Control status '{actual_value}' is not valid. Valid values are: A (active),
+        I (inactive), P (planned), N (none). Review the control assessment and set the
+        correct status in GRC Risk Management.
+    record_fix_template: >-
+      Risk record: CONTROL_STATUS is '{actual_value}'. Set to a valid status (A/I/P/N)
+      via GRC Risk Management.

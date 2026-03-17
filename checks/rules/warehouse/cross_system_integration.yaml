@@ -1,0 +1,199 @@
+module: cross_system_integration
+target_state: S4HANA_SF_INTEGRATED
+rules:
+
+  - id: XSYS001
+    field: PERNR
+    check_class: cross_field_check
+    severity: critical
+    dimension: consistency
+    message: "ECC HR employee number must match the SF USERID mapping"
+    why_it_matters: >-
+      In an integrated ECC + SuccessFactors landscape, every employee must have
+      both a PERNR (SAP HR number) and a USERID (SF number) that are correctly linked. A mismatch
+      means payroll data from ECC cannot be reconciled with SF compensation records and the
+      integration will fail to route data correctly.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Payroll integration fails to match HR records to SF records. Compensation
+      reconciliation impossible. Tax certificate data inconsistent.
+    fix_map:
+      __other__: >-
+        PERNR does not match SF USERID mapping. Update the integration mapping table
+        in SF Admin Center > Integration Center or in ECC HR infotype IT0105 (Communication)
+        subtype 0001 (SF User ID).
+    record_fix_template: >-
+      Employee {PERNR}: ECC PERNR does not match SF USERID mapping. Update via
+      infotype IT0105 subtype 0001 or SF Admin Center > Integration Center.
+
+  - id: XSYS002
+    field: LIFNR
+    check_class: cross_field_check
+    severity: critical
+    dimension: consistency
+    message: "Vendor number format must be consistent between ECC and Ariba/MDG"
+    why_it_matters: >-
+      When vendors are managed across ECC, Ariba, and MDG, the vendor number (LIFNR)
+      must be consistent across all systems. Format mismatches cause integration failures —
+      purchase orders created in Ariba cannot be matched to ECC vendor masters, and MDG
+      governance workflows reference a different identifier.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Vendor integration between ECC and Ariba fails. Purchase order routing breaks.
+      MDG change requests reference wrong vendor. Duplicate vendor records created.
+    fix_map:
+      __other__: >-
+        Vendor number format is inconsistent between ECC and the integrated system.
+        Standardise the format using the MDG data model or LSMW vendor conversion.
+        Ensure the number range in target system matches the source format.
+    record_fix_template: >-
+      Vendor {LIFNR}: format inconsistent across systems. Standardise via MDG
+      or LSMW vendor conversion program.
+
+  - id: XSYS003
+    field: MATNR
+    check_class: cross_field_check
+    severity: critical
+    dimension: consistency
+    message: "Material number must be consistent between ECC, Ariba, and MDG"
+    why_it_matters: >-
+      Material numbers must be identical across all integrated systems. A mismatch between
+      ECC MATNR and the corresponding Ariba or MDG identifier means procurement cannot
+      match catalogue items to stock, goods receipts fail validation, and inventory is
+      fragmented across different identifiers for the same physical material.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Material not found during procurement matching. Goods receipts rejected.
+      Inventory split across multiple identifiers for the same material.
+    fix_map:
+      __other__: >-
+        Material number is inconsistent between ECC and the integrated system.
+        Align via MDG material governance workflow or LSMW material conversion.
+        Ensure number ranges and formats match across all systems.
+    record_fix_template: >-
+      Material {MATNR}: inconsistent across systems. Align via MDG governance
+      workflow or LSMW material conversion.
+
+  - id: XSYS004
+    field: KOSTL
+    check_class: referential_check
+    severity: high
+    dimension: consistency
+    message: "Cost centre must exist in both ECC and SF for payroll GL integration"
+    why_it_matters: >-
+      When payroll results from SuccessFactors are posted to ECC general ledger, the cost
+      centre (KOSTL) must exist in both systems. A cost centre present in SF but missing in
+      ECC causes payroll posting failures — employee costs cannot be allocated and the GL
+      posting run aborts for affected records.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Payroll GL posting fails for employees on this cost centre. Employee costs
+      unallocated. Month-end close delayed until cost centre is created in ECC.
+    fix_map:
+      __other__: >-
+        Cost centre exists in one system but not the other. Create the missing cost
+        centre via KS01 (ECC) or SF Admin Center > Cost Center Management. Ensure
+        the cost centre hierarchy is aligned between systems.
+    record_fix_template: >-
+      Cost centre {KOSTL}: missing in one system. Create via KS01 (ECC) or
+      SF Admin Center and ensure alignment.
+
+  - id: XSYS005
+    field: WAERS
+    check_class: domain_value_check
+    severity: high
+    dimension: consistency
+    message: "Currency code must be consistent across integrated systems"
+    allowed_values: ["ZAR", "USD", "EUR", "GBP"]
+    valid_values_with_labels:
+      ZAR: "South African Rand"
+      USD: "US Dollar"
+      EUR: "Euro"
+      GBP: "British Pound"
+    why_it_matters: >-
+      Currency codes must be standardised across all integrated systems. An inconsistent
+      or invalid currency code causes exchange rate lookup failures, incorrect financial
+      postings, and reconciliation breaks between ECC and SuccessFactors payroll.
+    rule_authority: best_practice
+    sap_impact: >-
+      Exchange rate lookup fails. Financial postings use wrong currency. Cross-system
+      reconciliation breaks for affected transactions.
+    fix_map:
+      __other__: >-
+        Currency code '{actual_value}' is not in the standard set. Verify the correct
+        ISO 4217 currency code and update in both ECC (OY01) and the integrated system.
+    record_fix_template: >-
+      Record with WAERS '{actual_value}': verify the correct ISO 4217 currency code
+      and standardise across systems via OY01.
+
+  - id: XSYS006
+    field: BUKRS
+    check_class: referential_check
+    severity: critical
+    dimension: consistency
+    message: "Company code must exist in both ECC and SF for financial integration"
+    why_it_matters: >-
+      Company code (BUKRS) is the fundamental organisational unit for financial accounting.
+      In an integrated landscape, payroll postings, intercompany transactions, and financial
+      reporting all require the company code to exist in both ECC and SuccessFactors. A
+      mismatch blocks all financial integration for affected employees.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Payroll posting fails for this company code. Intercompany billing breaks.
+      Financial consolidation excludes affected transactions.
+    fix_map:
+      __other__: >-
+        Company code exists in one system but not the other. Create or align the company
+        code via OX02 (ECC) or SF Admin Center > Legal Entity configuration. Ensure
+        the company code structure matches across systems.
+    record_fix_template: >-
+      Company code {BUKRS}: missing in one system. Align via OX02 (ECC) or
+      SF Admin Center > Legal Entity.
+
+  - id: XSYS007
+    field: PERNR
+    check_class: referential_check
+    severity: critical
+    dimension: completeness
+    message: "Every SF payroll employee must have a corresponding ECC HR master record"
+    why_it_matters: >-
+      In an integrated ECC + SuccessFactors landscape, every employee processed in SF
+      payroll must have a corresponding HR master record in ECC. Without it, payroll
+      results cannot be posted to the ECC general ledger, tax reporting is incomplete,
+      and the employee falls out of all ECC HR processes.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Payroll GL posting fails for this employee. Tax certificates incomplete.
+      Employee missing from ECC HR reporting and organisational structure.
+    fix_map:
+      __other__: >-
+        Employee exists in SF but has no corresponding ECC HR master record. Create
+        the HR master via PA01 or PA40 (hiring action) with the correct personnel
+        number matching the SF USERID mapping.
+    record_fix_template: >-
+      Employee {PERNR}: no ECC HR master record found. Create via PA01/PA40 with
+      the correct PERNR matching the SF integration mapping.
+
+  - id: XSYS008
+    field: KUNNR
+    check_class: cross_field_check
+    severity: high
+    dimension: consistency
+    message: "Customer number must be consistent between ECC and integrated CRM/MDG systems"
+    why_it_matters: >-
+      Customer numbers must be identical across ECC, CRM, and MDG systems. Inconsistent
+      KUNNR values cause order-to-cash process breaks — sales orders cannot match customer
+      masters, credit checks fail, and billing documents reference a customer that does not
+      exist in the target system.
+    rule_authority: best_practice
+    sap_impact: >-
+      Sales order creation fails customer validation. Credit check references wrong customer.
+      Billing and accounts receivable postings mismatch.
+    fix_map:
+      __other__: >-
+        Customer number is inconsistent across systems. Align via MDG customer governance
+        workflow or LSMW customer conversion. Ensure number ranges match across ECC,
+        CRM, and any integrated systems.
+    record_fix_template: >-
+      Customer {KUNNR}: inconsistent across systems. Align via MDG governance
+      workflow or LSMW customer conversion.
