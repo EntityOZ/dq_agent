@@ -35,6 +35,7 @@ import {
   Sparkles,
   GitMerge,
   ShieldAlert,
+  BarChart3,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -56,6 +57,7 @@ const NAV_ITEMS = [
   { href: "/cleaning", label: "Cleaning", icon: Sparkles },
   { href: "/dedup", label: "Dedup", icon: GitMerge },
   { href: "/exceptions", label: "Exceptions", icon: ShieldAlert },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

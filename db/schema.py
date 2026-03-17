@@ -362,3 +362,64 @@ class ExceptionBilling(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "period", name="uq_exception_billing_tenant_period"),
     )
+
+
+# ── Phase C: Analytics ───────────────────────────────────────────────────────
+
+
+class DqsHistory(Base):
+    __tablename__ = "dqs_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    module_id = Column(Text, nullable=False)
+    dqs_score = Column(Numeric, nullable=False)
+    completeness = Column(Numeric, nullable=True)
+    accuracy = Column(Numeric, nullable=True)
+    consistency = Column(Numeric, nullable=True)
+    timeliness = Column(Numeric, nullable=True)
+    uniqueness = Column(Numeric, nullable=True)
+    validity = Column(Numeric, nullable=True)
+    finding_count = Column(Integer, nullable=False, server_default="0")
+    recorded_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_dqs_history_tenant_module_recorded", "tenant_id", "module_id", "recorded_at"),
+    )
+
+
+class ImpactRecord(Base):
+    __tablename__ = "impact_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    version_id = Column(UUID(as_uuid=True), ForeignKey("analysis_versions.id"), nullable=False)
+    category = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    annual_risk_zar = Column(Numeric, nullable=False, server_default="0")
+    mitigated_zar = Column(Numeric, nullable=False, server_default="0")
+    finding_count = Column(Integer, nullable=False, server_default="0")
+    calculation_method = Column(Text, nullable=True)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_impact_records_tenant_version", "tenant_id", "version_id"),
+    )
+
+
+class CostAvoidance(Base):
+    __tablename__ = "cost_avoidance"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    period = Column(Text, nullable=False)
+    subscription_cost_zar = Column(Numeric, nullable=False, server_default="0")
+    risk_mitigated_zar = Column(Numeric, nullable=False, server_default="0")
+    exceptions_value_zar = Column(Numeric, nullable=False, server_default="0")
+    cleaning_value_zar = Column(Numeric, nullable=False, server_default="0")
+    cumulative_roi_multiple = Column(Numeric, nullable=False, server_default="0")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "period", name="uq_cost_avoidance_tenant_period"),
+    )
