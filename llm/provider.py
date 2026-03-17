@@ -36,8 +36,8 @@ def get_llm():
             model="claude-sonnet-4-6",
             api_key=os.getenv("ANTHROPIC_API_KEY"),
             temperature=0.1,
-            default_request_timeout=300.0,
-            max_retries=3,
+            timeout=120.0,
+            max_retries=2,
         )
 
     raise ValueError(f"Unknown LLM_PROVIDER: {provider}")
