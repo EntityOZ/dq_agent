@@ -18,6 +18,11 @@ def load_column_map(module_name: str) -> dict[str, str]:
                 maps = yaml.safe_load(f) or {}
             if module_name in maps:
                 return maps[module_name]
+            # Category-level fallback: SF modules share the 'successfactors' key
+            if category in maps:
+                module_path = RULES_DIR / category / f"{module_name}.yaml"
+                if module_path.exists():
+                    return maps[category]
     return {}
 
 

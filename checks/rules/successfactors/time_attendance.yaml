@@ -1,0 +1,116 @@
+module: time_attendance
+target_state: SUCCESSFACTORS_2024
+rules:
+
+  - id: TIME001
+    field: TIMESHEET.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — orphaned timesheet cannot be linked to an employee"
+    why_it_matters: "USERID is the foreign key that links each timesheet entry to a specific
+      employee record. Without it, the timesheet row is orphaned and payroll cannot
+      determine who should be paid for the recorded hours."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Payroll integration skips this timesheet entry. Employee is not paid
+      for recorded hours. Reconciliation discrepancies in payroll run."
+    fix_map:
+      "__blank__": "Assign the correct employee USERID to this timesheet entry via
+        Admin Center > Time Management > Timesheet Import. Cross-reference with the
+        employee master to identify the correct USERID."
+      "__null__": "USERID was never set. Assign immediately via timesheet import
+        before the next payroll run."
+    record_fix_template: "Timesheet {TIMESHEET.USERID}: USERID is missing. Assign
+      the correct employee ID via Admin Center > Time Management > Timesheet Import."
+
+  - id: TIME002
+    field: TIMESHEET.DATE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Timesheet date is mandatory — determines the payroll period for processing"
+    why_it_matters: "DATE determines which payroll period this timesheet entry belongs to.
+      Without it, payroll cannot allocate the hours to the correct pay cycle and the
+      entry is excluded entirely from processing."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Timesheet entry excluded from payroll run. Employee underpaid for
+      the missing period. Leave balances not updated."
+    fix_map:
+      "__blank__": "Add the correct work date in YYYY-MM-DD format via Admin Center >
+        Time Management > Timesheet Import. Verify against the employee's attendance
+        records or manager confirmation."
+      "__null__": "DATE was never recorded. Add immediately via timesheet import.
+        Must be set before payroll close."
+    record_fix_template: "Timesheet {TIMESHEET.USERID}: DATE is missing. Add work
+      date via Admin Center > Time Management > Timesheet Import. Format: YYYY-MM-DD."
+
+  - id: TIME003
+    field: TIMESHEET.HOURS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Hours are mandatory — missing value results in zero payment for this entry"
+    why_it_matters: "HOURS is the quantity used by payroll to calculate gross pay for
+      hourly and overtime entries. A null value causes payroll to compute zero payment
+      for this timesheet line, creating legal and compliance risk."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Employee paid zero for this timesheet entry. Overtime calculations
+      incorrect. Cost centre labour cost reporting understated."
+    fix_map:
+      "__blank__": "Enter the correct number of hours worked via Admin Center >
+        Time Management > Timesheet Import. Confirm with the employee's manager
+        or attendance system."
+      "__null__": "HOURS was never recorded. Critical — enter immediately before
+        payroll close to avoid underpayment."
+    record_fix_template: "Timesheet {TIMESHEET.USERID}: HOURS is missing for date
+      {TIMESHEET.DATE}. Enter hours via Admin Center > Time Management."
+
+  - id: TIME004
+    field: TIMESHEET.ABSENCE_TYPE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Absence type is required for leave entries — determines which balance to deduct"
+    why_it_matters: "ABSENCE_TYPE maps to a specific leave category (annual, sick,
+      unpaid, etc.) which determines which leave balance is decremented. Without it,
+      the system either deducts from the wrong balance or fails to process the absence."
+    rule_authority: best_practice
+    sap_impact: "Wrong leave balance deducted. Leave accrual reports inaccurate.
+      Employee may exceed entitlement without detection."
+    fix_map:
+      "__blank__": "Assign the correct absence type code via Admin Center >
+        Time Management > Absence Import. Reference the company's leave type
+        catalogue for valid codes."
+      "__null__": "ABSENCE_TYPE not set. Assign via absence import before next
+        leave balance reconciliation."
+    record_fix_template: "Timesheet {TIMESHEET.USERID}: ABSENCE_TYPE is missing for
+      date {TIMESHEET.DATE}. Assign via Admin Center > Time Management > Absence Import."
+
+  - id: TIME005
+    field: TIMESHEET.APPROVAL_STATUS
+    check_class: domain_value_check
+    allowed_values: ["Pending", "Approved", "Rejected", "Cancelled"]
+    severity: medium
+    dimension: accuracy
+    message: "Approval status must be a valid value — only Approved entries are processed by payroll"
+    why_it_matters: "APPROVAL_STATUS controls the workflow gate between timesheet
+      submission and payroll processing. Only entries with status 'Approved' are
+      picked up by the payroll integration. Invalid status values cause entries to
+      be silently excluded from processing."
+    rule_authority: customer_configured
+    sap_impact: "Timesheet entry stuck in limbo — not processed by payroll, not
+      visible in pending approvals. Employee not paid for recorded hours."
+    valid_values_with_labels:
+      "Pending": "Submitted, awaiting manager approval"
+      "Approved": "Manager approved — eligible for payroll processing"
+      "Rejected": "Manager rejected — returned to employee for correction"
+      "Cancelled": "Employee or admin cancelled — excluded from processing"
+    fix_map:
+      "__blank__": "Set to 'Pending' to route into the approval workflow, or
+        'Approved' if manager has verbally confirmed. Update via Admin Center >
+        Time Management > Timesheet Import."
+      "__other__": "Approval status '{actual_value}' is not valid. Use Pending,
+        Approved, Rejected, or Cancelled. Update via Admin Center > Time Management."
+    record_fix_template: "Timesheet {TIMESHEET.USERID}: APPROVAL_STATUS
+      '{actual_value}' is invalid. Set to Pending/Approved/Rejected/Cancelled
+      via Admin Center > Time Management."

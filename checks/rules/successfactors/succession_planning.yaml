@@ -1,0 +1,87 @@
+module: succession_planning
+target_state: SUCCESSFACTORS_2024
+rules:
+  - id: SUC001
+    field: SUCCESSIONCANDIDATE.NOMINEE_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Nominee ID is mandatory — identifies the successor candidate in the plan"
+    why_it_matters: "NOMINEE_ID is the primary identifier linking a succession
+      candidate to their employee record. Without it, the succession plan has
+      an empty nominee slot, and talent review reports cannot be generated
+      because the system cannot resolve who the candidate is."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Succession plan shows empty nominee slot. Talent review reports
+      fail to generate, and bench strength analytics exclude this candidate."
+    fix_map:
+      "__blank__": "Identify the intended nominee from the succession plan
+        nomination history or HR records. Populate NOMINEE_ID with the
+        correct employee ID from Employee Central."
+      "__null__": "Critical — succession plan entry is incomplete. The nominating
+        manager or HR must provide the correct employee ID for this candidate."
+    record_fix_template: "Succession candidate for position {SUCCESSIONCANDIDATE.POSITION_ID}:
+      NOMINEE_ID is missing. Identify the intended nominee and populate
+      SUCCESSIONCANDIDATE.NOMINEE_ID."
+
+  - id: SUC002
+    field: SUCCESSIONCANDIDATE.READINESS
+    check_class: domain_value_check
+    allowed_values:
+      - "Ready Now"
+      - "Ready 1-2 Years"
+      - "Ready 3-5 Years"
+      - "Development Needed"
+    severity: high
+    dimension: accuracy
+    message: "Readiness assessment must be a valid category — invalid value corrupts talent review dashboards"
+    why_it_matters: "READINESS drives development plan assignment and bench
+      strength reporting across the organization. Invalid values cause talent
+      review dashboards to show incorrect readiness distribution, leading to
+      flawed workforce planning decisions and misallocated development budgets."
+    rule_authority: customer_configured
+    sap_impact: "Talent review dashboards show incorrect readiness distribution.
+      Development plan auto-assignment rules fail to trigger for this candidate."
+    fix_map:
+      "__blank__": "Assess the nominee's readiness based on their current
+        competency profile and career development plan. Set to the appropriate
+        readiness level via the succession planning module."
+      "__other__": "Replace the invalid readiness value with one of the allowed
+        categories: Ready Now, Ready 1-2 Years, Ready 3-5 Years, or
+        Development Needed. Review the nominee's talent profile to determine
+        the correct assessment."
+    valid_values_with_labels:
+      "Ready Now": "Candidate can assume the target role immediately with no additional development"
+      "Ready 1-2 Years": "Candidate needs 1-2 years of targeted development before assuming the role"
+      "Ready 3-5 Years": "Candidate is a longer-term successor requiring significant development"
+      "Development Needed": "Candidate has potential but requires a structured development plan before readiness can be assessed"
+    record_fix_template: "Succession candidate {SUCCESSIONCANDIDATE.NOMINEE_ID}
+      for position {SUCCESSIONCANDIDATE.POSITION_ID}: READINESS value is invalid.
+      Update to one of: Ready Now, Ready 1-2 Years, Ready 3-5 Years,
+      Development Needed."
+
+  - id: SUC003
+    field: SUCCESSIONCANDIDATE.POSITION_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Position ID is mandatory — links nominee to the target role in the succession chart"
+    why_it_matters: "POSITION_ID links the nominee to the specific position they
+      are being considered for. Without it, the nominee is not associated with
+      any role in the succession chart, meaning the organization chart shows
+      empty succession nodes and bench strength cannot be calculated for
+      that position."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Succession chart shows empty nodes for this candidate. Bench
+      strength reporting excludes the position, and talent review cannot
+      display the candidate in the nine-box grid for the target role."
+    fix_map:
+      "__blank__": "Identify the target position from the succession plan
+        configuration or the nominating manager's records. Populate POSITION_ID
+        with the correct position code from the position management module."
+      "__null__": "Critical — nominee is not linked to any position. The HR
+        succession planning administrator must assign the correct target
+        position immediately."
+    record_fix_template: "Succession candidate {SUCCESSIONCANDIDATE.NOMINEE_ID}:
+      POSITION_ID is missing. Assign the target position via the succession
+      planning module."

@@ -1,0 +1,135 @@
+module: learning_management
+target_state: SUCCESSFACTORS_2024
+rules:
+
+  - id: LMS001
+    field: LEARNINGASSIGNMENT.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — orphaned assignments cannot be tracked for compliance"
+    why_it_matters: "USERID links a learning assignment to a specific employee. Without
+      it, the assignment is orphaned and cannot appear on the employee's learning
+      transcript. For compliance-critical training (health and safety, anti-bribery,
+      data protection), an orphaned assignment means the organisation has no
+      auditable evidence that the employee was assigned the required training."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Assignment not visible on employee transcript. Compliance reports
+      show training as unassigned. Audit trail for mandatory training is broken."
+    fix_map:
+      "__blank__": "Identify the correct employee and assign their USERID via
+        Learning > Admin > Assignment Management. Cross-reference with EC
+        employee records to find the correct USERID."
+      "__null__": "USERID was never set. Assign the correct employee USERID via
+        Learning > Admin > Assignment Management."
+    record_fix_template: "Assignment {LEARNINGASSIGNMENT.USERID}: USERID is missing.
+      Link to correct employee via Learning > Admin > Assignment Management."
+
+  - id: LMS002
+    field: LEARNINGASSIGNMENT.COURSE_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Course ID is mandatory — links assignment to course catalogue content"
+    why_it_matters: "COURSE_ID links the assignment to a specific course in the Learning
+      catalogue. Without it, the learner sees an assignment with no content — they
+      cannot launch the course, complete it, or receive credit. For compliance
+      training, this means mandatory courses appear assigned but are impossible
+      to complete, creating a compliance gap."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Learner cannot launch or complete the assigned course. Assignment
+      appears in transcript but content is unavailable. Compliance training
+      completion is blocked."
+    fix_map:
+      "__blank__": "Link to the correct course via Learning > Admin > Assignment
+        Management. The course must exist and be active in the Learning catalogue."
+      "__null__": "COURSE_ID was never set. Associate this assignment with a valid
+        course via Learning > Admin > Assignment Management."
+    record_fix_template: "Assignment for {LEARNINGASSIGNMENT.USERID}: COURSE_ID is
+      missing. Link to a valid course via Learning > Admin > Assignment
+      Management."
+
+  - id: LMS003
+    field: LEARNINGASSIGNMENT.DUE_DATE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Due date is required for overdue alerts and compliance escalation"
+    why_it_matters: "DUE_DATE drives the overdue alert engine and compliance escalation
+      workflows. Without a due date, the system cannot generate overdue
+      notifications to learners or escalate non-completion to managers. For
+      compliance training with regulatory deadlines, missing due dates mean
+      the organisation has no automated mechanism to enforce timely completion."
+    rule_authority: best_practice
+    sap_impact: "No overdue alerts generated for this assignment. Manager escalation
+      workflow cannot trigger. Compliance dashboard shows no deadline for this
+      training requirement."
+    fix_map:
+      "__blank__": "Set an appropriate due date via Learning > Admin > Assignment
+        Management. For compliance training, align with regulatory deadline.
+        Use ISO format YYYY-MM-DD."
+      "__null__": "DUE_DATE was never set. Assign via Learning > Admin > Assignment
+        Management."
+    record_fix_template: "Assignment for {LEARNINGASSIGNMENT.USERID}: DUE_DATE is
+      missing. Set deadline via Learning > Admin > Assignment Management.
+      Format: YYYY-MM-DD."
+
+  - id: LMS004
+    field: LEARNINGCOMPLETION.STATUS
+    check_class: domain_value_check
+    allowed_values: ["Completed", "Incomplete", "In Progress", "Waived", "Failed", "Expired"]
+    severity: high
+    dimension: accuracy
+    message: "Completion status must be a valid Learning module state"
+    why_it_matters: "STATUS is the definitive record of whether an employee has
+      satisfied a training requirement. An invalid status value corrupts
+      compliance reports — the system cannot determine whether the training
+      was completed, failed, or waived. During regulatory audits, invalid
+      completion statuses are treated as non-completion, exposing the
+      organisation to penalties."
+    rule_authority: customer_configured
+    sap_impact: "Compliance report shows corrupted completion data. Regulatory
+      audit evidence is invalid. Recertification workflows cannot determine
+      whether to re-assign training."
+    valid_values_with_labels:
+      "Completed": "Completed — learner has successfully finished the course"
+      "Incomplete": "Incomplete — learner started but did not finish"
+      "In Progress": "In Progress — learner is actively working on the course"
+      "Waived": "Waived — requirement waived by administrator (e.g., prior experience)"
+      "Failed": "Failed — learner did not meet passing criteria"
+      "Expired": "Expired — completion has passed its validity period and recertification is required"
+    fix_map:
+      "__blank__": "Assign the correct status from: Completed, Incomplete, In Progress,
+        Waived, Failed, Expired. Update via Learning > Admin > Completion
+        Management or bulk import."
+      "__other__": "Status '{actual_value}' is not a recognised completion state. Set
+        to one of: Completed, Incomplete, In Progress, Waived, Failed, Expired.
+        Update via Learning > Admin > Completion Management."
+    record_fix_template: "Completion for {LEARNINGCOMPLETION.STATUS}: STATUS
+      '{actual_value}' is invalid. Correct via Learning > Admin > Completion
+      Management."
+
+  - id: LMS005
+    field: LEARNINGCOMPLETION.COMPLETION_DATE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Completion date is required as evidence for compliance audits"
+    why_it_matters: "COMPLETION_DATE is the timestamp that proves when an employee
+      satisfied a training requirement. Without it, compliance auditors cannot
+      verify that training was completed within the required timeframe.
+      Recertification workflows also rely on this date to calculate when the
+      next cycle of training is due."
+    rule_authority: best_practice
+    sap_impact: "Compliance audit evidence incomplete — no proof of when training
+      was completed. Recertification due date cannot be calculated. Training
+      history timeline has gaps."
+    fix_map:
+      "__blank__": "Set the actual completion date via Learning > Admin > Completion
+        Management. Use ISO format YYYY-MM-DD. For historical records, use the
+        date the learner finished the course."
+      "__null__": "COMPLETION_DATE was never recorded. Set via Learning > Admin >
+        Completion Management."
+    record_fix_template: "Completion for {LEARNINGASSIGNMENT.USERID}: COMPLETION_DATE
+      is missing. Set via Learning > Admin > Completion Management.
+      Format: YYYY-MM-DD."

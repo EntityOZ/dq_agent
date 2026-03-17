@@ -1,0 +1,131 @@
+module: payroll_integration
+target_state: SUCCESSFACTORS_2024
+rules:
+
+  - id: PAY001
+    field: PAYRESULT.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — orphaned payroll result cannot be posted to GL"
+    why_it_matters: "USERID links the payroll result to the employee who was paid. Without
+      it, the GL posting cannot determine the cost centre, and the payment cannot be
+      reconciled against the employee's compensation record."
+    rule_authority: sap_hard_constraint
+    sap_impact: "GL posting impossible — no cost centre derivation. Bank payment file
+      cannot be generated. Payroll reconciliation fails."
+    fix_map:
+      "__blank__": "Assign the correct employee USERID by cross-referencing the payroll
+        run log with the employee master. Update via Payroll Control Center >
+        Payroll Result Import."
+      "__null__": "USERID was never set. Critical — assign immediately. This payroll
+        result cannot be posted until USERID is resolved."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: USERID is missing.
+      Assign via Payroll Control Center > Payroll Result Import."
+
+  - id: PAY002
+    field: PAYRESULT.NET_PAY
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Net pay is mandatory — null value means employee receives zero payment"
+    why_it_matters: "NET_PAY is the final amount transferred to the employee's bank account.
+      A null value causes the bank payment file to either omit the employee entirely or
+      generate a zero-value transfer, resulting in non-payment and legal non-compliance."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Employee receives zero payment. Bank file generation fails or produces
+      zero-value entry. Labour law non-compliance risk."
+    fix_map:
+      "__blank__": "Rerun payroll calculation for this employee via Payroll Control
+        Center. If the issue persists, check gross pay components and deduction
+        configuration."
+      "__null__": "NET_PAY was never calculated. Rerun payroll immediately via
+        Payroll Control Center before bank file generation."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: NET_PAY is missing.
+      Rerun payroll calculation via Payroll Control Center."
+
+  - id: PAY003
+    field: PAYRESULT.PAY_DATE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Pay date is mandatory — disbursement cannot be scheduled without it"
+    why_it_matters: "PAY_DATE determines when the bank payment is executed and when the GL
+      posting is dated. Without it, the payment cannot be included in the bank file
+      and the employee's payment is delayed indefinitely."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Bank payment file excludes this employee. GL posting undated — rejected
+      by finance. Employee payment delayed."
+    fix_map:
+      "__blank__": "Set the pay date to match the payroll period's scheduled payment
+        date via Payroll Control Center > Payroll Result Import. Format: YYYY-MM-DD."
+      "__null__": "PAY_DATE was never set. Assign the payroll period payment date
+        immediately via Payroll Control Center."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: PAY_DATE is missing.
+      Set to payroll period payment date via Payroll Control Center. Format: YYYY-MM-DD."
+
+  - id: PAY004
+    field: PAYRESULT.CURRENCY
+    check_class: regex_check
+    pattern: "^[A-Z]{3}$"
+    severity: critical
+    dimension: validity
+    message: "Currency must be a valid 3-letter ISO 4217 code (e.g. ZAR, USD, EUR)"
+    why_it_matters: "CURRENCY determines the denomination of the bank payment and GL posting.
+      An invalid code causes the bank to reject the payment file and the GL posting to
+      fail currency validation."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Bank payment file rejected — invalid currency code. GL posting fails
+      currency validation. Employee payment blocked."
+    fix_map:
+      "__other__": "Currency '{actual_value}' is not a valid ISO 4217 code. Use the
+        3-letter uppercase code (e.g. ZAR, USD, EUR, GBP). Update via Payroll
+        Control Center > Payroll Result Import."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: CURRENCY '{actual_value}'
+      is invalid. Set to valid ISO 4217 code (e.g. ZAR) via Payroll Control Center."
+
+  - id: PAY005
+    field: PAYRESULT.COST_CENTRE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Cost centre is required for GL cost allocation — missing value posts to suspense"
+    why_it_matters: "COST_CENTRE determines where in the GL the payroll expense is allocated.
+      Without it, the entire payroll amount for this employee posts to a suspense account,
+      requiring manual reallocation by finance."
+    rule_authority: best_practice
+    sap_impact: "Payroll expense posts to suspense account. Management reporting by
+      cost centre is incomplete. Finance must manually reallocate."
+    fix_map:
+      "__blank__": "Assign the correct cost centre from the employee's organisational
+        assignment via Payroll Control Center > Payroll Result Import. Cross-reference
+        with the employee's department and position."
+      "__null__": "COST_CENTRE not set. Assign via Payroll Control Center. Derive
+        from employee's organisational assignment in Employee Central."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: COST_CENTRE is missing.
+      Assign via Payroll Control Center. Derive from employee org assignment."
+
+  - id: PAY006
+    field: PAYRESULT.DELTA_FLAG
+    check_class: domain_value_check
+    allowed_values: ["N", "D", "R"]
+    severity: high
+    dimension: accuracy
+    message: "Delta flag must be N (New), D (Delta change), or R (Reversal) — determines GL posting type"
+    why_it_matters: "DELTA_FLAG tells the GL integration whether this result is an original
+      posting, a correction delta, or a full reversal. An invalid value causes the wrong
+      posting type to be applied, leading to incorrect GL balances."
+    rule_authority: sap_hard_constraint
+    sap_impact: "GL posting uses wrong posting type. Reversals not recognised — double
+      payment risk. Delta corrections applied as new postings — overstated expense."
+    valid_values_with_labels:
+      "N": "New — original payroll result for this period"
+      "D": "Delta — correction to a previously posted result"
+      "R": "Reversal — full reversal of a previously posted result"
+    fix_map:
+      "__blank__": "Set to 'N' for standard payroll results, 'D' for corrections, or
+        'R' for reversals. Update via Payroll Control Center > Payroll Result Import."
+      "__other__": "Delta flag '{actual_value}' is not valid. Use N (New), D (Delta),
+        or R (Reversal). Update via Payroll Control Center > Payroll Result Import."
+    record_fix_template: "Payroll result {PAYRESULT.USERID}: DELTA_FLAG '{actual_value}'
+      is invalid. Set to N/D/R via Payroll Control Center."
