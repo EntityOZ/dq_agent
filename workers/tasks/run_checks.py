@@ -193,6 +193,25 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
 
         logger.info(f"run_checks complete: version_id={version_id}, findings={len(all_results)}")
 
+        # Create notification for analysis completion
+        try:
+            from api.services.notifications import create_notification_sync
+            with Session(engine) as session:
+                session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                module_list = ", ".join(modules)
+                create_notification_sync(
+                    tenant_id=tenant_id,
+                    user_id=None,
+                    type="finding",
+                    title=f"New analysis complete: {len(all_results)} findings in {module_list}",
+                    body=f"Analysis run finished with {len(all_results)} findings across {len(modules)} module(s).",
+                    link=f"/findings?version_id={version_id}",
+                    session=session,
+                )
+                session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to create analysis notification (non-fatal): {e}")
+
         # Enqueue agent pipeline
         from workers.tasks.run_agents import run_agents
         run_agents.delay(version_id, tenant_id)

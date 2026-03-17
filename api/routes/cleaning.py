@@ -13,6 +13,7 @@ from sqlalchemy import func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
+from api.services.rbac import require_permission
 
 router = APIRouter(prefix="/api/v1", tags=["cleaning"])
 
@@ -206,6 +207,7 @@ async def approve_cleaning_item(
     body: ApproveBody,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("approve")),
 ):
     await _set_rls(db, tenant.id)
 
@@ -280,6 +282,7 @@ async def bulk_approve(
     body: BulkApproveBody,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("approve")),
 ):
     await _set_rls(db, tenant.id)
 
@@ -326,6 +329,7 @@ async def apply_cleaning_item(
     body: ApplyBody,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("apply")),
 ):
     await _set_rls(db, tenant.id)
 
@@ -382,6 +386,7 @@ async def rollback_cleaning_item(
     item_id: str,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("apply")),
 ):
     await _set_rls(db, tenant.id)
 
@@ -433,6 +438,7 @@ async def export_cleaning_data(
     status: str = "applied",
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("export")),
 ):
     valid_formats = ("csv", "lsmw", "bapi", "idoc", "sf_csv")
     if export_format not in valid_formats:
@@ -554,6 +560,7 @@ async def list_cleaning_audit(
     per_page: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("export")),
 ):
     await _set_rls(db, tenant.id)
 
