@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Optional PyRFC install — keeps base image lightweight
+ARG INSTALL_PYRFC=false
+RUN if [ "$INSTALL_PYRFC" = "true" ]; then pip install pyrfc; fi
+
 ENV PYTHONPATH=/app
 
 EXPOSE 8000

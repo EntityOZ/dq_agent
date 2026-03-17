@@ -203,6 +203,34 @@ async def _validate_licence() -> dict | None:
         return None
 
 
+# Feature flag route mapping — routes requiring specific licence features
+FEATURE_ROUTE_MAP: dict[str, str] = {
+    "/api/v1/cleaning": "cleaning",
+    "/api/v1/exceptions": "exceptions",
+    "/api/v1/analytics": "analytics",
+    "/api/v1/nlp": "nlp",
+    "/api/v1/contracts": "contracts",
+    "/api/v1/notifications": "notifications",
+}
+
+
+def _check_feature_gate(path: str, licensed_features: list[str]) -> JSONResponse | None:
+    """Return a 402 response if the route requires a feature not in the licence."""
+    for route_prefix, feature in FEATURE_ROUTE_MAP.items():
+        if path.startswith(route_prefix):
+            if feature not in licensed_features:
+                return JSONResponse(
+                    {
+                        "error": "feature_not_licenced",
+                        "feature": feature,
+                        "upgrade_url": "https://portal.vantax.co.za/upgrade",
+                    },
+                    status_code=402,
+                )
+            break
+    return None
+
+
 class LicenceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Only check /api/v1/* routes
@@ -212,6 +240,7 @@ class LicenceMiddleware(BaseHTTPMiddleware):
         # Dev mode — skip validation if no licence key and AUTH_MODE=local
         if not settings.licence_key and settings.auth_mode == "local":
             request.state.licensed_modules = ["*"]
+            request.state.licensed_features = ["*"]
             return await call_next(request)
 
         # Check in-memory cache
@@ -220,6 +249,13 @@ class LicenceMiddleware(BaseHTTPMiddleware):
             cached = _cache["response"]
             if cached.get("valid"):
                 request.state.licensed_modules = cached.get("modules", [])
+                request.state.licensed_features = cached.get("features", [])
+                # Check feature gate
+                feature_block = _check_feature_gate(
+                    request.url.path, cached.get("features", [])
+                )
+                if feature_block:
+                    return feature_block
                 return await call_next(request)
             else:
                 return JSONResponse(
@@ -234,6 +270,7 @@ class LicenceMiddleware(BaseHTTPMiddleware):
             # Licence server unreachable — graceful degradation
             logger.warning("Licence server unreachable — allowing request through")
             request.state.licensed_modules = ["*"]
+            request.state.licensed_features = ["*"]
             return await call_next(request)
 
         # Cache the result
@@ -242,6 +279,13 @@ class LicenceMiddleware(BaseHTTPMiddleware):
 
         if result.get("valid"):
             request.state.licensed_modules = result.get("modules", [])
+            request.state.licensed_features = result.get("features", [])
+            # Check feature gate
+            feature_block = _check_feature_gate(
+                request.url.path, result.get("features", [])
+            )
+            if feature_block:
+                return feature_block
             return await call_next(request)
         else:
             return JSONResponse(

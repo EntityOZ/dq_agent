@@ -15,9 +15,38 @@ import { scoreColor, formatModuleName } from "@/lib/format";
 import type { Version } from "@/types/api";
 
 const MODULES = [
+  // ECC Financial
   { value: "business_partner", label: "Business Partner" },
   { value: "material_master", label: "Material Master" },
   { value: "fi_gl", label: "GL Accounts" },
+  { value: "accounts_payable", label: "Accounts Payable" },
+  { value: "accounts_receivable", label: "Accounts Receivable" },
+  { value: "asset_accounting", label: "Asset Accounting" },
+  { value: "mm_purchasing", label: "MM Purchasing" },
+  // SuccessFactors
+  { value: "employee_central", label: "Employee Central" },
+  { value: "benefits", label: "Benefits" },
+  { value: "compensation", label: "Compensation" },
+  { value: "learning_management", label: "Learning Management" },
+  { value: "payroll_integration", label: "Payroll Integration" },
+  { value: "performance_goals", label: "Performance & Goals" },
+  { value: "recruiting_onboarding", label: "Recruiting & Onboarding" },
+  { value: "succession_planning", label: "Succession Planning" },
+  { value: "time_attendance", label: "Time & Attendance" },
+  // Warehouse / Fleet / Integration
+  { value: "ewms_stock", label: "eWMS Stock" },
+  { value: "ewms_transfer_orders", label: "eWMS Transfer Orders" },
+  { value: "batch_management", label: "Batch Management" },
+  { value: "fleet_management", label: "Fleet Management" },
+  { value: "plant_maintenance", label: "Plant Maintenance" },
+  { value: "production_planning", label: "Production Planning" },
+  { value: "sd_customer_master", label: "SD Customer Master" },
+  { value: "sd_sales_orders", label: "SD Sales Orders" },
+  { value: "transport_management", label: "Transport Management" },
+  { value: "wm_interface", label: "WM Interface" },
+  { value: "cross_system_integration", label: "Cross-System Integration" },
+  { value: "grc_compliance", label: "GRC Compliance" },
+  { value: "mdg_master_data", label: "MDG Master Data" },
 ];
 
 const ACCEPTED = ".csv,.xlsx,.xls";

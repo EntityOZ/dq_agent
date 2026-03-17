@@ -48,5 +48,8 @@ python-jose[cryptography]>=3.3.0
 # HTTP client
 httpx>=0.28.0
 
+# Billing
+stripe>=11.0.0
+
 # Observability
 sentry-sdk[fastapi]>=2.19.0

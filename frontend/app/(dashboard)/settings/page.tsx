@@ -11,6 +11,9 @@ import {
   Mail,
   Users,
   UserPlus,
+  CreditCard,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +29,10 @@ import {
   updateDqsWeights,
   updateAlertThresholds,
 } from "@/lib/api/settings";
+import { getExceptionBilling } from "@/lib/api/exceptions";
 import { getUsers, updateUser, inviteUser } from "@/lib/api/users";
 import { formatModuleName } from "@/lib/format";
-import type { DimensionScores, UserRole } from "@/types/api";
+import type { DimensionScores, UserRole, ExceptionBilling } from "@/types/api";
 
 const DEFAULT_WEIGHTS: DimensionScores = {
   completeness: 25,
@@ -124,6 +128,10 @@ export default function SettingsPage() {
           <TabsTrigger value="team">
             <Users className="mr-1 h-4 w-4" />
             Team
+          </TabsTrigger>
+          <TabsTrigger value="billing">
+            <CreditCard className="mr-1 h-4 w-4" />
+            Billing
           </TabsTrigger>
         </TabsList>
 
@@ -400,6 +408,14 @@ export default function SettingsPage() {
         <TabsContent value="team">
           <TeamManagement />
         </TabsContent>
+
+        {/* ── Billing Tab ──────────────────────────────────────────────── */}
+        <TabsContent value="billing">
+          <BillingTab
+            stripeCustomerId={settings?.stripe_customer_id ?? null}
+            licensedModules={settings?.licensed_modules ?? []}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -639,6 +655,227 @@ function TeamManagement() {
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+/* ── Billing tab sub-component ───────────────────────────────────────────── */
+
+const ALL_FEATURES = [
+  { key: "cleaning", label: "Data Cleaning" },
+  { key: "exceptions", label: "Exception Management" },
+  { key: "analytics", label: "Advanced Analytics" },
+  { key: "nlp", label: "NLP Query Interface" },
+  { key: "contracts", label: "Data Contracts" },
+  { key: "notifications", label: "Notification Centre" },
+] as const;
+
+const TIER_LABELS: Record<number, string> = {
+  1: "Tier 1 — Auto-resolved",
+  2: "Tier 2 — Steward",
+  3: "Tier 3 — Complex",
+  4: "Tier 4 — Custom Rule",
+};
+
+const TIER_PRICES: Record<number, number> = {
+  1: 25.0,
+  2: 150.0,
+  3: 500.0,
+  4: 250.0,
+};
+
+function BillingTab({
+  stripeCustomerId,
+  licensedModules,
+}: {
+  stripeCustomerId: string | null;
+  licensedModules: string[];
+}) {
+  const currentPeriod = new Date().toISOString().slice(0, 7);
+
+  const { data: billing, isLoading } = useQuery({
+    queryKey: ["exception-billing", currentPeriod],
+    queryFn: () => getExceptionBilling(currentPeriod),
+  });
+
+  // Derive licensed features from cached licence response
+  // In production, the licence middleware sets these on every request
+  const [licensedFeatures, setLicensedFeatures] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch licence features from the settings endpoint metadata
+    // Features are part of the licence response cached by the middleware
+    async function fetchFeatures() {
+      try {
+        const resp = await fetch("/api/v1/health");
+        const data = await resp.json();
+        if (data.licence?.features) {
+          setLicensedFeatures(data.licence.features);
+        }
+      } catch {
+        // Health endpoint not available — show empty
+      }
+    }
+    fetchFeatures();
+  }, []);
+
+  return (
+    <div className="space-y-6 pt-4">
+      {/* Current tier & features */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Licence & Features</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <span className="text-sm text-muted-foreground">Licensed Modules</span>
+            <p className="text-sm font-medium">
+              {licensedModules.length > 0
+                ? `${licensedModules.length} module${licensedModules.length !== 1 ? "s" : ""}`
+                : "None"}
+            </p>
+          </div>
+
+          <Separator />
+
+          <div>
+            <span className="text-sm font-medium">Feature Status</span>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ALL_FEATURES.map(({ key, label }) => {
+                const enabled = licensedFeatures.includes(key) || licensedFeatures.includes("*");
+                return (
+                  <div key={key} className="flex items-center gap-2 text-sm">
+                    {enabled ? (
+                      <Check className="h-4 w-4 text-[#059669]" />
+                    ) : (
+                      <X className="h-4 w-4 text-[#D6E4F0]" />
+                    )}
+                    <span className={enabled ? "" : "text-muted-foreground"}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {licensedFeatures.length === 0 && !licensedFeatures.includes("*") && (
+            <Alert>
+              <AlertDescription className="flex items-center justify-between">
+                <span>Upgrade your licence to unlock additional features.</span>
+                <a
+                  href="https://portal.vantax.co.za/upgrade"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-[#0695A8] hover:underline"
+                >
+                  Manage Licence
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Exception billing summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Exception Billing — {currentPeriod}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-32" />
+          ) : billing ? (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#D6E4F0] text-left text-xs text-[#6B92AD]">
+                      <th className="px-3 py-2">Tier</th>
+                      <th className="px-3 py-2 text-right">Count</th>
+                      <th className="px-3 py-2 text-right">Unit Price (ZAR)</th>
+                      <th className="px-3 py-2 text-right">Amount (ZAR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {([1, 2, 3, 4] as const).map((tier) => {
+                      const countKey = `tier${tier}_count` as keyof ExceptionBilling;
+                      const amountKey = `tier${tier}_amount` as keyof ExceptionBilling;
+                      const count = (billing[countKey] as number) || 0;
+                      const amount = (billing[amountKey] as number) || 0;
+                      return (
+                        <tr key={tier} className="border-b border-[#F0F5FA]">
+                          <td className="px-3 py-2">{TIER_LABELS[tier]}</td>
+                          <td className="px-3 py-2 text-right font-mono">{count}</td>
+                          <td className="px-3 py-2 text-right text-[#6B92AD]">
+                            R {TIER_PRICES[tier].toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            R {amount.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-b border-[#F0F5FA]">
+                      <td className="px-3 py-2 text-[#6B92AD]">Monthly Base Fee</td>
+                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2 text-right font-mono">
+                        R {(billing.base_fee || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold">
+                      <td className="px-3 py-2">Total</td>
+                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2 text-right text-[#0695A8]">
+                        R {(billing.total_amount || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {billing.stripe_invoice_id && stripeCustomerId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      window.open(
+                        `https://dashboard.stripe.com/invoices/${billing.stripe_invoice_id}`,
+                        "_blank"
+                      )
+                    }
+                  >
+                    <ExternalLink className="mr-1 h-3 w-3" />
+                    View Invoice
+                  </Button>
+                )}
+                <a
+                  href="https://portal.vantax.co.za/billing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
+                >
+                  Manage Licence
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No billing data for this period yet.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

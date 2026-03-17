@@ -361,6 +361,7 @@ class ExceptionBilling(Base):
     tier4_amount = Column(Numeric, nullable=False, server_default="0")
     base_fee = Column(Numeric, nullable=False, server_default="8000")
     total_amount = Column(Numeric, nullable=False, server_default="0")
+    stripe_invoice_id = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 
     __table_args__ = (

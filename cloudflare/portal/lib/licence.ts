@@ -7,6 +7,7 @@ interface LicenceStatus {
   expiresAt: string;
   daysRemaining: number;
   modules: string[];
+  features: string[];
 }
 
 interface ProvisionResult {
@@ -71,6 +72,39 @@ export async function revokeLicence(
   });
   if (!resp.ok) {
     throw new Error(`Licence revoke failed: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function addFeatureToLicence(
+  licenceKey: string,
+  feature: string
+): Promise<{ features: string[] }> {
+  // Read current record, add feature, write back
+  const status = await getLicenceStatus(licenceKey);
+  const features = [...new Set([...(status.features || []), feature])];
+  const resp = await adminFetch("/update-features", {
+    method: "POST",
+    body: JSON.stringify({ licenceKey, features }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Add feature failed: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function removeFeatureFromLicence(
+  licenceKey: string,
+  feature: string
+): Promise<{ features: string[] }> {
+  const status = await getLicenceStatus(licenceKey);
+  const features = (status.features || []).filter((f) => f !== feature);
+  const resp = await adminFetch("/update-features", {
+    method: "POST",
+    body: JSON.stringify({ licenceKey, features }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Remove feature failed: ${resp.status}`);
   }
   return resp.json();
 }

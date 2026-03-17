@@ -327,6 +327,7 @@ export interface ExceptionBilling {
   tier4_amount: number;
   base_fee: number;
   total_amount: number;
+  stripe_invoice_id: string | null;
 }
 
 export interface ExceptionListResponse {

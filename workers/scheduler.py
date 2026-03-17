@@ -276,6 +276,75 @@ def weekly_cleaning_batch():
             logger.error(f"  tenant={tid}: weekly_cleaning_batch failed: {e}", exc_info=True)
 
 
+def _create_stripe_invoice(session: Session, tenant_id: str, billing: dict) -> str | None:
+    """Create Stripe invoice items for exception billing. Returns invoice ID or None."""
+    stripe_key = os.getenv("STRIPE_API_KEY", "")
+    if not stripe_key:
+        return None
+
+    # Look up tenant's stripe_customer_id
+    cust_result = session.execute(
+        text("SELECT stripe_customer_id FROM tenants WHERE id = :tid"),
+        {"tid": tenant_id},
+    )
+    row = cust_result.fetchone()
+    if not row or not row[0]:
+        return None
+
+    stripe_customer_id = row[0]
+
+    try:
+        import stripe
+        stripe.api_key = stripe_key
+
+        # Add base fee line item
+        base_fee = billing.get("base_fee", 0)
+        if base_fee > 0:
+            stripe.InvoiceItem.create(
+                customer=stripe_customer_id,
+                amount=int(base_fee * 100),  # Stripe uses cents
+                currency="zar",
+                description="Vantax Monthly Base Fee",
+            )
+
+        # Add tier line items
+        tier_labels = {
+            1: ("Tier 1 (Auto-resolved)", "tier1"),
+            2: ("Tier 2 (Steward)", "tier2"),
+            3: ("Tier 3 (Complex)", "tier3"),
+            4: ("Tier 4 (Custom)", "tier4"),
+        }
+        tier_prices = {1: 25.0, 2: 150.0, 3: 500.0, 4: 250.0}
+
+        for tier_num, (label, prefix) in tier_labels.items():
+            count = billing.get(f"{prefix}_count", 0)
+            amount = billing.get(f"{prefix}_amount", 0)
+            if count > 0 and amount > 0:
+                stripe.InvoiceItem.create(
+                    customer=stripe_customer_id,
+                    amount=int(amount * 100),
+                    currency="zar",
+                    description=(
+                        f"Vantax Exception Processing — {label} "
+                        f"({count} items × R{tier_prices[tier_num]:.2f} = R{amount:.2f})"
+                    ),
+                )
+
+        # Create and finalize the invoice
+        invoice = stripe.Invoice.create(
+            customer=stripe_customer_id,
+            auto_advance=True,
+            collection_method="charge_automatically",
+        )
+
+        logger.info(f"  tenant={tenant_id}: Stripe invoice created: {invoice.id}")
+        return invoice.id
+
+    except Exception as e:
+        logger.warning(f"  tenant={tenant_id}: Stripe invoice creation failed: {e}")
+        return None
+
+
 # ── Trigger 3: monthly_report — 04:00 SAST 1st of month ─────────────────────
 
 
@@ -352,8 +421,23 @@ def monthly_report():
                 # 3. Generate exception billing
                 try:
                     from api.services.exception_engine import ExceptionBillingCalculator
-                    billing_calc = ExceptionBillingCalculator(session, tid)
-                    billing = billing_calc.calculate_billing(period)
+
+                    # Fetch resolved exceptions for billing period
+                    exc_result = session.execute(
+                        text("""
+                            SELECT billing_tier FROM exceptions
+                            WHERE tenant_id = :tid
+                              AND status IN ('resolved', 'verified', 'closed')
+                              AND to_char(resolved_at, 'YYYY-MM') = :period
+                              AND billing_tier IS NOT NULL
+                        """),
+                        {"tid": tid, "period": period},
+                    )
+                    exceptions_list = [{"billing_tier": r[0]} for r in exc_result.fetchall()]
+
+                    billing_calc = ExceptionBillingCalculator()
+                    billing = billing_calc.calculate_billing(exceptions_list, period)
+
                     if billing:
                         session.execute(
                             text("""
@@ -381,6 +465,19 @@ def monthly_report():
                                 "total": billing.get("total_amount", 0),
                             },
                         )
+
+                        # 4. Create Stripe invoice if tenant has stripe_customer_id
+                        stripe_invoice_id = _create_stripe_invoice(session, tid, billing)
+                        if stripe_invoice_id:
+                            session.execute(
+                                text("""
+                                    UPDATE exception_billing
+                                    SET stripe_invoice_id = :inv_id
+                                    WHERE tenant_id = :tid AND period = :period
+                                """),
+                                {"inv_id": stripe_invoice_id, "tid": tid, "period": period},
+                            )
+
                 except Exception as e:
                     logger.warning(f"  tenant={tid}: exception billing failed: {e}")
 
