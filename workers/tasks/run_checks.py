@@ -154,6 +154,43 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
             )
             session.commit()
 
+        # Insert dqs_history records for analytics tracking
+        with Session(engine) as session:
+            session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+            for module_name in modules:
+                mod_summary = dqs_summary.get(module_name, {})
+                dims = mod_summary.get("dimension_scores", {})
+                mod_findings = [r for r in all_results if r.module == module_name]
+                session.execute(
+                    text("""
+                        INSERT INTO dqs_history (
+                            id, tenant_id, module_id, dqs_score,
+                            completeness, accuracy, consistency,
+                            timeliness, uniqueness, validity,
+                            finding_count
+                        ) VALUES (
+                            gen_random_uuid(), :tenant_id, :module_id, :dqs_score,
+                            :completeness, :accuracy, :consistency,
+                            :timeliness, :uniqueness, :validity,
+                            :finding_count
+                        )
+                    """),
+                    {
+                        "tenant_id": tenant_id,
+                        "module_id": module_name,
+                        "dqs_score": mod_summary.get("composite_score", 0),
+                        "completeness": dims.get("completeness", 0),
+                        "accuracy": dims.get("accuracy", 0),
+                        "consistency": dims.get("consistency", 0),
+                        "timeliness": dims.get("timeliness", 0),
+                        "uniqueness": dims.get("uniqueness", 0),
+                        "validity": dims.get("validity", 0),
+                        "finding_count": len(mod_findings),
+                    },
+                )
+            session.commit()
+        logger.info(f"Inserted dqs_history records for {len(modules)} modules")
+
         logger.info(f"run_checks complete: version_id={version_id}, findings={len(all_results)}")
 
         # Enqueue agent pipeline
