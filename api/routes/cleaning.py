@@ -434,7 +434,8 @@ async def export_cleaning_data(
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
 ):
-    if export_format not in ("csv", "lsmw", "bapi", "idoc", "sf_csv"):
+    valid_formats = ("csv", "lsmw", "bapi", "idoc", "sf_csv")
+    if export_format not in valid_formats:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {export_format}")
 
     await _set_rls(db, tenant.id)
@@ -455,27 +456,49 @@ async def export_cleaning_data(
     )
     rows = result.fetchall()
 
-    # Build CSV output (all formats start as CSV for now)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["record_key", "object_type", "field", "old_value", "new_value"])
-
+    # Build records from applied cleaning data (use after-state as the export source)
+    records: list[dict] = []
+    resolved_object_type = object_type or "customer"
     for r in rows:
         row = _row_to_dict(r)
-        before = row.get("record_data_before") or {}
-        after = row.get("record_data_after") or {}
-        all_fields = set(list(before.keys()) + list(after.keys()))
-        for field in sorted(all_fields):
-            if field in ("issue", "error"):
-                continue
-            old_val = before.get(field, "")
-            new_val = after.get(field, "")
-            if old_val != new_val:
-                writer.writerow([row["record_key"], row["object_type"], field, old_val, new_val])
+        after = row.get("record_data_after") or row.get("record_data_before") or {}
+        # Strip internal fields
+        record = {k: v for k, v in after.items() if k not in ("issue", "error")}
+        records.append(record)
+        if not object_type:
+            resolved_object_type = row.get("object_type", resolved_object_type)
 
-    content = output.getvalue()
-    media_type = "text/csv"
-    filename = f"cleaning_export_{export_format}_{object_type or 'all'}.csv"
+    from api.services.export_engine import ExportEngine
+    engine = ExportEngine()
+
+    format_dispatch = {
+        "csv": engine.export_csv,
+        "lsmw": engine.export_lsmw,
+        "bapi": engine.export_bapi,
+        "idoc": engine.export_idoc,
+        "sf_csv": engine.export_sf_csv,
+    }
+
+    content = format_dispatch[export_format](records, resolved_object_type)
+
+    media_types = {
+        "csv": "text/csv",
+        "lsmw": "text/plain",
+        "bapi": "application/json",
+        "idoc": "application/json",
+        "sf_csv": "text/csv",
+    }
+    extensions = {
+        "csv": "csv",
+        "lsmw": "txt",
+        "bapi": "json",
+        "idoc": "json",
+        "sf_csv": "csv",
+    }
+
+    media_type = media_types[export_format]
+    ext = extensions[export_format]
+    filename = f"cleaning_export_{export_format}_{object_type or 'all'}.{ext}"
 
     return StreamingResponse(
         io.BytesIO(content.encode()),

@@ -151,3 +151,33 @@ export async function mergeDedupCandidate(params: {
   const { data } = await apiClient.post("/api/v1/dedup/merge", params);
   return data;
 }
+
+// ── Export ───────────────────────────────────────────────────────────────────
+
+export type ExportFormat = "csv" | "lsmw" | "bapi" | "idoc" | "sf_csv";
+
+export async function downloadCleaningExport(
+  format: ExportFormat,
+  objectType?: string,
+): Promise<void> {
+  const params = new URLSearchParams({ status: "applied" });
+  if (objectType) params.set("object_type", objectType);
+
+  const response = await apiClient.get(
+    `/api/v1/cleaning/export/${format}?${params.toString()}`,
+    { responseType: "blob" },
+  );
+
+  const disposition = response.headers["content-disposition"] ?? "";
+  const filenameMatch = disposition.match(/filename=(.+)/);
+  const filename = filenameMatch?.[1] ?? `cleaning_export_${format}.${format === "bapi" || format === "idoc" ? "json" : format === "lsmw" ? "txt" : "csv"}`;
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}

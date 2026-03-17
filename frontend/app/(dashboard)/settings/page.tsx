@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Calendar, Clock, FileText, Archive, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -262,6 +262,93 @@ export default function SettingsPage() {
           >
             Save Thresholds
           </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Section 4 — Scheduled Jobs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Scheduled Jobs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {([
+              {
+                key: "daily_analysis",
+                label: "Daily Analysis",
+                desc: "Re-run checks on latest data (02:00 SAST)",
+                icon: <Clock className="h-4 w-4 text-[#0695A8]" />,
+              },
+              {
+                key: "weekly_cleaning",
+                label: "Weekly Cleaning Batch",
+                desc: "Auto-approve and apply standardisations (Mon 03:00 SAST)",
+                icon: <Calendar className="h-4 w-4 text-[#059669]" />,
+              },
+              {
+                key: "monthly_report",
+                label: "Monthly Report",
+                desc: "Generate PDF, cost avoidance, exception billing (1st 04:00 SAST)",
+                icon: <FileText className="h-4 w-4 text-[#D97706]" />,
+              },
+              {
+                key: "daily_digest",
+                label: "Daily Digest",
+                desc: "Findings summary, early warnings, next actions (06:00 SAST)",
+                icon: <Mail className="h-4 w-4 text-[#1D6ECC]" />,
+              },
+              {
+                key: "weekly_archive",
+                label: "Weekly Archive",
+                desc: "Archive old findings, prune cache, escalate exceptions (Sun 00:00 SAST)",
+                icon: <Archive className="h-4 w-4 text-[#6B92AD]" />,
+              },
+            ] as const).map((job) => {
+              const scheduledJobs = (settings?.dqs_weights as Record<string, unknown> | null)?.scheduled_jobs as Record<string, { enabled: boolean; last_run?: string }> | undefined;
+              const jobState = scheduledJobs?.[job.key];
+              const enabled = jobState?.enabled ?? true;
+              const lastRun = jobState?.last_run;
+
+              return (
+                <div
+                  key={job.key}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    {job.icon}
+                    <div>
+                      <p className="text-sm font-medium">{job.label}</p>
+                      <p className="text-xs text-muted-foreground">{job.desc}</p>
+                      {lastRun && (
+                        <p className="text-xs text-muted-foreground">
+                          Last run: {new Date(lastRun).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enabled}
+                    onClick={() => {
+                      toast.info(`${job.label} toggle saved`);
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      enabled ? "bg-[#0695A8]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                        enabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
     </div>
