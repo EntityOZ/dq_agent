@@ -1,0 +1,166 @@
+module: wm_interface
+target_state: EWMS_CURRENT
+rules:
+
+  - id: WMI001
+    field: LTAK.TANUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Transfer order number is the primary key for WM interface documents"
+    why_it_matters: >-
+      TANUM is the transfer order number and primary key for the WM interface transfer
+      order header. Without it, the interface document cannot be identified, processed,
+      or confirmed. All WM movements through the interface depend on this key.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      WM interface document is unprocessable. Cannot be confirmed or reversed. Stock
+      movement through the IM-WM interface is lost.
+    fix_map:
+      __blank__: >-
+        Transfer order number is empty. This is a system-generated field — a blank value
+        indicates a data corruption or interface error. Investigate the IM-WM interface
+        configuration and the triggering goods movement.
+      __null__: >-
+        Transfer order number was never assigned. Check the interface processing log
+        for errors and reprocess the goods movement.
+    record_fix_template: >-
+      WM interface document: TANUM is {actual_value}. Investigate the IM-WM interface
+      for processing errors.
+
+  - id: WMI002
+    field: LTAK.LGNUM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Warehouse number is mandatory — routes the interface document to the correct warehouse"
+    why_it_matters: >-
+      LGNUM determines which warehouse the interface transfer order is routed to. Without
+      it, the IM-WM interface cannot determine the target warehouse and the goods movement
+      cannot create the corresponding WM transfer order.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Interface document cannot be routed to a warehouse. WM transfer order not created.
+      IM stock is updated but WM stock is not — causing permanent discrepancy.
+    fix_map:
+      __blank__: >-
+        Warehouse number is empty on the interface document. Check the storage location
+        to warehouse assignment (SPRO > LE-WM) and the triggering goods movement.
+      __null__: >-
+        Warehouse number was never assigned. Verify the IM-WM interface configuration
+        for this plant/storage location combination.
+    record_fix_template: >-
+      WM interface TO {LTAK.TANUM}: LGNUM is {actual_value}. Check the storage location
+      to warehouse assignment in customising.
+
+  - id: WMI003
+    field: LTAK.STATUS
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "WM interface transfer order status must be a valid processing state"
+    allowed_values: ["A", "C", "P"]
+    valid_values_with_labels:
+      A: "Active — transfer order is open and being processed"
+      C: "Confirmed — transfer order has been completed"
+      P: "Planned — transfer order is created but not yet active"
+    why_it_matters: >-
+      The status field controls which processing steps are available for the transfer order.
+      An invalid status means the system cannot determine the current processing state,
+      potentially allowing confirmed orders to be reprocessed or blocking active orders
+      from confirmation.
+    rule_authority: best_practice
+    sap_impact: >-
+      Processing state undefined. Confirmed TOs may be reprocessed. Active TOs may be
+      incorrectly treated as complete. WM cockpit displays are unreliable.
+    fix_map:
+      __other__: >-
+        Status '{actual_value}' is not a valid WM interface TO status. Valid values are:
+        A (active), C (confirmed), P (planned). Investigate the processing history and
+        correct via the WM interface monitor.
+    record_fix_template: >-
+      WM interface TO {LTAK.TANUM}: STATUS is '{actual_value}'. Correct to a valid
+      status (A/C/P) via the WM interface monitor.
+
+  - id: WMI004
+    field: LTBK.TBNUM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Transfer requirement number links the WM demand to the transfer order"
+    why_it_matters: >-
+      TBNUM is the transfer requirement number that creates the demand for a WM movement.
+      Without it, the transfer order has no link back to the originating requirement, making
+      it impossible to track whether the demand has been fulfilled and breaking the
+      requirement-to-execution audit trail.
+    rule_authority: best_practice
+    sap_impact: >-
+      No link between demand and execution. Transfer requirement stays open even after
+      the TO is confirmed. WM cockpit shows unfulfilled requirements.
+    fix_map:
+      __blank__: >-
+        Transfer requirement number is empty. If the TO was created manually (LT01),
+        this may be expected. If created from an interface or delivery, investigate
+        the missing link.
+      __null__: >-
+        Transfer requirement was never linked. Check the TO creation source and link
+        the correct requirement if applicable.
+    record_fix_template: >-
+      WM interface TO {LTAK.TANUM}: TBNUM is {actual_value}. Verify the transfer
+      requirement link if this TO originated from a requirement.
+
+  - id: WMI005
+    field: LTAK.BETYP
+    check_class: domain_value_check
+    severity: critical
+    dimension: accuracy
+    message: "Movement type indicator determines the GL posting type — invalid corrupts stock"
+    allowed_values: ["B", "L", "E", "S", "W"]
+    valid_values_with_labels:
+      B: "Goods receipt for purchase order"
+      L: "Goods issue for delivery"
+      E: "Goods receipt for production order"
+      S: "Stock transfer"
+      W: "Warehouse internal movement"
+    why_it_matters: >-
+      BETYP (movement type indicator) determines how the WM movement maps to an IM
+      movement type and thus which GL accounts are posted to. An invalid value causes
+      the wrong GL posting, corrupts stock values, and creates reconciliation breaks
+      between WM and FI.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Wrong GL posting. Stock valuation corrupted. WM-FI reconciliation breaks.
+      Financial audit findings.
+    fix_map:
+      __other__: >-
+        Movement type indicator '{actual_value}' is invalid. Valid values are: B (GR for PO),
+        L (GI for delivery), E (GR for production), S (stock transfer), W (internal).
+        Investigate the originating document and correct the interface mapping.
+    record_fix_template: >-
+      WM interface TO {LTAK.TANUM}: BETYP is '{actual_value}'. Correct to a valid
+      movement type indicator via the WM interface configuration.
+
+  - id: WMI006
+    field: LTAK.LGTYP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Storage type on interface TO determines source or destination area"
+    why_it_matters: >-
+      LGTYP on the interface transfer order header identifies the source or destination
+      storage type. Without it, the WM system cannot determine which area of the warehouse
+      is involved in the movement, degrading putaway and picking strategy execution.
+    rule_authority: best_practice
+    sap_impact: >-
+      Source/destination storage type unknown. Putaway and picking strategies cannot
+      consider storage type rules. Manual bin assignment required.
+    fix_map:
+      __blank__: >-
+        Storage type is empty on the interface TO. Check the IM-WM interface configuration
+        for the correct default storage type assignment.
+      __null__: >-
+        Storage type was never assigned. Verify the interface customising and the
+        triggering goods movement for the correct storage type.
+    record_fix_template: >-
+      WM interface TO {LTAK.TANUM}: LGTYP is {actual_value}. Check the interface
+      configuration for the correct storage type assignment.

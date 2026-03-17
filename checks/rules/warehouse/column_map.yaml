@@ -1,0 +1,11 @@
+warehouse:
+  "Warehouse Number": "LGPLA.LGNUM"
+  "Storage Type": "LGPLA.LGTYP"
+  "Storage Bin": "LGPLA.LGPLA"
+  "Material": "LQUA.MATNR"
+  "Plant": "LQUA.WERKS"
+  "Batch": "LQUA.CHARG"
+  "Transfer Order": "LTAP.TANUM"
+  "Equipment Number": "EQUI.EQUNR"
+  "Registration": "FLEET_MASTER.REG_NUMBER"
+  "Shipment": "VTTK.TKNUM"

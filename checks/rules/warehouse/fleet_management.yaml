@@ -1,0 +1,212 @@
+module: fleet_management
+target_state: FLEET_CURRENT
+rules:
+
+  - id: FLEET001
+    field: EQUI.EQUNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Equipment number is mandatory — primary key for all fleet assets"
+    why_it_matters: >-
+      EQUNR is the primary key for every equipment record in SAP Plant Maintenance.
+      For fleet management, it links the vehicle to maintenance plans, cost collection,
+      and usage history. Without it, the vehicle cannot be managed in SAP.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Vehicle cannot be tracked in SAP PM. No maintenance orders, notifications, or
+      cost collection possible. The asset is invisible to the fleet management system.
+    fix_map:
+      __blank__: >-
+        Equipment number is empty. Create the equipment record via transaction IE01
+        with the correct equipment category for fleet (e.g. V for vehicles). For bulk
+        creation use LSMW with object 0070.
+      __null__: >-
+        Equipment number was never assigned. Create via IE01 with the correct fleet
+        equipment category.
+    record_fix_template: >-
+      Vehicle: EQUNR is {actual_value}. Create or assign an equipment number via
+      transaction IE01.
+
+  - id: FLEET002
+    field: FLEET_MASTER.REG_NUMBER
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Registration number is mandatory for traffic authority compliance and insurance"
+    why_it_matters: >-
+      The vehicle registration number is a legal requirement for all road-going vehicles.
+      It is required for traffic authority compliance, insurance claims, toll road
+      management, and fleet reporting. Without it, the vehicle cannot be legally operated
+      and insurance claims may be rejected.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Vehicle cannot be linked to insurance policies or toll accounts. Fleet compliance
+      reports are incomplete. Legal and regulatory exposure.
+    fix_map:
+      __blank__: >-
+        Registration number is empty. Obtain the registration from the vehicle's licence
+        disc or traffic department records and update via transaction IE02.
+      __null__: >-
+        Registration was never captured. This is a mandatory field for all road-going
+        fleet vehicles. Update via IE02 > Fleet tab.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: REG_NUMBER is {actual_value}. Enter the registration
+      number via transaction IE02 > Fleet tab.
+
+  - id: FLEET003
+    field: FLEET_MASTER.REG_NUMBER
+    check_class: regex_check
+    pattern: "^[A-Z]{2,3}\\s?\\d{2,6}\\s?[A-Z]{0,3}$"
+    severity: high
+    dimension: validity
+    message: "Registration number format should match South African standard (adjust per country)"
+    why_it_matters: >-
+      Vehicle registration numbers follow a country-specific format. In South Africa,
+      the typical format is province code + digits + optional letters (e.g. CA 123-456,
+      GP ABC 12). Non-conforming formats may indicate data entry errors, which cause
+      mismatches with traffic authority databases and insurance systems.
+    rule_authority: best_practice
+    sap_impact: >-
+      Registration mismatch with traffic authority. Toll road integration fails.
+      Insurance claims may be rejected due to registration discrepancy.
+    fix_map:
+      __other__: >-
+        Registration number '{actual_value}' does not match the expected format.
+        Verify against the vehicle's physical licence disc and correct via IE02 >
+        Fleet tab. Adjust the regex pattern if your country uses a different format.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: REG_NUMBER '{actual_value}' has unexpected format.
+      Verify against the physical licence disc and correct via IE02.
+
+  - id: FLEET004
+    field: FLEET_MASTER.VEHICLE_TYPE
+    check_class: domain_value_check
+    severity: high
+    dimension: accuracy
+    message: "Vehicle type must be a valid fleet category"
+    allowed_values: ["LV", "HV", "MHE", "MC", "TR"]
+    valid_values_with_labels:
+      LV: "Light vehicle — passenger car or bakkie"
+      HV: "Heavy vehicle — truck or bus"
+      MHE: "Materials handling equipment — forklift"
+      MC: "Motorcycle"
+      TR: "Trailer"
+    why_it_matters: >-
+      Vehicle type drives maintenance scheduling intervals, insurance categorisation,
+      driver licence requirements, and cost centre allocation rules. An invalid type
+      means maintenance plans use wrong intervals, insurance premiums are miscalculated,
+      and fleet reports are unreliable.
+    rule_authority: customer_configured
+    sap_impact: >-
+      Incorrect maintenance intervals. Insurance categorisation wrong. Fleet reports
+      by vehicle type are inaccurate. Driver assignment may violate licence requirements.
+    fix_map:
+      __other__: >-
+        Vehicle type '{actual_value}' is not a valid category. Valid types are: LV (light
+        vehicle), HV (heavy vehicle), MHE (materials handling), MC (motorcycle), TR (trailer).
+        Correct via transaction IE02 > Classification tab.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: VEHICLE_TYPE is '{actual_value}'. Set to a valid type
+      (LV/HV/MHE/MC/TR) via transaction IE02.
+
+  - id: FLEET005
+    field: FLEET_MASTER.SERVICE_KM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Service kilometre interval required for preventive maintenance scheduling"
+    why_it_matters: >-
+      SERVICE_KM defines when the next service notification should fire.
+      Without it, no preventive maintenance notification is created and the vehicle will
+      receive no scheduled servicing, creating safety and compliance risks.
+    rule_authority: best_practice
+    sap_impact: >-
+      No preventive maintenance notifications generated. Vehicle servicing relies entirely
+      on manual tracking. Safety and warranty compliance at risk.
+    fix_map:
+      __blank__: >-
+        Service KM interval is empty. Set the appropriate interval based on the vehicle
+        type and manufacturer recommendation via transaction IE02 > Fleet tab.
+      __null__: >-
+        Service interval was never configured. Consult the vehicle manufacturer's
+        service schedule and set via IE02.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: SERVICE_KM is {actual_value}. Set the service interval
+      (e.g. 15000 for light vehicles) via transaction IE02.
+
+  - id: FLEET006
+    field: FLEET_MASTER.LAST_SERVICE_DATE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Last service date required for maintenance scheduling and compliance tracking"
+    why_it_matters: >-
+      LAST_SERVICE_DATE is needed to calculate when the next service is due. Without it,
+      the maintenance scheduling system cannot determine the service interval countdown
+      and the vehicle's maintenance history has a gap that affects warranty and compliance.
+    rule_authority: best_practice
+    sap_impact: >-
+      Next service date cannot be calculated. Maintenance scheduling is blind to this
+      vehicle's service history. Compliance reporting incomplete.
+    fix_map:
+      __blank__: >-
+        Last service date is empty. Check the vehicle's service booklet or workshop
+        records and enter via transaction IE02 > Fleet tab.
+      __null__: >-
+        Last service date was never recorded. Obtain from workshop records or set to
+        the vehicle's commissioning date as a baseline.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: LAST_SERVICE_DATE is {actual_value}. Enter the most recent
+      service date via transaction IE02.
+
+  - id: FLEET007
+    field: FLEET_MASTER.DRIVER_ID
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Driver assignment enables cost allocation and incident tracking"
+    why_it_matters: >-
+      DRIVER_ID links the vehicle to its assigned driver, enabling fuel cost allocation,
+      traffic fine routing, incident investigation, and driver behaviour tracking. Without
+      it, costs cannot be allocated to the responsible person and incidents cannot be
+      traced to a driver.
+    rule_authority: best_practice
+    sap_impact: >-
+      Fuel and toll costs unallocated. Traffic fines cannot be routed. Incident
+      investigation has no driver assignment for this vehicle.
+    fix_map:
+      __blank__: >-
+        Driver ID is empty. Assign the current driver's personnel number or employee ID
+        via transaction IE02 > Fleet tab.
+      __null__: >-
+        Driver was never assigned to this vehicle. Obtain from the fleet manager and
+        update via IE02.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: DRIVER_ID is {actual_value}. Assign the current driver
+      via transaction IE02.
+
+  - id: FLEET008
+    field: FLEET_MASTER.COST_CENTRE
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Cost centre required for fleet cost allocation and reporting"
+    why_it_matters: >-
+      COST_CENTRE determines where vehicle operating costs (fuel, maintenance, insurance)
+      are posted in controlling. Without it, costs accumulate on a default or error cost
+      centre, making fleet cost analysis by department or business unit impossible.
+    rule_authority: best_practice
+    sap_impact: >-
+      Vehicle costs posted to wrong or default cost centre. Fleet cost reporting by
+      department is inaccurate. Budget variance analysis unreliable.
+    fix_map:
+      __blank__: >-
+        Cost centre is empty. Assign the correct cost centre based on the department
+        or business unit that owns the vehicle. Update via transaction IE02 > Organisation tab.
+      __null__: >-
+        Cost centre was never assigned. Determine the owning department and assign
+        the appropriate cost centre via IE02.
+    record_fix_template: >-
+      Vehicle {EQUI.EQUNR}: COST_CENTRE is {actual_value}. Assign the correct cost
+      centre via transaction IE02 > Organisation tab.

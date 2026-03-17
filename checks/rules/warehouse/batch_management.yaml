@@ -1,0 +1,181 @@
+module: batch_management
+target_state: S4HANA_2023
+rules:
+
+  - id: BATCH001
+    field: MCH1.MATNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Material number is mandatory — identifies which material the batch belongs to"
+    why_it_matters: >-
+      MATNR links the batch to its material master. Without it, the batch is an orphan —
+      it cannot be used in any goods movement, production order, or delivery because the
+      system does not know what material it represents. In S/4HANA, the batch-material
+      link is required for batch determination in SD and PP.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Batch cannot be used in goods movements (MIGO), deliveries (VL01N), or production
+      orders. Batch determination fails. Stock for this batch is orphaned.
+    fix_map:
+      __blank__: >-
+        Material number is empty on the batch master. Identify the correct material from
+        the physical batch label or goods receipt and assign via transaction MSC2N.
+      __null__: >-
+        Material was never linked to this batch. This is a data migration gap — check the
+        source system and correct via MSC2N.
+    record_fix_template: >-
+      Batch {MCH1.CHARG}: MATNR is {actual_value}. Assign the correct material
+      via transaction MSC2N.
+
+  - id: BATCH002
+    field: MCH1.CHARG
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Batch number is the primary key — mandatory for all batch records"
+    why_it_matters: >-
+      CHARG is the batch number and primary key for the batch master record. It uniquely
+      identifies a production lot or goods receipt lot. Without it, the record has no identity
+      and cannot be referenced in any SAP process.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Batch record has no identity. Cannot be referenced in goods movements, quality
+      inspection, or batch determination. The record is unusable.
+    fix_map:
+      __blank__: >-
+        Batch number is empty. This is the primary key — a record without CHARG cannot
+        exist. Investigate the data load for corruption.
+      __null__: >-
+        Batch number was never assigned. Check the batch number assignment configuration
+        (internal vs external) and correct the data load.
+    record_fix_template: >-
+      Batch record: CHARG is {actual_value}. This is the primary key — investigate
+      the data source for corruption.
+
+  - id: BATCH003
+    field: MCH1.CHARG
+    check_class: regex_check
+    pattern: "^[A-Z0-9]{1,10}$"
+    severity: high
+    dimension: validity
+    message: "Batch number must be alphanumeric, max 10 characters for S/4HANA"
+    why_it_matters: >-
+      In S/4HANA, batch numbers are limited to 10 alphanumeric characters. Special characters,
+      spaces, and lowercase letters cause issues with batch determination, barcode scanning,
+      and integration with external systems (WMS, MES). Non-conforming formats must be
+      cleaned before migration.
+    rule_authority: best_practice
+    sap_impact: >-
+      Batch determination may fail to match. Barcode scanning errors. Integration with
+      WMS and MES systems breaks on non-standard characters.
+    fix_map:
+      __other__: >-
+        Batch number '{actual_value}' does not match the expected alphanumeric format.
+        Rename the batch via MSC2N or use LSMW batch conversion to standardise before
+        S/4HANA migration.
+    record_fix_template: >-
+      Batch {MCH1.CHARG}: format '{actual_value}' is non-standard. Rename via MSC2N
+      or convert with LSMW.
+
+  - id: BATCH004
+    field: MCH7.VFDAT
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Expiry date is mandatory for FEFO picking — missing creates safety risk"
+    why_it_matters: >-
+      Expiry date required for FEFO (first expiry first out) picking strategy.
+      Missing = FEFO cannot function, expired goods may be picked — a safety and compliance risk.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      FEFO picking strategy fails for this batch. Expired goods may be shipped to customers.
+      Regulatory compliance violated for food, pharmaceutical, and chemical products.
+    fix_map:
+      __blank__: >-
+        Expiry date is empty. For perishable and regulated materials, this is mandatory.
+        Obtain the expiry date from the batch certificate or production records and enter
+        via transaction MSC2N > Dates tab.
+      __null__: >-
+        Expiry date was never set. Check the goods receipt documentation or batch
+        certificate for the correct date and update via MSC2N.
+    record_fix_template: >-
+      Batch {MCH1.CHARG} / Material {MCH1.MATNR}: VFDAT is {actual_value}. Enter the
+      expiry date via transaction MSC2N > Dates tab.
+
+  - id: BATCH005
+    field: MCH7.HSDAT
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Manufacturing date required for shelf life calculation and traceability"
+    why_it_matters: >-
+      HSDAT (date of manufacture) is used to calculate remaining shelf life and is essential
+      for traceability in recalls. Without it, shelf life calculation defaults to the goods
+      receipt date (which may be significantly later), and recall investigations cannot
+      determine when the batch was produced.
+    rule_authority: best_practice
+    sap_impact: >-
+      Shelf life calculation inaccurate — uses GR date instead of production date.
+      Recall investigation cannot pinpoint production date. Traceability gap.
+    fix_map:
+      __blank__: >-
+        Manufacturing date is empty. Obtain from the production order or batch certificate
+        and enter via MSC2N > Dates tab.
+      __null__: >-
+        Manufacturing date was never recorded. Check production records and update
+        via MSC2N.
+    record_fix_template: >-
+      Batch {MCH1.CHARG}: HSDAT is {actual_value}. Enter the manufacturing date
+      via transaction MSC2N > Dates tab.
+
+  - id: BATCH006
+    field: MCH1.WERKS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Plant is mandatory — links the batch to an organisational unit"
+    why_it_matters: >-
+      WERKS links the batch to a plant for organisational and logistical purposes. In S/4HANA,
+      batch management can be at plant level or cross-plant. Without the plant assignment,
+      batch determination cannot scope correctly and stock cannot be allocated.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Batch determination cannot scope to the correct plant. Stock allocation fails.
+      Goods movements cannot determine the correct storage location.
+    fix_map:
+      __blank__: >-
+        Plant is empty on the batch record. Determine the correct plant from the goods
+        receipt or production order and assign via MSC2N.
+      __null__: >-
+        Plant was never assigned. Check the batch management level configuration and
+        assign the correct plant via MSC2N.
+    record_fix_template: >-
+      Batch {MCH1.CHARG}: WERKS is {actual_value}. Assign the correct plant via MSC2N.
+
+  - id: BATCH007
+    field: MCH7.CLABS
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Unrestricted stock quantity helps validate batch inventory accuracy"
+    why_it_matters: >-
+      CLABS (unrestricted-use stock quantity at plant level) is used to validate that the
+      batch has allocatable stock. While the system calculates this from goods movements,
+      a missing or zero value on a batch that should have stock indicates a data inconsistency
+      that affects availability checks and batch determination.
+    rule_authority: best_practice
+    sap_impact: >-
+      Batch appears to have no available stock. Availability check excludes this batch.
+      Batch determination skips it even though physical stock may exist.
+    fix_map:
+      __blank__: >-
+        Unrestricted stock quantity is empty. Run transaction MB5B to verify actual stock
+        movements for this batch. If stock should exist, investigate and correct via
+        inventory adjustment (MI01/MI04).
+      __null__: >-
+        Stock quantity was never recorded. Verify physical stock and reconcile via
+        inventory count (MI01/MI04/MI07).
+    record_fix_template: >-
+      Batch {MCH1.CHARG}: CLABS is {actual_value}. Verify stock via MB5B and correct
+      with inventory adjustment if needed.
