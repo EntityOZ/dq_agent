@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
@@ -124,3 +126,136 @@ class Report(Base):
     __table_args__ = (
         Index("ix_reports_tenant_version", "tenant_id", "version_id"),
     )
+
+
+class CleaningRule(Base):
+    __tablename__ = "cleaning_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    object_type = Column(Text, nullable=False)
+    category = Column(Text, nullable=False)  # dedup|standardisation|enrichment|validation|lifecycle
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    detection_logic = Column(Text, nullable=True)
+    correction_logic = Column(Text, nullable=True)
+    risk_level = Column(Text, nullable=False, server_default="medium")
+    automation_level = Column(Text, nullable=False, server_default="single_approval")
+    approval_required = Column(Boolean, nullable=False, server_default="true")
+    is_active = Column(Boolean, nullable=False, server_default="true")
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
+class CleaningQueue(Base):
+    __tablename__ = "cleaning_queue"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    rule_id = Column(UUID(as_uuid=True), ForeignKey("cleaning_rules.id"), nullable=True)
+    object_type = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, server_default="detected")
+    confidence = Column(Numeric, nullable=True)
+    record_key = Column(Text, nullable=False)
+    record_data_before = Column(JSONB, nullable=True)
+    record_data_after = Column(JSONB, nullable=True)
+    survivor_key = Column(Text, nullable=True)
+    merge_preview = Column(JSONB, nullable=True)
+    priority = Column(Integer, nullable=False, server_default="50")
+    assigned_to = Column(UUID(as_uuid=True), nullable=True)
+    detected_at = Column(DateTime(timezone=True), server_default=text("now()"))
+    approved_by = Column(UUID(as_uuid=True), nullable=True)
+    applied_at = Column(DateTime(timezone=True), nullable=True)
+    rollback_deadline = Column(DateTime(timezone=True), nullable=True)
+    batch_id = Column(UUID(as_uuid=True), nullable=True)
+    version_id = Column(UUID(as_uuid=True), ForeignKey("analysis_versions.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_cleaning_queue_tenant_status", "tenant_id", "status"),
+        Index("ix_cleaning_queue_tenant_object", "tenant_id", "object_type"),
+    )
+
+
+class CleaningAudit(Base):
+    __tablename__ = "cleaning_audit"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    queue_id = Column(UUID(as_uuid=True), ForeignKey("cleaning_queue.id"), nullable=False)
+    rule_id = Column(UUID(as_uuid=True), nullable=True)
+    action = Column(Text, nullable=False)
+    actor_id = Column(UUID(as_uuid=True), nullable=True)
+    actor_name = Column(Text, nullable=True)
+    record_key = Column(Text, nullable=False)
+    object_type = Column(Text, nullable=False)
+    data_before = Column(JSONB, nullable=True)
+    data_after = Column(JSONB, nullable=True)
+    metadata_ = Column("metadata", JSONB, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_cleaning_audit_tenant_queue", "tenant_id", "queue_id"),
+    )
+
+
+class DedupCandidate(Base):
+    __tablename__ = "dedup_candidates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    object_type = Column(Text, nullable=False)
+    record_key_a = Column(Text, nullable=False)
+    record_key_b = Column(Text, nullable=False)
+    match_score = Column(Numeric, nullable=False)
+    match_method = Column(Text, nullable=False)
+    match_fields = Column(JSONB, nullable=True)
+    status = Column(Text, nullable=False, server_default="pending")
+    survivor_key = Column(Text, nullable=True)
+    merged_at = Column(DateTime(timezone=True), nullable=True)
+    merged_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_dedup_candidates_tenant_object", "tenant_id", "object_type"),
+    )
+
+
+class CleaningMetric(Base):
+    __tablename__ = "cleaning_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    period = Column(Text, nullable=False)
+    period_type = Column(Text, nullable=False)
+    object_type = Column(Text, nullable=False)
+    detected = Column(Integer, nullable=False, server_default="0")
+    recommended = Column(Integer, nullable=False, server_default="0")
+    approved = Column(Integer, nullable=False, server_default="0")
+    rejected = Column(Integer, nullable=False, server_default="0")
+    applied = Column(Integer, nullable=False, server_default="0")
+    verified = Column(Integer, nullable=False, server_default="0")
+    rolled_back = Column(Integer, nullable=False, server_default="0")
+    auto_approved = Column(Integer, nullable=False, server_default="0")
+    avg_review_hours = Column(Numeric, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "period", "period_type", "object_type", name="uq_cleaning_metrics_tenant_period"),
+    )
+
+
+class StewardMetric(Base):
+    __tablename__ = "steward_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
+    period = Column(Text, nullable=False)
+    items_processed = Column(Integer, nullable=False, server_default="0")
+    items_approved = Column(Integer, nullable=False, server_default="0")
+    items_rejected = Column(Integer, nullable=False, server_default="0")
+    items_applied = Column(Integer, nullable=False, server_default="0")
+    total_review_hours = Column(Numeric, nullable=False, server_default="0")
+    exceptions_resolved = Column(Integer, nullable=False, server_default="0")
+    dqs_impact = Column(Numeric, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
