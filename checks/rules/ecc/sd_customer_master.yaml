@@ -1,0 +1,263 @@
+module: sd_customer_master
+target_state: S4HANA_2023
+rules:
+  - id: SDCM001
+    field: KNA1.KUNNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Customer number is mandatory — primary key for all SD customer transactions"
+    why_it_matters: >-
+      KUNNR is the primary key for the SD customer master. Without it, no sales area
+      data can be maintained and the customer cannot be used in any SD transaction
+      including sales orders (VA01), deliveries (VL01N), and billing (VF01).
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer cannot be used in any SD process. VA01, VL01N, VF01 all fail.
+      S/4HANA migration conversion rejects the record.
+    fix_map:
+      __blank__: >-
+        Customer number is empty. Assign a valid customer number via transaction
+        XD01 (create customer) or investigate the data source for the missing key.
+      __null__: >-
+        Customer number was never populated. Create the customer via XD01 or
+        correct the data load.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: KUNNR is {actual_value}. Assign a valid customer
+      number via transaction XD01 or correct the source data.
+
+  - id: SDCM002
+    field: KNA1.KUNNR
+    check_class: regex_check
+    pattern: "^[0-9]{10}$"
+    severity: critical
+    dimension: validity
+    message: "Customer number must be 10-digit numeric for S/4HANA conversion"
+    why_it_matters: >-
+      S/4HANA requires customer numbers to be exactly 10 numeric digits. Non-conforming
+      formats are rejected by the migration conversion program and break the
+      customer-vendor integration (CVI) mapping.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer rejected by S/4HANA migration program. CVI mapping to Business Partner
+      fails. Customer unusable in any SD or FI-AR transaction.
+    fix_map:
+      __other__: >-
+        Customer number does not match the required 10-digit numeric format. Use LSMW
+        or a conversion program to renumber before migration. Coordinate with the
+        basis team on number range configuration (table TNRO, object DEBITOR).
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: number format is invalid (value: {actual_value}).
+      Reformat to 10-digit numeric or assign a new number range via TNRO.
+
+  - id: SDCM003
+    field: KNVV.VKORG
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Sales organisation is mandatory — part of the required sales area triple"
+    why_it_matters: >-
+      VKORG (sales organisation) is the first element of the sales area triple
+      (sales org / distribution channel / division) that defines a customer's
+      commercial relationship. Without it, no sales area data exists and the
+      customer cannot be used in any SD transaction.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Customer cannot be used in VA01. No sales area = no sales orders possible.
+      Pricing, shipping, and billing cannot be determined. The customer is
+      commercially inactive.
+    fix_map:
+      __blank__: >-
+        Sales organisation is empty. Assign the correct sales organisation via
+        XD02 > Sales Area Data tab. The sales org must be valid in the enterprise
+        structure (transaction OVXB).
+      __null__: >-
+        Sales organisation was never assigned. Determine the correct sales org
+        from the commercial relationship and set via XD02.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: VKORG is {actual_value}. Assign the sales
+      organisation via XD02 > Sales Area Data tab.
+
+  - id: SDCM004
+    field: KNVV.VTWEG
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Distribution channel is mandatory — required for sales area definition"
+    why_it_matters: >-
+      VTWEG (distribution channel) is the second element of the sales area triple.
+      It defines how products reach the customer (e.g., direct sales, wholesale,
+      internet). Without it, the sales area is incomplete and no SD transactions
+      can be created.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Sales area is incomplete — VA01 rejects the customer. Pricing procedure
+      determination fails. Material determination and listing/exclusion cannot
+      be evaluated.
+    fix_map:
+      __blank__: >-
+        Distribution channel is empty. Assign the correct channel via XD02 >
+        Sales Area Data tab. Common values: 10 (direct), 20 (wholesale),
+        30 (internet).
+      __null__: >-
+        Distribution channel was never assigned. Set via XD02 > Sales Area Data.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: VTWEG is {actual_value}. Assign the distribution
+      channel via XD02 > Sales Area Data tab.
+
+  - id: SDCM005
+    field: KNVV.SPART
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Division is mandatory — completes the sales area triple"
+    why_it_matters: >-
+      SPART (division) is the third element of the sales area triple. It segments
+      the product range (e.g., pumps, electronics, services). All three elements
+      must be present for any SD transaction to be created.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Sales area is incomplete — customer cannot be used in VA01. Product-specific
+      pricing and output determination fail.
+    fix_map:
+      __blank__: >-
+        Division is empty. Assign the correct division via XD02 > Sales Area Data
+        tab. Division must be valid in the enterprise structure.
+      __null__: >-
+        Division was never assigned. Set via XD02 > Sales Area Data tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: SPART is {actual_value}. Assign the division via
+      XD02 > Sales Area Data tab.
+
+  - id: SDCM006
+    field: KNVV.KDGRP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Customer group missing — affects pricing and reporting segmentation"
+    why_it_matters: >-
+      KDGRP (customer group) is used in pricing condition records, reporting, and
+      customer segmentation. Without it, group-specific pricing cannot be applied
+      and sales reports cannot segment by customer category.
+    rule_authority: best_practice
+    sap_impact: >-
+      Customer group-specific pricing conditions are not applied. Sales analysis
+      reports (MC+E) cannot segment by customer group. Rebate agreements based on
+      customer group are not triggered.
+    fix_map:
+      __blank__: >-
+        Customer group is empty. Assign the correct group based on the customer
+        classification (e.g., 01=domestic, 02=export, 03=key account). Set via
+        XD02 > Sales Area Data > Sales tab.
+      __null__: >-
+        Customer group was never assigned. Set via XD02 > Sales Area Data > Sales tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: KDGRP is {actual_value}. Assign the customer group
+      via XD02 > Sales Area Data > Sales tab.
+
+  - id: SDCM007
+    field: KNVV.ZTERM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Payment terms missing — no default for sales orders and billing"
+    why_it_matters: >-
+      ZTERM in the sales area data provides the default payment terms for sales
+      orders and billing documents. Without it, every sales order requires manual
+      entry of payment terms, slowing order processing and increasing error risk.
+    rule_authority: best_practice
+    sap_impact: >-
+      No default payment terms on sales orders (VA01). Manual entry required for
+      every order. Billing documents (VF01) have no payment baseline.
+    fix_map:
+      __blank__: >-
+        Payment terms are empty. Obtain the agreed terms from the sales contract.
+        Set via XD02 > Sales Area Data > Billing tab. Common values: ZB30 (30 days
+        net), ZB60 (60 days net).
+      __null__: >-
+        Payment terms were never assigned for this sales area. Set via XD02 >
+        Sales Area Data > Billing tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: ZTERM is {actual_value}. Set payment terms via
+      XD02 > Sales Area Data > Billing tab.
+
+  - id: SDCM008
+    field: KNVV.KALKS
+    check_class: null_check
+    severity: high
+    dimension: accuracy
+    message: "Pricing procedure missing — no prices determined on sales orders"
+    why_it_matters: >-
+      KALKS (pricing procedure) determines which pricing conditions (base price,
+      discounts, taxes) are applied when creating a sales order for this customer.
+      Without it, no prices are determined on sales orders and every order must be
+      priced manually.
+    rule_authority: best_practice
+    sap_impact: >-
+      Sales orders (VA01) have no automatic pricing. All conditions must be entered
+      manually. Pricing analysis (V/LD) shows no procedure assignment. Revenue
+      recognition may be incorrect.
+    fix_map:
+      __blank__: >-
+        Pricing procedure is empty. Assign the correct customer pricing procedure
+        via XD02 > Sales Area Data > Sales tab. This field works with the sales
+        organisation pricing procedure (OVKK) and document pricing procedure to
+        determine the final pricing procedure.
+      __null__: >-
+        Pricing procedure was never assigned. Set via XD02 > Sales Area Data >
+        Sales tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: KALKS is {actual_value}. Assign the pricing
+      procedure via XD02 > Sales Area Data > Sales tab.
+
+  - id: SDCM009
+    field: KNA1.STCD1
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Tax number missing — required for tax-compliant invoicing"
+    why_it_matters: >-
+      STCD1 (tax number) is required for generating tax-compliant invoices. Many
+      jurisdictions require the customer's tax registration number on invoices
+      for VAT deduction. Missing tax number may result in non-compliant billing.
+    rule_authority: best_practice
+    sap_impact: >-
+      Billing documents (VF01) do not include customer tax number. Tax invoices
+      are non-compliant in jurisdictions requiring tax ID on invoices.
+    fix_map:
+      __blank__: >-
+        Tax number is empty. Obtain the customer's VAT registration number or
+        tax ID. Set via XD02 > General Data > Control tab.
+      __null__: >-
+        Tax number was never populated. Request from the customer and set via
+        XD02 > General Data > Control tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: STCD1 is {actual_value}. Set the tax number via
+      XD02 > General Data > Control tab.
+
+  - id: SDCM010
+    field: KNVV.INCO1
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Incoterms missing — shipping terms not defined for this customer"
+    why_it_matters: >-
+      INCO1 (incoterms) defines the shipping terms and determines who bears
+      transport risk and cost. Without incoterms, sales orders have no default
+      shipping terms, which may lead to incorrect freight cost allocation and
+      delivery disputes.
+    rule_authority: best_practice
+    sap_impact: >-
+      No default incoterms on sales orders (VA01). Freight cost determination
+      may be incorrect. Export documentation is incomplete.
+    fix_map:
+      __blank__: >-
+        Incoterms are empty. Assign the correct incoterms based on the commercial
+        agreement. Set via XD02 > Sales Area Data > Shipping tab. Common values:
+        EXW (ex works), FOB (free on board), CIF (cost insurance freight), DDP
+        (delivered duty paid).
+      __null__: >-
+        Incoterms were never assigned. Set via XD02 > Sales Area Data > Shipping tab.
+    record_fix_template: >-
+      Customer {KNA1.KUNNR}: INCO1 is {actual_value}. Set the incoterms via
+      XD02 > Sales Area Data > Shipping tab.

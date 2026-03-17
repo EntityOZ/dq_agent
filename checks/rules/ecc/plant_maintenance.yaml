@@ -1,0 +1,216 @@
+module: plant_maintenance
+target_state: S4HANA_2023
+rules:
+  - id: PM001
+    field: EQUI.EQUNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Equipment number is mandatory — primary key for all PM transactions"
+    why_it_matters: >-
+      EQUNR is the equipment number and primary key for all plant maintenance
+      records. Without it, no maintenance work orders (IW31), notifications
+      (IW21), or measurement documents can be created. The equipment is invisible
+      to the maintenance planning system.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Equipment cannot be used in any PM transaction. Work orders (IW31),
+      notifications (IW21), and maintenance plans (IP01) cannot reference it.
+      The asset is untracked for maintenance purposes.
+    fix_map:
+      __blank__: >-
+        Equipment number is empty. Assign a valid equipment number via transaction
+        IE01 (create equipment) or investigate the data source for the missing key.
+      __null__: >-
+        Equipment number was never populated. Create the equipment via IE01 or
+        correct the data load.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: EQUNR is {actual_value}. Assign a valid equipment
+      number via transaction IE01 or correct the source data.
+
+  - id: PM002
+    field: EQUI.EQTYP
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Equipment category is mandatory — determines available maintenance functions"
+    why_it_matters: >-
+      EQTYP (equipment category) determines which functions are available for the
+      equipment — whether it can have serial numbers, be installed in functional
+      locations, or be used as a production resource. Without it, maintenance work
+      orders cannot be created and the equipment type is undefined.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Maintenance work orders (IW31) cannot be created for this equipment.
+      Equipment categorisation is unknown — serial number management, installation
+      tracking, and production resource assignment are all blocked.
+    fix_map:
+      __blank__: >-
+        Equipment category is empty. Determine the correct category from the
+        equipment type. Set via IE02 > General tab. Common categories: M
+        (machine), V (vehicle), P (production resource/tool).
+      __null__: >-
+        Equipment category was never assigned. Set via IE02 > General tab.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: EQTYP is {actual_value}. Assign the equipment
+      category via IE02 > General tab.
+
+  - id: PM003
+    field: EQUI.SWERK
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Maintenance plant is mandatory — required for work order routing and parts sourcing"
+    why_it_matters: >-
+      SWERK (maintenance plant) determines where maintenance activities are planned
+      and executed. It controls which maintenance work centres are available, where
+      spare parts are sourced from, and which plant's cost centre absorbs maintenance
+      costs.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Work orders (IW31) cannot determine maintenance work centres or spare parts
+      plant. Maintenance costs cannot be assigned. The equipment is outside the
+      maintenance planning scope.
+    fix_map:
+      __blank__: >-
+        Maintenance plant is empty. Assign the plant where maintenance is performed
+        via IE02 > Organisation tab > Maintenance Plant.
+      __null__: >-
+        Maintenance plant was never assigned. Set via IE02 > Organisation tab.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: SWERK is {actual_value}. Assign the maintenance
+      plant via IE02 > Organisation tab.
+
+  - id: PM004
+    field: EQUI.IWERK
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Planning plant missing — maintenance plans cannot be assigned"
+    why_it_matters: >-
+      IWERK (planning plant) determines which plant is responsible for planning
+      maintenance activities. Without it, preventive maintenance plans (IP01)
+      cannot be assigned and the equipment is excluded from scheduled maintenance.
+    rule_authority: best_practice
+    sap_impact: >-
+      Maintenance plans (IP01) cannot include this equipment. Preventive
+      maintenance scheduling is not possible. Only reactive (breakdown)
+      maintenance can be performed.
+    fix_map:
+      __blank__: >-
+        Planning plant is empty. Assign the plant responsible for maintenance
+        planning via IE02 > Organisation tab > Planning Plant. This is often
+        the same as the maintenance plant.
+      __null__: >-
+        Planning plant was never assigned. Set via IE02 > Organisation tab.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: IWERK is {actual_value}. Assign the planning
+      plant via IE02 > Organisation tab.
+
+  - id: PM005
+    field: IFLOT.TPLNR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Functional location missing — equipment not placed in the plant hierarchy"
+    why_it_matters: >-
+      TPLNR (functional location) places the equipment in the physical plant
+      hierarchy — which building, which production line, which machine position.
+      Without it, maintenance planners cannot locate the equipment and the
+      technical hierarchy is incomplete.
+    rule_authority: best_practice
+    sap_impact: >-
+      Equipment has no location in the plant hierarchy. Maintenance planners
+      cannot find it by location. Structure-based reporting (IH06/IH08) excludes
+      this equipment. Location-based maintenance plans cannot include it.
+    fix_map:
+      __blank__: >-
+        Functional location is empty. Assign the equipment to its physical location
+        in the technical hierarchy via IE02 > Location tab > Functional Location.
+        The functional location must exist (IL01) before it can be assigned.
+      __null__: >-
+        Functional location was never assigned. Create the location via IL01 if
+        needed, then assign via IE02 > Location tab.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: TPLNR is {actual_value}. Assign the functional
+      location via IE02 > Location tab.
+
+  - id: PM006
+    field: EQUI.BRGEW
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Weight missing — affects transport planning for mobile equipment"
+    why_it_matters: >-
+      BRGEW (gross weight) is used for transport planning when equipment needs to
+      be moved, and for structural load calculations in plant engineering. While
+      not critical for all equipment types, it is important for heavy machinery
+      and mobile assets.
+    rule_authority: best_practice
+    sap_impact: >-
+      Transport planning for equipment relocation cannot consider weight
+      constraints. Plant engineering structural load reports are incomplete.
+    fix_map:
+      __blank__: >-
+        Weight is empty. Obtain from the equipment nameplate or manufacturer
+        documentation. Set via IE02 > General tab > Weight field.
+      __null__: >-
+        Weight was never recorded. Set via IE02 > General tab if relevant for
+        this equipment type.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: BRGEW is {actual_value}. Set the weight via
+      IE02 > General tab.
+
+  - id: PM007
+    field: EQUI.INBDT
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Start-up date missing — equipment age and warranty tracking not possible"
+    why_it_matters: >-
+      INBDT (start-up date) records when the equipment was first put into service.
+      Without it, age-based maintenance strategies cannot be applied, warranty
+      periods cannot be tracked, and equipment lifecycle reporting is incomplete.
+    rule_authority: best_practice
+    sap_impact: >-
+      Age-based maintenance plans (IP01 with time-based scheduling) cannot
+      calculate intervals correctly. Warranty tracking is not possible.
+      Equipment lifecycle cost reports are incomplete.
+    fix_map:
+      __blank__: >-
+        Start-up date is empty. Determine when the equipment was first put into
+        service from commissioning records or asset acquisition date. Set via
+        IE02 > General tab > Start-Up Date.
+      __null__: >-
+        Start-up date was never recorded. Set via IE02 > General tab.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: INBDT is {actual_value}. Set the start-up date
+      via IE02 > General tab.
+
+  - id: PM008
+    field: EQUI.ANSWT
+    check_class: null_check
+    severity: low
+    dimension: completeness
+    message: "Acquisition value missing — equipment cost tracking is incomplete"
+    why_it_matters: >-
+      ANSWT (acquisition value) records the original cost of the equipment. While
+      asset accounting (AA) tracks the financial value separately, this field in
+      PM provides maintenance planners with cost context for repair-vs-replace
+      decisions.
+    rule_authority: best_practice
+    sap_impact: >-
+      Maintenance cost-to-value ratio cannot be calculated. Repair-vs-replace
+      analysis is missing the acquisition baseline. Equipment cost reports in
+      PM are incomplete.
+    fix_map:
+      __blank__: >-
+        Acquisition value is empty. Obtain from the asset accounting record
+        (AS03) or procurement records. Set via IE02 > General tab > Acquisition
+        Value.
+      __null__: >-
+        Acquisition value was never recorded. Set via IE02 > General tab if
+        the value is available from asset accounting or procurement.
+    record_fix_template: >-
+      Equipment {EQUI.EQUNR}: ANSWT is {actual_value}. Set the acquisition
+      value via IE02 > General tab.

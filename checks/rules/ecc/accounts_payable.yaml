@@ -1,0 +1,272 @@
+module: accounts_payable
+target_state: S4HANA_2023
+rules:
+  - id: AP001
+    field: LFB1.LIFNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Vendor number is mandatory — primary key for all vendor transactions"
+    why_it_matters: >-
+      LIFNR is the primary key for all vendor master records and every vendor transaction
+      in SAP. Without it, no purchasing (ME21N), invoice verification (MIRO), or payment
+      (F-53) can be processed. In S/4HANA migration, records without LIFNR are rejected
+      outright by the vendor conversion program.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Vendor cannot be used in any procurement or payment process. ME21N, MIRO, F-53,
+      and all AP sub-ledger transactions fail. Migration conversion rejects the record.
+    fix_map:
+      __blank__: >-
+        Vendor number is empty. This record cannot be processed without a valid LIFNR.
+        Assign a vendor number via transaction FK01 (create) or investigate the data
+        source for the missing key. For bulk remediation use LSMW with object 0050.
+      __null__: >-
+        Vendor number was never populated — likely a data migration gap from the source
+        system. Create the vendor via FK01 or correct the data load.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: LIFNR is {actual_value}. Assign a valid vendor number via
+      transaction FK01 or correct the source data load.
+
+  - id: AP002
+    field: LFB1.LIFNR
+    check_class: regex_check
+    pattern: "^[0-9]{10}$"
+    severity: critical
+    dimension: validity
+    message: "Vendor number must be 10-digit numeric for S/4HANA conversion"
+    why_it_matters: >-
+      S/4HANA requires vendor numbers to be exactly 10 numeric digits. Non-conforming
+      formats are rejected by the vendor migration program and cannot be used in any
+      downstream procurement or payment transaction.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Vendor rejected by S/4HANA migration program. Unusable in any ECC/S4 process
+      including ME21N, MIRO, F-53, and automatic payment program F110.
+    fix_map:
+      __other__: >-
+        Vendor number does not match the required 10-digit numeric format. This typically
+        occurs when records were migrated from a legacy system with alphanumeric or
+        shorter numbering. Use LSMW or a conversion program to renumber before migration.
+        Coordinate with the basis team on number range configuration (table TNRO, object
+        KREDITOR).
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: number format is invalid (value: {actual_value}). Reformat
+      to 10-digit numeric or assign a new number via number range object KREDITOR.
+
+  - id: AP003
+    field: LFA1.NAME1
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Vendor name is mandatory — displayed on all purchasing and payment documents"
+    why_it_matters: >-
+      NAME1 is the primary vendor name displayed on purchase orders, invoices, payment
+      advices, and all printed correspondence. In S/4HANA it is a mandatory field — the
+      vendor master cannot be saved without it.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Vendor master cannot be saved in S/4HANA. Purchase orders and payment advices
+      display blank vendor name. Audit trail is broken for AP transactions.
+    fix_map:
+      __blank__: >-
+        Vendor name is empty. Obtain the legal entity name from the vendor's business
+        registration or existing contracts. Set via transaction FK02 > Address tab.
+      __null__: >-
+        Vendor name was never populated. This is a critical gap — obtain from the
+        vendor directly or from the procurement team. Set via FK02 > Address tab.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: NAME1 is {actual_value}. Set the vendor name via
+      transaction FK02 > Address tab.
+
+  - id: AP004
+    field: LFA1.LAND1
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Country is mandatory — drives tax determination, payment method, and address format"
+    why_it_matters: >-
+      LAND1 (country code) is a mandatory address field that drives tax determination
+      (withholding tax, VAT), payment method selection in F110, bank validation rules,
+      and postal address formatting. Without it, the vendor master is incomplete and
+      S/4HANA rejects it on save.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Vendor cannot be saved in S/4HANA. Tax determination (FTXP) fails. Automatic
+      payment program F110 cannot select the correct payment method. Withholding tax
+      calculation is impossible.
+    fix_map:
+      __blank__: >-
+        Country code is empty. Determine the ISO country code from the vendor's
+        registered address. Set via transaction FK02 > Address tab.
+      __null__: >-
+        Country was never populated — likely a data migration gap. Set the ISO
+        country code via FK02 > Address tab.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: LAND1 is {actual_value}. Set the ISO country code via
+      transaction FK02 > Address tab.
+
+  - id: AP005
+    field: LFB1.AKONT
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Reconciliation account is mandatory — links AP sub-ledger to the general ledger"
+    why_it_matters: >-
+      AKONT (reconciliation account) is the GL account that receives all vendor
+      postings. Without it the AP sub-ledger cannot be reconciled to the GL and all
+      invoice postings for this vendor will fail with a hard error.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      All postings to this vendor fail in MIRO and F-53. AP sub-ledger cannot be
+      reconciled. Period-end close for AP is blocked until corrected.
+    fix_map:
+      __blank__: >-
+        Assign reconciliation account via FK02 > Company Code Data > Account Management.
+        Account must be a vendor reconciliation account (account type K in FS00).
+        Typically this is a GL account in the 16xxxx or 21xxxx range depending on the
+        chart of accounts.
+      __null__: >-
+        Reconciliation account was never assigned. This vendor cannot receive any
+        postings. Assign via FK02 > Company Code Data > Account Management. The
+        account must be flagged as a reconciliation account for vendors in FS00.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: AKONT is {actual_value}. Assign a vendor reconciliation
+      account via FK02 > Company Code Data > Account Management.
+
+  - id: AP006
+    field: LFB1.ZTERM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Payment terms missing — invoice due date defaults to immediate"
+    why_it_matters: >-
+      ZTERM (payment terms) determines when an invoice is due and what early payment
+      discounts are available. Without payment terms, all invoices default to immediate
+      payment — the vendor receives no standard payment period and the company cannot
+      capture early payment discounts.
+    rule_authority: best_practice
+    sap_impact: >-
+      Invoice due date defaults to immediate payment. Early payment discounts (cash
+      discount conditions) are not captured. Cash flow forecasting in FF7A is
+      inaccurate.
+    fix_map:
+      __blank__: >-
+        Payment terms are empty. Obtain the agreed payment terms from the vendor
+        contract or procurement team. Set via FK02 > Company Code Data > Payment
+        Transactions. Common values: 0001 (due immediately), ZB30 (30 days net),
+        ZB60 (60 days net).
+      __null__: >-
+        Payment terms were never assigned. Set via FK02 > Company Code Data >
+        Payment Transactions.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: ZTERM is {actual_value}. Set payment terms via FK02 >
+      Company Code Data > Payment Transactions.
+
+  - id: AP007
+    field: LFA1.STCD1
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Tax number missing — required for VAT reporting and withholding tax"
+    why_it_matters: >-
+      STCD1 (tax number 1) is required for VAT reporting, withholding tax calculation,
+      and tax authority submissions. Without it, tax reports are incomplete and the
+      company may face compliance penalties.
+    rule_authority: best_practice
+    sap_impact: >-
+      VAT returns (S_ALR_87012357) show incomplete vendor tax data. Withholding tax
+      certificates cannot be generated. Tax audit trail is incomplete.
+    fix_map:
+      __blank__: >-
+        Tax number is empty. Obtain the vendor's VAT registration number or tax ID
+        from the vendor directly or from accounts payable records. Set via FK02 >
+        General Data > Control tab.
+      __null__: >-
+        Tax number was never populated. Request from the vendor and set via FK02 >
+        General Data > Control tab.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: STCD1 is {actual_value}. Set the tax number via FK02 >
+      General Data > Control tab.
+
+  - id: AP008
+    field: LFB1.PERNR
+    check_class: cross_field_check
+    fields: ["LFB1.PERNR"]
+    condition: "~`LFB1.PERNR`.isna() & (`LFB1.PERNR` != '')"
+    severity: medium
+    dimension: consistency
+    message: "Employee vendor cross-check — PERNR populated indicates potential duplicate or self-payment risk"
+    why_it_matters: >-
+      When a vendor record has a populated PERNR (personnel number), it indicates the
+      vendor is also an employee. This creates a self-payment risk and is a common
+      audit finding. These records require enhanced approval workflows and segregation
+      of duties review.
+    rule_authority: best_practice
+    sap_impact: >-
+      Audit risk for employee self-payment. SOX/SOD violation if the employee can
+      create and approve their own vendor invoices. Flagged by GRC Access Control.
+    fix_map:
+      __other__: >-
+        PERNR is populated, indicating this vendor is linked to an active employee.
+        Verify the business justification via HR and procurement. If legitimate
+        (e.g., employee expense reimbursement), ensure segregation of duties controls
+        are in place. If not justified, remove the link via FK02 or deactivate the
+        vendor.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: PERNR is {actual_value} — linked to an employee. Verify
+      business justification and ensure SOD controls are in place.
+
+  - id: AP009
+    field: LFA1.SMTP_ADDR
+    check_class: domain_value_check
+    allowed_values: null
+    format: email
+    severity: medium
+    dimension: completeness
+    message: "Email required for e-invoicing and automated remittance advice"
+    why_it_matters: >-
+      Email address is required for electronic invoicing, automated remittance advice
+      delivery, and vendor communication. Without it, remittance advices must be sent
+      manually and e-invoicing workflows cannot be activated.
+    rule_authority: best_practice
+    sap_impact: >-
+      Remittance advice (F110 output) cannot be sent electronically. E-invoicing
+      integration is not possible. Vendor correspondence falls back to paper.
+    fix_map:
+      __blank__: >-
+        No email address on record. Obtain from the vendor or accounts payable team
+        and add via FK02 > Address tab > Communication.
+      __other__: >-
+        Value does not match email format. Check for typos, missing @ symbol, or
+        invalid domain. Correct via FK02 > Address tab > Communication.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: email address is '{actual_value}'.
+      {fix_instruction} Use transaction FK02 to update.
+
+  - id: AP010
+    field: LFB1.FDGRV
+    check_class: null_check
+    severity: low
+    dimension: completeness
+    message: "Cash management group missing — used for liquidity forecasting"
+    why_it_matters: >-
+      FDGRV (cash management group) is used in cash management and liquidity
+      forecasting (FF7A). Without it, vendor payment obligations are excluded from
+      cash position reports, reducing forecast accuracy.
+    rule_authority: best_practice
+    sap_impact: >-
+      Vendor excluded from cash position reports in FF7A. Liquidity forecasting
+      is incomplete. Treasury planning does not account for this vendor's payment
+      obligations.
+    fix_map:
+      __blank__: >-
+        Cash management group is empty. Assign the appropriate group based on vendor
+        type and payment frequency. Set via FK02 > Company Code Data > Payment
+        Transactions. Common values depend on the cash management configuration.
+      __null__: >-
+        Cash management group was never assigned. Set via FK02 > Company Code Data >
+        Payment Transactions.
+    record_fix_template: >-
+      Vendor {LFB1.LIFNR}: FDGRV is {actual_value}. Assign a cash management group
+      via FK02 > Company Code Data > Payment Transactions.
