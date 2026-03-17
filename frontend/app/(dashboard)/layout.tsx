@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { User } from "lucide-react";
+import { useState } from "react";
+import { User, Bell } from "lucide-react";
 
 const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
 
@@ -46,9 +47,142 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useQuery } from "@tanstack/react-query";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
-import type { HealthResponse } from "@/types/api";
+import {
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "@/lib/api/notifications";
+import { relativeTime } from "@/lib/format";
+import type { HealthResponse, Notification as NotifType } from "@/types/api";
+
+const NOTIF_TYPE_ICONS: Record<string, string> = {
+  finding: "🔍",
+  cleaning: "✨",
+  exception: "🚨",
+  approval: "✅",
+  digest: "📊",
+  warning: "⚠️",
+};
+
+function NotificationBell() {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["notifications-unread-count"],
+    queryFn: getUnreadCount,
+    refetchInterval: 30_000,
+  });
+
+  const { data: recent } = useQuery({
+    queryKey: ["notifications-recent"],
+    queryFn: () => getNotifications({ limit: 10 }),
+    enabled: open,
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      qc.invalidateQueries({ queryKey: ["notifications-recent"] });
+    },
+  });
+
+  const handleClick = async (notif: NotifType) => {
+    if (!notif.is_read) {
+      await markNotificationRead(notif.id);
+      qc.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      qc.invalidateQueries({ queryKey: ["notifications-recent"] });
+    }
+    if (notif.link) {
+      setOpen(false);
+      router.push(notif.link);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="relative flex h-8 w-8 items-center justify-center rounded-lg text-[#6B92AD] hover:bg-[#F0F5FA] hover:text-[#0F2137] transition-colors"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0" sideOffset={8}>
+        <div className="flex items-center justify-between border-b border-[#D6E4F0] px-3 py-2">
+          <span className="text-sm font-semibold text-[#0F2137]">Notifications</span>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={() => markAllMutation.mutate()}
+              className="text-xs text-[#0695A8] hover:underline"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {(!recent?.items || recent.items.length === 0) ? (
+            <div className="px-3 py-6 text-center text-sm text-[#6B92AD]">
+              No notifications
+            </div>
+          ) : (
+            recent.items.map((notif) => (
+              <button
+                key={notif.id}
+                type="button"
+                onClick={() => handleClick(notif)}
+                className={`flex w-full gap-2 border-b border-[#F0F5FA] px-3 py-2 text-left transition-colors hover:bg-[#F0F5FA] ${
+                  notif.is_read ? "opacity-60" : ""
+                }`}
+              >
+                <span className="mt-0.5 text-sm">{NOTIF_TYPE_ICONS[notif.type] || "📋"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium text-[#0F2137]">{notif.title}</p>
+                  <p className="truncate text-xs text-[#6B92AD]">
+                    {notif.body.length > 60 ? notif.body.slice(0, 60) + "…" : notif.body}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[#A8C5D8]">{relativeTime(notif.created_at)}</p>
+                </div>
+                {!notif.is_read && (
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#0695A8]" />
+                )}
+              </button>
+            ))
+          )}
+        </div>
+        <div className="border-t border-[#D6E4F0] px-3 py-2">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              router.push("/notifications");
+            }}
+            className="w-full text-center text-xs font-medium text-[#0695A8] hover:underline"
+          >
+            View all
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -160,6 +294,7 @@ export default function DashboardLayout({
                 Updated: {timestamp}
               </span>
             )}
+            <NotificationBell />
             <UserButton />
           </div>
         </header>

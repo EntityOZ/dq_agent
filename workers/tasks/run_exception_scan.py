@@ -113,6 +113,27 @@ def run_exception_scan(self, version_id: str, tenant_id: str):
 
             session.commit()
 
+        # Create notifications for critical exceptions
+        try:
+            from api.services.notifications import create_notification_sync
+
+            critical_exceptions = [e for e in exceptions if e["severity"] == "critical"]
+            with Session(engine) as notif_session:
+                notif_session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                for exc in critical_exceptions:
+                    create_notification_sync(
+                        tenant_id=tenant_id,
+                        user_id=None,
+                        type="exception",
+                        title=f"Critical exception detected: {exc['title']}",
+                        body=exc["description"],
+                        link=f"/exceptions/{exc['id']}",
+                        session=notif_session,
+                    )
+                notif_session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to create exception notifications (non-fatal): {e}")
+
         logger.info(
             "run_exception_scan complete: version_id={}, exceptions={}".format(
                 version_id, len(exceptions)

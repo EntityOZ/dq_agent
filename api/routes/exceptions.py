@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
 from api.services.exception_engine import ExceptionBillingCalculator
+from api.services.rbac import require_permission
 
 router = APIRouter(prefix="/api/v1", tags=["exceptions"])
 
@@ -341,6 +342,7 @@ async def resolve_exception(
     body: ResolveBody,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
+    _role: str = Depends(require_permission("approve")),
 ):
     await _set_rls(db, tenant.id)
 

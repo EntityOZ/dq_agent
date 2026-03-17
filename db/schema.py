@@ -37,8 +37,12 @@ class Tenant(Base):
         server_default=text("now()"),
     )
 
+    default_role = Column(Text, nullable=True, server_default="analyst")
+
     versions = relationship("AnalysisVersion", back_populates="tenant")
     findings = relationship("Finding", back_populates="tenant")
+    users = relationship("User", back_populates="tenant")
+    notifications = relationship("Notification", back_populates="tenant")
 
 
 class AnalysisVersion(Base):
@@ -476,4 +480,54 @@ class ContractComplianceHistory(Base):
 
     __table_args__ = (
         Index("ix_contract_compliance_tenant_contract_recorded", "tenant_id", "contract_id", "recorded_at"),
+    )
+
+
+# ── Phase F: RBAC & Notifications ─────────────────────────────────────────
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    clerk_user_id = Column(Text, nullable=True, unique=True)
+    email = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
+    role = Column(Text, nullable=False, server_default="analyst")
+    permissions = Column(JSONB, nullable=True)
+    is_active = Column(Boolean, nullable=False, server_default="true")
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    tenant = relationship("Tenant", back_populates="users")
+    notifications = relationship("Notification", back_populates="user")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    type = Column(Text, nullable=False)  # finding|cleaning|exception|approval|digest|warning
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    link = Column(Text, nullable=True)
+    is_read = Column(Boolean, nullable=False, server_default="false")
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    tenant = relationship("Tenant", back_populates="notifications")
+    user = relationship("User", back_populates="notifications")
+
+    __table_args__ = (
+        Index("ix_notifications_tenant_user_read_created", "tenant_id", "user_id", "is_read", "created_at"),
     )

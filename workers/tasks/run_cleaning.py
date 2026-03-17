@@ -125,6 +125,24 @@ def run_cleaning(self, version_id: str, tenant_id: str, object_type: str, parque
 
             session.commit()
 
+        # Create notification for cleaning candidates
+        try:
+            from api.services.notifications import create_notification_sync
+            with Session(db_engine) as notif_session:
+                notif_session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                create_notification_sync(
+                    tenant_id=tenant_id,
+                    user_id=None,
+                    type="cleaning",
+                    title=f"{len(candidates)} cleaning items need review",
+                    body=f"Cleaning detection found {len(candidates)} candidates for {object_type}.",
+                    link="/cleaning",
+                    session=notif_session,
+                )
+                notif_session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to create cleaning notification (non-fatal): {e}")
+
         logger.info(f"run_cleaning complete: version_id={version_id}, candidates={len(candidates)}")
         return {"version_id": version_id, "candidates": len(candidates)}
 

@@ -425,3 +425,61 @@ export interface ComplianceHistoryResponse {
   contract_id: string;
   compliance_history: ComplianceRecord[];
 }
+
+/* ─── Notifications ─── */
+
+export type NotificationType =
+  | "finding"
+  | "cleaning"
+  | "exception"
+  | "approval"
+  | "digest"
+  | "warning";
+
+export interface Notification {
+  id: string;
+  tenant_id: string;
+  user_id: string | null;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: Notification[];
+  total: number;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}
+
+/* ─── Users / RBAC ─── */
+
+export type UserRole =
+  | "admin"
+  | "steward"
+  | "analyst"
+  | "approver"
+  | "auditor"
+  | "viewer";
+
+export interface User {
+  id: string;
+  tenant_id: string;
+  clerk_user_id: string | null;
+  email: string;
+  name: string;
+  role: UserRole;
+  permissions: Record<string, unknown> | null;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface UserListResponse {
+  users: User[];
+}
