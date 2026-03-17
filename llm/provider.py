@@ -26,6 +26,8 @@ def get_llm():
             api_key=os.getenv("OLLAMA_API_KEY"),
             model=os.getenv("OLLAMA_MODEL", "llama3.1:70b"),
             temperature=0.1,
+            timeout=120.0,
+            max_retries=2,
         )
 
     if provider == "anthropic":
@@ -34,6 +36,8 @@ def get_llm():
             model="claude-sonnet-4-6",
             api_key=os.getenv("ANTHROPIC_API_KEY"),
             temperature=0.1,
+            timeout=120.0,
+            max_retries=2,
         )
 
     raise ValueError(f"Unknown LLM_PROVIDER: {provider}")

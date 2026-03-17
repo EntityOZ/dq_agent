@@ -108,6 +108,13 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
             entry["value_fix_map"] = r[9]
         findings_summary.append(entry)
 
+    # Trim fields that bloat the LLM payload — agents don't need them
+    def _trim_for_agents(finding: dict) -> dict:
+        return {k: v for k, v in finding.items()
+                if k not in ("value_fix_map", "record_fixes", "details")}
+
+    findings_summary = [_trim_for_agents(f) for f in findings_summary]
+
     # Build DQS scores dict for state
     dqs_scores = {}
     for mod, scores in dqs_summary.items():

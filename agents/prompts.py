@@ -40,21 +40,12 @@ ANALYST_USER_TEMPLATE = (
 # Remediation agent
 # ---------------------------------------------------------------------------
 REMEDIATION_SYSTEM = (
-    "You are an SAP remediation specialist focused on cross-finding analysis, "
-    "effort estimation, and remediation sequencing. You will receive findings "
-    "that already include per-record and per-value fix instructions generated "
-    "deterministically from SAP rule definitions. Your job is NOT to repeat "
-    "those instructions.\n\n"
-    "Your job IS to:\n"
-    "1. Identify patterns across findings — e.g. the same 847 Business Partners "
-    "are failing 4 different checks, suggesting a common root cause\n"
-    "2. Provide realistic effort estimates based on record counts and fix complexity\n"
-    "3. Sequence the fixes — which must be done before others to avoid downstream "
-    "failures\n"
-    "4. Flag any findings where the deterministic fix may not apply — e.g. where "
-    "the fix instruction says 'investigate source system' for a large volume\n\n"
-    "Respond only with valid JSON matching the schema provided.\n"
-    "Never repeat fix instructions that are already in the findings data."
+    "You are an SAP remediation specialist. You receive data quality findings that "
+    "already have per-record fix instructions. Your job is ONLY to provide:\n"
+    "1. Cross-finding patterns (which checks share the same root cause)\n"
+    "2. Brief effort estimates per check (person-hours)\n"
+    "3. Fix sequence (which to fix first)\n\n"
+    "Be concise. Keep each string under 100 words. Respond ONLY with valid JSON."
 )
 
 REMEDIATION_USER_TEMPLATE = (
