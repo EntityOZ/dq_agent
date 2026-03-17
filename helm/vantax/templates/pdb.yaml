@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "vantax.fullname" . }}-api
+  labels:
+    {{- include "vantax.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "vantax.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api

@@ -1,0 +1,216 @@
+"""PyRFC live connector — extract data directly from SAP via RFC_READ_TABLE.
+
+Raw SAP data is NEVER persisted. Only findings are stored in Postgres.
+The SAP password is NEVER logged or stored.
+"""
+
+import io
+import logging
+import re
+import time
+import uuid
+from typing import Optional
+
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.deps import Tenant, get_db, get_tenant
+
+router = APIRouter(prefix="/api/v1", tags=["connect"])
+logger = logging.getLogger("vantax.connect")
+
+# Rate limiting: max 1 live connection per tenant per 5 minutes
+_rate_limit: dict[str, float] = {}
+RATE_LIMIT_SECONDS = 5 * 60
+
+
+class SAPConnectionRequest(BaseModel):
+    host: str
+    client: str = Field(..., description="SAP client number, e.g. '100'")
+    user: str
+    password: str = Field(..., description="SAP password — NEVER logged or stored")
+    sysnr: str = Field(..., description="SAP system number, e.g. '00'")
+    module: str = Field(..., description="Which module to run checks against")
+    table: str = Field(..., description="SAP table to read, e.g. 'BUT000'")
+    fields: list[str] = Field(..., description="List of field names to extract")
+    where: Optional[str] = Field(None, description="Optional WHERE clause for RFC_READ_TABLE")
+
+
+class SAPConnectionResponse(BaseModel):
+    version_id: str
+    status: str
+    row_count: int
+
+
+def _mask_password(msg: str, password: str) -> str:
+    """Remove any occurrence of the password from error messages."""
+    if password:
+        msg = msg.replace(password, "****")
+    return msg
+
+
+def _parse_rfc_result(result: dict) -> pd.DataFrame:
+    """Parse RFC_READ_TABLE result into a pandas DataFrame.
+
+    RFC_READ_TABLE returns:
+      - FIELDS: list of {FIELDNAME, OFFSET, LENGTH, TYPE, FIELDTEXT}
+      - DATA: list of {WA: "value1|value2|..."} where | is the delimiter
+    """
+    fields_meta = result.get("FIELDS", [])
+    data_rows = result.get("DATA", [])
+
+    if not fields_meta:
+        return pd.DataFrame()
+
+    field_names = [f["FIELDNAME"].strip() for f in fields_meta]
+    field_offsets = []
+    for f in fields_meta:
+        offset = int(f.get("OFFSET", 0))
+        length = int(f.get("LENGTH", 0))
+        field_offsets.append((offset, offset + length))
+
+    rows = []
+    for row in data_rows:
+        wa = row.get("WA", "")
+        values = []
+        for start, end in field_offsets:
+            values.append(wa[start:end].strip())
+        rows.append(values)
+
+    return pd.DataFrame(rows, columns=field_names)
+
+
+@router.post("/connect", response_model=SAPConnectionResponse)
+async def connect_sap(
+    body: SAPConnectionRequest,
+    db: AsyncSession = Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+):
+    """Extract data from SAP via RFC_READ_TABLE and run checks.
+
+    Raw SAP data is never persisted — only findings are stored.
+    """
+    tenant_key = str(tenant.id)
+
+    # Rate limiting: max 1 connection per tenant per 5 minutes
+    now = time.time()
+    last_call = _rate_limit.get(tenant_key, 0.0)
+    if now - last_call < RATE_LIMIT_SECONDS:
+        remaining = int(RATE_LIMIT_SECONDS - (now - last_call))
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limited",
+                "detail": f"Max 1 live connection per 5 minutes. Retry in {remaining}s.",
+            },
+        )
+    _rate_limit[tenant_key] = now
+
+    # Import pyrfc — optional dependency
+    try:
+        import pyrfc
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "error": "pyrfc_not_installed",
+                "detail": "PyRFC is not installed. Build the API image with INSTALL_PYRFC=true.",
+            },
+        )
+
+    # Extract data via RFC
+    conn = None
+    try:
+        conn = pyrfc.Connection(
+            ashost=body.host,
+            client=body.client,
+            user=body.user,
+            passwd=body.password,
+            sysnr=body.sysnr,
+        )
+
+        options = [{"TEXT": body.where}] if body.where else []
+
+        result = conn.call(
+            "RFC_READ_TABLE",
+            QUERY_TABLE=body.table,
+            FIELDS=[{"FIELDNAME": f} for f in body.fields],
+            OPTIONS=options,
+        )
+
+        df = _parse_rfc_result(result)
+
+    except Exception as e:
+        # Mask the password in any error message
+        safe_msg = _mask_password(str(e), body.password)
+        # Also mask in any nested repr
+        safe_msg = re.sub(re.escape(body.password), "****", safe_msg) if body.password else safe_msg
+        logger.error(f"RFC connection failed: {safe_msg}")
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "rfc_error", "detail": safe_msg},
+        )
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass  # best-effort close
+
+    if df.empty:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "no_data", "detail": "RFC_READ_TABLE returned no rows."},
+        )
+
+    row_count = len(df)
+    logger.info(f"RFC extracted {row_count} rows from {body.table} for tenant {tenant_key}")
+
+    # Apply column mapping (same pipeline as CSV upload)
+    from api.services.column_mapper import apply_column_mapping
+
+    df = apply_column_mapping(df, body.module)
+
+    # Store as parquet in MinIO for check engine (temporary — not raw SAP data persistence)
+    file_id = str(uuid.uuid4())
+    parquet_buffer = io.BytesIO()
+    df.to_parquet(parquet_buffer, index=False)
+    parquet_bytes = parquet_buffer.getvalue()
+    parquet_path = f"staging/{tenant_key}/{file_id}.parquet"
+
+    from api.config import settings
+    from api.services.storage import upload_file as minio_upload
+
+    minio_upload(
+        settings.minio_bucket_uploads,
+        parquet_path,
+        parquet_bytes,
+        "application/octet-stream",
+    )
+
+    # Create analysis_versions record
+    from db.queries.versions import create_version
+
+    metadata = {
+        "source": "rfc",
+        "table": body.table,
+        "row_count": row_count,
+        "columns": list(df.columns),
+        "modules": [body.module],
+        "parquet_path": parquet_path,
+    }
+    version = await create_version(db, tenant.id, metadata)
+
+    # Enqueue check engine
+    from workers.tasks.run_checks import run_checks
+
+    run_checks.delay(str(version.id), str(tenant.id), parquet_path)
+    logger.info(f"Enqueued run_checks for RFC extraction: version={version.id}")
+
+    return SAPConnectionResponse(
+        version_id=str(version.id),
+        status="pending",
+        row_count=row_count,
+    )
