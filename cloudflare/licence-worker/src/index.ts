@@ -6,6 +6,7 @@ interface Env {
 
 interface LicenceRecord {
   modules: string[];
+  features: string[];
   expiresAt: string;
   tenantId: string;
   active: boolean;
@@ -83,6 +84,7 @@ async function handleValidate(
   return Response.json({
     valid: true,
     modules: record.modules,
+    features: record.features || [],
     tenantId: record.tenantId,
     expiresAt: record.expiresAt,
   });
@@ -95,9 +97,10 @@ async function handleProvision(
   const authErr = requireAdmin(request, env);
   if (authErr) return authErr;
 
-  const { tenantId, modules, expiresAt, notes } = (await request.json()) as {
+  const { tenantId, modules, features, expiresAt, notes } = (await request.json()) as {
     tenantId: string;
     modules: string[];
+    features?: string[];
     expiresAt: string;
     notes?: string;
   };
@@ -113,6 +116,7 @@ async function handleProvision(
   const record: LicenceRecord = {
     tenantId,
     modules,
+    features: features || [],
     expiresAt,
     active: true,
     notes: notes || undefined,
@@ -207,6 +211,43 @@ async function handlePings(
   return Response.json({ pings });
 }
 
+async function handleUpdateFeatures(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const authErr = requireAdmin(request, env);
+  if (authErr) return authErr;
+
+  const { licenceKey, features } = (await request.json()) as {
+    licenceKey: string;
+    features: string[];
+  };
+
+  if (!licenceKey || !Array.isArray(features)) {
+    return Response.json(
+      { error: "bad_request", message: "licenceKey and features array are required" },
+      { status: 400 }
+    );
+  }
+
+  const record = (await env.LICENCE_KV.get(
+    `licence:${licenceKey}`,
+    "json"
+  )) as LicenceRecord | null;
+
+  if (!record) {
+    return Response.json(
+      { error: "not_found", message: "Licence key not found" },
+      { status: 404 }
+    );
+  }
+
+  record.features = features;
+  await env.LICENCE_KV.put(`licence:${licenceKey}`, JSON.stringify(record));
+
+  return Response.json({ features: record.features });
+}
+
 async function handleStatus(
   request: Request,
   env: Env
@@ -238,6 +279,7 @@ async function handleStatus(
     expiresAt: record.expiresAt,
     daysRemaining: daysRemaining(record.expiresAt),
     modules: record.modules,
+    features: record.features || [],
   });
 }
 
@@ -266,6 +308,11 @@ export default {
       // GET /pings
       if (method === "GET" && path === "/pings") {
         return await handlePings(request, env);
+      }
+
+      // POST /update-features
+      if (method === "POST" && path === "/update-features") {
+        return await handleUpdateFeatures(request, env);
       }
 
       // GET /status

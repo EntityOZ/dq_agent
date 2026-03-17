@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     clerk_secret_key: Optional[str] = None
     auth_mode: str = "local"
 
+    # Stripe (exception billing)
+    stripe_api_key: Optional[str] = None
+
     # Observability
     sentry_dsn: Optional[str] = None
 

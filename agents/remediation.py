@@ -118,7 +118,7 @@ def _call_llm(
                 logger.info(f"Remediation: attempt {attempt + 1} after {attempt * 5}s backoff")
                 time.sleep(attempt * 5)
 
-            response = llm.invoke(messages, max_tokens=8192)
+            response = llm.invoke(messages)
             result = _parse_response(response.content)
 
             if result is not None:
@@ -134,7 +134,7 @@ def _call_llm(
                 {"role": "assistant", "content": response.content},
                 {"role": "user", "content": "Your response was not valid JSON. Please respond with ONLY valid JSON matching the schema. No markdown, no explanation."},
             ]
-            response = llm.invoke(retry_messages, max_tokens=8192)
+            response = llm.invoke(retry_messages)
             result = _parse_response(response.content)
 
             if result is not None:
