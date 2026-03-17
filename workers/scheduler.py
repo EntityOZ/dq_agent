@@ -103,15 +103,15 @@ def daily_analysis():
                         dim = scores.get("dimension_scores", scores)
                         session.execute(
                             text("""
-                                INSERT INTO dqs_history (id, tenant_id, version_id, module,
-                                    composite_score, completeness, accuracy, consistency,
+                                INSERT INTO dqs_history (id, tenant_id, module_id,
+                                    dqs_score, completeness, accuracy, consistency,
                                     timeliness, uniqueness, validity, recorded_at)
-                                VALUES (gen_random_uuid(), :tid, :vid, :mod,
+                                VALUES (gen_random_uuid(), :tid, :mod,
                                     :comp, :compl, :acc, :cons, :tim, :uniq, :val, now())
                                 ON CONFLICT DO NOTHING
                             """),
                             {
-                                "tid": tid, "vid": version_id, "mod": module,
+                                "tid": tid, "mod": module,
                                 "comp": scores.get("composite_score", 0),
                                 "compl": dim.get("completeness", 0),
                                 "acc": dim.get("accuracy", 0),
