@@ -1,0 +1,88 @@
+module: benefits
+target_state: SUCCESSFACTORS_2024
+rules:
+
+  - id: BEN001
+    field: BENEFITENROLLMENT.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — orphaned enrolment cannot generate payroll deductions"
+    why_it_matters: "USERID links the benefit enrolment to a specific employee. Without it,
+      the enrolment record is orphaned and payroll cannot generate the corresponding
+      premium deduction. The employee may lose coverage without notice."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Payroll deduction not generated. Benefit provider receives no premium.
+      Employee coverage may lapse due to non-payment."
+    fix_map:
+      "__blank__": "Assign the correct employee USERID via Admin Center > Benefits >
+        Enrolment Import. Cross-reference with the employee master to identify the
+        correct person."
+      "__null__": "USERID was never set. Assign immediately via enrolment import
+        to restore payroll deduction linkage."
+    record_fix_template: "Enrolment {BENEFITENROLLMENT.USERID}: USERID is missing.
+      Assign the correct employee ID via Admin Center > Benefits > Enrolment Import."
+
+  - id: BEN002
+    field: BENEFITENROLLMENT.PLAN_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Plan ID is mandatory — identifies the specific benefit plan for deduction and coverage"
+    why_it_matters: "PLAN_ID maps the enrolment to a specific benefit plan which defines
+      the premium amount, coverage rules, and provider. Without it, the system cannot
+      determine what the employee is enrolled in or how much to deduct."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Deduction amount unknown. Benefit coverage details cannot be determined.
+      Employee benefit statement shows incomplete enrolment."
+    fix_map:
+      "__blank__": "Assign the correct plan ID from the benefits catalogue via Admin
+        Center > Benefits > Enrolment Import. Verify against the employee's original
+        election form."
+      "__null__": "PLAN_ID was never set. Assign immediately — enrolment is non-functional
+        without a plan reference."
+    record_fix_template: "Enrolment {BENEFITENROLLMENT.USERID}: PLAN_ID is missing.
+      Assign correct plan via Admin Center > Benefits > Enrolment Import."
+
+  - id: BEN003
+    field: BENEFITENROLLMENT.ENROL_DATE
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Enrolment date determines when deductions start and coverage begins"
+    why_it_matters: "ENROL_DATE establishes the effective start of benefit coverage and
+      triggers the first payroll deduction. Without it, the system cannot determine
+      when to begin premium deductions or when coverage became active."
+    rule_authority: best_practice
+    sap_impact: "Payroll deduction start date undefined. Benefit coverage effective
+      date unknown. Retroactive deduction calculation impossible."
+    fix_map:
+      "__blank__": "Set the enrolment effective date via Admin Center > Benefits >
+        Enrolment Import. Use the employee's original election date or hire date
+        if enrolment was automatic. Format: YYYY-MM-DD."
+      "__null__": "ENROL_DATE was never recorded. Set via enrolment import before
+        next payroll run to ensure correct deduction start."
+    record_fix_template: "Enrolment {BENEFITENROLLMENT.USERID}: ENROL_DATE is missing.
+      Set enrolment date via Admin Center > Benefits > Enrolment Import. Format: YYYY-MM-DD."
+
+  - id: BEN004
+    field: BENEFITENROLLMENT.DEPENDENT_LINK
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Dependent link is required for family plans — determines covered dependents"
+    why_it_matters: "DEPENDENT_LINK associates the enrolment with specific dependents
+      (spouse, children) who are covered under family benefit plans. Without it,
+      claims for dependents may be rejected by the provider."
+    rule_authority: best_practice
+    sap_impact: "Dependent claims rejected by benefit provider. Family plan premium
+      charged but dependents not registered for coverage."
+    fix_map:
+      "__blank__": "Link the relevant dependents via Admin Center > Benefits >
+        Dependent Management. Ensure dependent records exist in the employee's
+        personal information before linking."
+      "__null__": "DEPENDENT_LINK not set. If this is a family plan, link dependents
+        via Admin Center > Benefits > Dependent Management."
+    record_fix_template: "Enrolment {BENEFITENROLLMENT.USERID}: DEPENDENT_LINK is
+      missing for plan {BENEFITENROLLMENT.PLAN_ID}. Link dependents via Admin Center
+      > Benefits > Dependent Management."

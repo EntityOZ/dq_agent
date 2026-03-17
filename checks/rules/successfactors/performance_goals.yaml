@@ -1,0 +1,128 @@
+module: performance_goals
+target_state: SUCCESSFACTORS_2024
+rules:
+  - id: PERF001
+    field: PMREVIEWRESULT.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory — links performance review to employee record"
+    why_it_matters: "USERID is the primary key linking a performance review result
+      to its employee. Without it, the review cannot be associated with any
+      employee, meaning compensation decisions that depend on performance
+      ratings have no input data."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Performance-compensation integration fails. Calibration sessions
+      cannot include this review, and merit cycle calculations skip the employee."
+    fix_map:
+      "__blank__": "Look up the correct employee User ID from Employee Central
+        and populate PMREVIEWRESULT.USERID. Cross-reference the review form
+        assignment history to identify the intended employee."
+      "__null__": "Critical — review is orphaned. Identify the employee from the
+        review form metadata or manager assignment and populate USERID immediately."
+    record_fix_template: "Review {PMREVIEWRESULT.REVIEW_ID}: USERID is missing.
+      Look up the employee from the review form assignment and populate
+      PMREVIEWRESULT.USERID."
+
+  - id: PERF002
+    field: PMREVIEWRESULT.OVERALL_RATING
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Overall rating is required for calibration and compensation planning"
+    why_it_matters: "OVERALL_RATING is the final performance score used in
+      calibration sessions and as input to the compensation merit cycle. Without
+      it, the employee is excluded from calibration grids and compensation
+      planning worksheets cannot calculate merit increases."
+    rule_authority: best_practice
+    sap_impact: "Employee excluded from calibration session. Compensation planning
+      worksheet shows no performance rating, blocking merit increase calculation."
+    fix_map:
+      "__blank__": "Ensure the review form is completed and the overall rating
+        is calculated or manually entered by the manager. Check if the rating
+        scale is configured correctly on the review template."
+      "__null__": "Review may be incomplete. Verify the review workflow status
+        and ensure the manager has submitted the final rating."
+    record_fix_template: "Review {PMREVIEWRESULT.REVIEW_ID} for employee
+      {PMREVIEWRESULT.USERID}: OVERALL_RATING is missing. Complete the review
+      form and ensure the final rating is submitted."
+
+  - id: PERF003
+    field: PMREVIEWRESULT.REVIEW_PERIOD
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Review period is required to assign review to the correct performance cycle"
+    why_it_matters: "REVIEW_PERIOD determines which annual or mid-year cycle the
+      review belongs to. Without it, the review cannot be placed in the correct
+      performance cycle, causing it to be excluded from period-specific reporting
+      and calibration sessions."
+    rule_authority: best_practice
+    sap_impact: "Review not assigned to any performance cycle. Period-based
+      analytics and calibration sessions exclude this review entirely."
+    fix_map:
+      "__blank__": "Determine the correct review period from the review form
+        template configuration and populate REVIEW_PERIOD. Cross-reference
+        the review creation date with active performance cycles."
+      "__null__": "Review is not assigned to a cycle. Identify the intended
+        performance period from the form template or creation date and populate."
+    record_fix_template: "Review {PMREVIEWRESULT.REVIEW_ID} for employee
+      {PMREVIEWRESULT.USERID}: REVIEW_PERIOD is missing. Assign the correct
+      performance cycle period."
+
+  - id: PERF004
+    field: GOALPLAN.USERID
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "User ID is required to link goal plan to employee"
+    why_it_matters: "USERID on the goal plan links the goals to the employee
+      record. Without it, the goal plan is orphaned and goals are not visible
+      in the employee's performance review form, breaking the goal-performance
+      alignment that drives the review process."
+    rule_authority: best_practice
+    sap_impact: "Goal plan not visible in performance review form. Manager cannot
+      assess goal achievement during the review, and goal completion metrics
+      are excluded from dashboards."
+    fix_map:
+      "__blank__": "Identify the employee who owns this goal plan from the goal
+        plan assignment history or manager records. Populate GOALPLAN.USERID
+        with the correct employee User ID from Employee Central."
+      "__null__": "Goal plan is orphaned. Cross-reference goal plan metadata
+        with Employee Central records to identify the owner and assign USERID."
+    record_fix_template: "Goal plan {GOALPLAN.PLAN_ID}: USERID is missing.
+      Identify the goal plan owner and populate GOALPLAN.USERID."
+
+  - id: PERF005
+    field: GOALPLAN.GOAL_STATUS
+    check_class: domain_value_check
+    allowed_values:
+      - Draft
+      - Active
+      - Completed
+      - Cancelled
+    severity: medium
+    dimension: accuracy
+    message: "Goal status must be a valid lifecycle value — invalid status corrupts progress reporting"
+    why_it_matters: "GOAL_STATUS tracks where the goal is in its lifecycle from
+      creation through completion. Invalid values corrupt goal progress
+      reporting and dashboard metrics, making it impossible to accurately
+      measure goal completion rates across the organization."
+    rule_authority: customer_configured
+    sap_impact: "Goal progress dashboards show incorrect completion rates.
+      Manager and HR reports on goal achievement are unreliable."
+    fix_map:
+      "__blank__": "Set GOAL_STATUS to 'Draft' if the goal has not been activated,
+        or 'Active' if the employee is currently working on it. Review the goal
+        plan workflow to determine the correct status."
+      "__other__": "Replace the invalid status with one of the allowed values:
+        Draft, Active, Completed, or Cancelled. Check the goal plan configuration
+        for any custom statuses that may need to be mapped."
+    valid_values_with_labels:
+      Draft: "Goal created but not yet activated by employee or manager"
+      Active: "Goal is in progress and being tracked for the current cycle"
+      Completed: "Goal has been achieved and marked as done"
+      Cancelled: "Goal was withdrawn or is no longer applicable"
+    record_fix_template: "Goal plan {GOALPLAN.PLAN_ID} for employee
+      {GOALPLAN.USERID}: GOAL_STATUS value is invalid. Update to one of:
+      Draft, Active, Completed, Cancelled."

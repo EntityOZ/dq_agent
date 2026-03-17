@@ -1,0 +1,184 @@
+module: recruiting_onboarding
+target_state: SUCCESSFACTORS_2024
+rules:
+
+  - id: REC001
+    field: JOBAPPLICATION.CANDIDATE_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Candidate ID is mandatory — primary key linking application to candidate profile"
+    why_it_matters: "CANDIDATE_ID is the primary key that associates a job application
+      with a candidate record across the Recruiting module. Without it, the application
+      is orphaned and cannot be linked to interview schedules, offer letters, or
+      onboarding workflows. Orphaned applications also corrupt recruiting analytics
+      and time-to-hire KPIs."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Application orphaned from candidate profile. Interview scheduling,
+      offer generation, and onboarding handoff all fail for this record."
+    fix_map:
+      "__blank__": "Locate the candidate in Recruiting > Candidate Management and
+        re-link the application. If the candidate record does not exist, create it
+        first via Recruiting > Add New Candidate."
+      "__null__": "CANDIDATE_ID was never assigned. Create or locate the candidate
+        record and associate it with this application via Recruiting > Candidate
+        Management."
+    record_fix_template: "Application {JOBAPPLICATION.CANDIDATE_ID}: CANDIDATE_ID
+      is missing. Re-link via Recruiting > Candidate Management."
+
+  - id: REC002
+    field: JOBAPPLICATION.STATUS
+    check_class: domain_value_check
+    allowed_values: ["Active", "Interview", "Offer", "Hired", "Rejected", "Withdrawn", "Pipeline"]
+    severity: high
+    dimension: accuracy
+    message: "Application status must be a valid workflow state"
+    why_it_matters: "STATUS drives automated workflow triggers in Recruiting — interview
+      scheduling, offer letter generation, background check initiation, and onboarding
+      handoff. An invalid status value causes the workflow engine to skip the
+      application entirely, leaving candidates stuck without progression."
+    rule_authority: customer_configured
+    sap_impact: "Automated workflow triggers skipped for this application. Candidate
+      does not progress through the hiring pipeline. Recruiting dashboard metrics
+      are corrupted."
+    valid_values_with_labels:
+      "Active": "Active — application received and under review"
+      "Interview": "Interview — candidate scheduled or in interview stage"
+      "Offer": "Offer — offer extended, pending candidate acceptance"
+      "Hired": "Hired — offer accepted, pending onboarding"
+      "Rejected": "Rejected — application declined"
+      "Withdrawn": "Withdrawn — candidate withdrew from process"
+      "Pipeline": "Pipeline — candidate in talent pool for future roles"
+    fix_map:
+      "__blank__": "Assign the correct status from: Active, Interview, Offer, Hired,
+        Rejected, Withdrawn, Pipeline. Update via Recruiting > Application Management
+        or bulk import."
+      "__other__": "Status '{actual_value}' is not a recognised workflow state. Set to
+        one of: Active, Interview, Offer, Hired, Rejected, Withdrawn, Pipeline.
+        Update via Recruiting > Application Management."
+    record_fix_template: "Application {JOBAPPLICATION.CANDIDATE_ID}: STATUS
+      '{actual_value}' is invalid. Set to a valid state via Recruiting >
+      Application Management."
+
+  - id: REC003
+    field: JOBAPPLICATION.JOB_REQ_ID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Job Requisition ID is mandatory — links application to approved headcount"
+    why_it_matters: "JOB_REQ_ID links the application to an approved headcount
+      requisition. Without this link, the application cannot proceed to the offer
+      stage because SuccessFactors enforces requisition-based hiring. The offer
+      approval workflow requires a valid requisition to validate budget and
+      headcount availability."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Cannot generate offer for this application. Budget validation and
+      headcount check fail. Application blocked from progressing past interview
+      stage."
+    fix_map:
+      "__blank__": "Link to the correct job requisition via Recruiting > Application
+        Management > Edit Application. The requisition must be in Open or
+        In Progress status."
+      "__null__": "JOB_REQ_ID was never set. Associate this application with an
+        approved requisition via Recruiting > Application Management."
+    record_fix_template: "Application {JOBAPPLICATION.CANDIDATE_ID}: JOB_REQ_ID is
+      missing. Link to an approved requisition via Recruiting > Application
+      Management."
+
+  - id: REC004
+    field: ONBOARDINGCANDIDATEINFO.USERID
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "User ID is mandatory for onboarding — used to create Employee Central record on hire"
+    why_it_matters: "USERID in onboarding is the identifier that will be used to create
+      the Employee Central record when the hire is finalised. Without it, the
+      onboarding-to-EC handoff fails completely — no employee record is created,
+      which means no payroll enrolment, no benefit assignment, and no position
+      allocation for the new hire."
+    rule_authority: sap_hard_constraint
+    sap_impact: "Employee Central record not created on hire. Payroll enrolment
+      blocked. Benefits, time management, and position assignment all fail for
+      the new hire."
+    fix_map:
+      "__blank__": "Assign a unique USERID following your naming convention
+        (firstname.lastname or employee number) via Onboarding > Candidate
+        Management > Edit Candidate Info."
+      "__null__": "USERID was never set. Assign immediately via Onboarding >
+        Candidate Management before the hire date."
+    record_fix_template: "Onboarding candidate {ONBOARDINGCANDIDATEINFO.USERID}:
+      USERID is missing. Assign via Onboarding > Candidate Management before
+      hire date."
+
+  - id: REC005
+    field: ONBOARDINGCANDIDATEINFO.HIRE_DATE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Hire date is mandatory — triggers all onboarding workflows and IT provisioning"
+    why_it_matters: "HIRE_DATE is the trigger date for the entire onboarding workflow
+      chain — IT account provisioning, equipment ordering, day-1 task assignment,
+      and the Employee Central record creation. Without a hire date, none of
+      these time-sensitive processes can be scheduled, leaving the new hire
+      without system access or equipment on their start date."
+    rule_authority: sap_hard_constraint
+    sap_impact: "All onboarding workflows fail to trigger. IT provisioning not
+      initiated. Day-1 tasks not assigned. EC record creation date unknown."
+    fix_map:
+      "__blank__": "Set the confirmed hire date via Onboarding > Candidate
+        Management > Edit Candidate Info. Use ISO format YYYY-MM-DD. Must be
+        set before onboarding workflows can execute."
+      "__null__": "HIRE_DATE was never set. Set immediately via Onboarding >
+        Candidate Management."
+    record_fix_template: "Onboarding candidate {ONBOARDINGCANDIDATEINFO.USERID}:
+      HIRE_DATE is missing. Set via Onboarding > Candidate Management.
+      Format: YYYY-MM-DD."
+
+  - id: REC006
+    field: ONBOARDINGCANDIDATEINFO.DEPARTMENT
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Department is required to pre-populate the Employee Central record"
+    why_it_matters: "DEPARTMENT is used to pre-populate the Employee Central job
+      information record when the hire is finalised. Missing department means
+      the new hire's EC record will lack organisational assignment, causing them
+      to appear as an orphan in the org chart and excluding them from
+      department-based workflows and reporting."
+    rule_authority: best_practice
+    sap_impact: "EC record created without department assignment. New hire appears
+      as org chart orphan. Department-based approval workflows and cost centre
+      reporting exclude this employee."
+    fix_map:
+      "__blank__": "Assign the correct department code via Onboarding > Candidate
+        Management > Edit Candidate Info. Must match a valid department in your
+        SF org structure."
+      "__null__": "DEPARTMENT was never set. Assign via Onboarding > Candidate
+        Management."
+    record_fix_template: "Onboarding candidate {ONBOARDINGCANDIDATEINFO.USERID}:
+      DEPARTMENT is missing. Assign via Onboarding > Candidate Management."
+
+  - id: REC007
+    field: ONBOARDINGCANDIDATEINFO.MANAGER_ID
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Manager ID is required to route day-1 onboarding tasks to the hiring manager"
+    why_it_matters: "MANAGER_ID determines which manager receives the day-1 onboarding
+      task list — including equipment handover, team introduction scheduling,
+      and probation review setup. Without it, all manager-routed onboarding
+      tasks fall into a black hole and the new hire's first-week experience
+      suffers significantly."
+    rule_authority: best_practice
+    sap_impact: "Day-1 onboarding tasks not routed to hiring manager. Equipment
+      handover, team introductions, and probation setup not assigned. Manager
+      receives no notification of new hire start."
+    fix_map:
+      "__blank__": "Assign the hiring manager's USERID via Onboarding > Candidate
+        Management > Edit Candidate Info. The manager must already exist as an
+        active employee in Employee Central."
+      "__null__": "MANAGER_ID was never set. Assign via Onboarding > Candidate
+        Management."
+    record_fix_template: "Onboarding candidate {ONBOARDINGCANDIDATEINFO.USERID}:
+      MANAGER_ID is missing. Assign hiring manager via Onboarding > Candidate
+      Management."
