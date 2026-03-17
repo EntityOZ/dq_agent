@@ -216,6 +216,8 @@ FEATURE_ROUTE_MAP: dict[str, str] = {
 
 def _check_feature_gate(path: str, licensed_features: list[str]) -> JSONResponse | None:
     """Return a 402 response if the route requires a feature not in the licence."""
+    if "*" in licensed_features:
+        return None
     for route_prefix, feature in FEATURE_ROUTE_MAP.items():
         if path.startswith(route_prefix):
             if feature not in licensed_features:

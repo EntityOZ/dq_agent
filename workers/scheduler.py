@@ -278,7 +278,8 @@ def weekly_cleaning_batch():
 
 def _create_stripe_invoice(session: Session, tenant_id: str, billing: dict) -> str | None:
     """Create Stripe invoice items for exception billing. Returns invoice ID or None."""
-    stripe_key = os.getenv("STRIPE_API_KEY", "")
+    from api.config import settings as app_settings
+    stripe_key = app_settings.stripe_api_key or ""
     if not stripe_key:
         return None
 
@@ -466,6 +467,9 @@ def monthly_report():
                             },
                         )
 
+                        # Commit billing record before calling Stripe to avoid orphaned invoices
+                        session.commit()
+
                         # 4. Create Stripe invoice if tenant has stripe_customer_id
                         stripe_invoice_id = _create_stripe_invoice(session, tid, billing)
                         if stripe_invoice_id:
@@ -477,6 +481,7 @@ def monthly_report():
                                 """),
                                 {"inv_id": stripe_invoice_id, "tid": tid, "period": period},
                             )
+                            session.commit()
 
                 except Exception as e:
                     logger.warning(f"  tenant={tid}: exception billing failed: {e}")
