@@ -1,0 +1,248 @@
+module: asset_accounting
+target_state: S4HANA_2023
+rules:
+  - id: AA001
+    field: ANLA.ANLN1
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Asset number is mandatory — primary key for all asset accounting transactions"
+    why_it_matters: >-
+      ANLN1 is the main asset number and the primary key for all asset accounting
+      records. Without it, no depreciation can be calculated, no asset transactions
+      (acquisitions, retirements, transfers) can be posted, and the asset cannot
+      be included in the asset register.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Asset cannot be processed in any AA transaction. Depreciation run AFAB skips
+      the record. Asset explorer (AW01N) cannot display it. Migration conversion
+      rejects records without ANLN1.
+    fix_map:
+      __blank__: >-
+        Asset number is empty. Assign a valid asset number via transaction AS01
+        (create asset) or investigate the data source for the missing key. For
+        bulk creation use LSMW with object 0020.
+      __null__: >-
+        Asset number was never populated. Create the asset via AS01 or correct
+        the data load.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: ANLN1 is {actual_value}. Assign a valid asset number
+      via transaction AS01 or correct the source data.
+
+  - id: AA002
+    field: ANLA.ANLKL
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Asset class is mandatory — controls depreciation area and account determination"
+    why_it_matters: >-
+      ANLKL (asset class) is the central classification field in asset accounting.
+      It determines which depreciation areas are active, which GL accounts receive
+      depreciation and acquisition postings, and which screen layout is used. Without
+      it, no asset accounting transaction can be processed.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Depreciation cannot be calculated. All AA transactions blocked — acquisitions
+      (ABZON), retirements (ABAVN), and transfers (ABUMN) all fail. Account
+      determination cannot resolve GL accounts for posting.
+    fix_map:
+      __blank__: >-
+        Asset class is empty. Determine the correct asset class from the asset
+        type (e.g., buildings, vehicles, IT equipment). Set via transaction AS02 >
+        General tab. Common classes: 1000 (buildings), 2000 (plant/machinery),
+        3000 (vehicles), 4000 (IT equipment).
+      __null__: >-
+        Asset class was never assigned. This asset cannot be depreciated or
+        transacted. Assign via AS02 > General tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: ANLKL is {actual_value}. Assign the correct asset
+      class via transaction AS02 > General tab.
+
+  - id: AA003
+    field: ANLA.BUKRS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Company code is mandatory — determines depreciation area and fiscal year variant"
+    why_it_matters: >-
+      BUKRS (company code) is a mandatory organisational assignment for every asset.
+      It determines which depreciation areas are active, which fiscal year variant
+      applies, and which GL accounts receive postings. Without it, the asset has
+      no organisational context.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Asset has no organisational assignment. Depreciation run AFAB cannot process
+      it. No GL postings can be generated. The asset is orphaned from the financial
+      statements.
+    fix_map:
+      __blank__: >-
+        Company code is empty. Assign the correct company code based on the legal
+        entity that owns the asset. Set via transaction AS02 > General tab.
+      __null__: >-
+        Company code was never assigned. Determine the owning entity and assign
+        via AS02 > General tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: BUKRS is {actual_value}. Assign the correct company
+      code via transaction AS02 > General tab.
+
+  - id: AA004
+    field: ANLB.AFASL
+    check_class: null_check
+    severity: critical
+    dimension: accuracy
+    message: "Depreciation key is mandatory — determines depreciation method and rates"
+    why_it_matters: >-
+      AFASL (depreciation key) is the most critical field in asset accounting.
+      It determines exactly how the asset is depreciated — which method, which rates,
+      over what period. Missing = no depreciation is posted. The asset will remain
+      at full book value indefinitely and the financial statements will show incorrect
+      asset values.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      No depreciation posted for this asset. Financial statements show overstated
+      asset value. Period-end AFAB depreciation run excludes this asset.
+    fix_map:
+      __blank__: >-
+        Depreciation key is empty. Determine the correct depreciation method from
+        the asset class defaults or accounting policy. Set via AS02 > Depreciation
+        Areas tab. Common keys: LINA (straight-line), DEGR (declining balance),
+        0000 (no depreciation — land only).
+      __null__: >-
+        Depreciation key was never assigned. The asset is not being depreciated.
+        Set via AS02 > Depreciation Areas tab based on accounting policy.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: AFASL is {actual_value}. Assign the correct depreciation
+      key via AS02 > Depreciation Areas tab.
+
+  - id: AA005
+    field: ANLB.NDJAR
+    check_class: null_check
+    severity: critical
+    dimension: accuracy
+    message: "Useful life in years is mandatory — missing means depreciation calculates as zero"
+    why_it_matters: >-
+      NDJAR (useful life in years) defines the total depreciation period. Without it,
+      the depreciation calculation has no basis period and the annual depreciation
+      amount is zero. The asset will never be fully depreciated.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Depreciation amount is zero — asset remains at acquisition value indefinitely.
+      Financial statements overstate asset values. Tax depreciation schedules are
+      incorrect.
+    fix_map:
+      __blank__: >-
+        Useful life is empty. Determine the correct useful life from the company's
+        depreciation policy or IFRS/local GAAP guidelines. Set via AS02 >
+        Depreciation Areas tab. Example: buildings 25-50 years, vehicles 5-8 years,
+        IT equipment 3-5 years.
+      __null__: >-
+        Useful life was never assigned. Set via AS02 > Depreciation Areas tab
+        based on the asset class and accounting policy.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: NDJAR is {actual_value}. Set the useful life in years
+      via AS02 > Depreciation Areas tab.
+
+  - id: AA006
+    field: ANLA.AKTIV
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Capitalisation date missing — asset may not be included in depreciation run"
+    why_it_matters: >-
+      AKTIV (capitalisation date) determines when depreciation starts for the asset.
+      Without it, the depreciation run cannot determine the start period and the
+      asset may be excluded from AFAB processing.
+    rule_authority: best_practice
+    sap_impact: >-
+      Depreciation start date is undefined. AFAB may skip this asset or calculate
+      incorrect pro-rata depreciation. Asset reports show no capitalisation date.
+    fix_map:
+      __blank__: >-
+        Capitalisation date is empty. Set to the date the asset was placed in service
+        or acquired. Set via AS02 > General tab > Capitalisation Date.
+      __null__: >-
+        Capitalisation date was never set. Determine from acquisition records and
+        set via AS02 > General tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: AKTIV is {actual_value}. Set the capitalisation date
+      via AS02 > General tab.
+
+  - id: AA007
+    field: ANLA.KOSTL
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Cost centre missing — depreciation cannot be allocated to a responsible department"
+    why_it_matters: >-
+      KOSTL (cost centre) determines where depreciation expense is allocated in
+      controlling. Without it, depreciation postings either fail (if cost centre
+      is mandatory in the depreciation area) or are posted without CO assignment,
+      making cost allocation reporting incomplete.
+    rule_authority: best_practice
+    sap_impact: >-
+      Depreciation expense has no cost centre assignment. CO reports (S_ALR_87013611)
+      show unallocated depreciation. Internal orders and profit centre reporting
+      are incomplete.
+    fix_map:
+      __blank__: >-
+        Cost centre is empty. Assign the cost centre of the department responsible
+        for the asset. Set via AS02 > Time-Dependent tab > Cost Centre.
+      __null__: >-
+        Cost centre was never assigned. Determine the responsible department and
+        set via AS02 > Time-Dependent tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: KOSTL is {actual_value}. Assign the responsible cost
+      centre via AS02 > Time-Dependent tab.
+
+  - id: AA008
+    field: ANLA.TXT50
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Asset description missing — reduces usability of asset register"
+    why_it_matters: >-
+      TXT50 (asset description) is the primary text field used to identify the asset
+      in all reports and the asset explorer (AW01N). Without it, users cannot identify
+      what the asset is, leading to poor asset management and audit difficulties.
+    rule_authority: best_practice
+    sap_impact: >-
+      Asset register and explorer (AW01N) show blank description. Physical inventory
+      reconciliation is difficult. Audit queries require manual investigation.
+    fix_map:
+      __blank__: >-
+        Asset description is empty. Enter a meaningful description of the physical
+        asset (e.g., "Dell PowerEdge R740 Server — DC Room 3"). Set via AS02 >
+        General tab > Description.
+      __null__: >-
+        Description was never populated. Set via AS02 > General tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: TXT50 is {actual_value}. Enter a meaningful asset
+      description via AS02 > General tab.
+
+  - id: AA009
+    field: ANLB.NDPER
+    check_class: null_check
+    severity: medium
+    dimension: accuracy
+    message: "Useful life in periods missing — may affect pro-rata depreciation calculation"
+    why_it_matters: >-
+      NDPER (useful life in periods/months) provides fine-grained control over
+      the depreciation period beyond whole years. When missing, SAP defaults to
+      full years only, which may result in slightly inaccurate depreciation for
+      assets with non-standard useful lives.
+    rule_authority: best_practice
+    sap_impact: >-
+      Pro-rata depreciation may be slightly inaccurate. Assets with useful lives
+      that are not whole years (e.g., 3.5 years) will be rounded to the nearest
+      whole year.
+    fix_map:
+      __blank__: >-
+        Useful life in periods is empty. If the asset has a useful life that is
+        not a whole number of years, set the remaining periods via AS02 >
+        Depreciation Areas tab > Useful Life (periods).
+      __null__: >-
+        Useful life in periods was never set. Review if a non-zero period value
+        is needed and set via AS02 > Depreciation Areas tab.
+    record_fix_template: >-
+      Asset {ANLA.ANLN1}: NDPER is {actual_value}. Set the useful life periods
+      via AS02 > Depreciation Areas tab if needed.

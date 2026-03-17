@@ -1,0 +1,271 @@
+module: accounts_receivable
+target_state: S4HANA_2023
+rules:
+  - id: AR001
+    field: KNB1.KUNNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Customer number is mandatory — primary key for all customer transactions"
+    why_it_matters: >-
+      KUNNR is the primary key for all customer master records and every customer
+      transaction in SAP. Without it, no sales orders (VA01), deliveries (VL01N),
+      or billing documents (VF01) can be created. The S/4HANA customer migration
+      program rejects records without KUNNR.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer cannot be used in VA01, VL01N, VF01, or any AR sub-ledger transaction.
+      Migration conversion rejects the record. All downstream SD and FI-AR processes
+      are blocked.
+    fix_map:
+      __blank__: >-
+        Customer number is empty. This record cannot be processed without a valid KUNNR.
+        Assign a customer number via transaction FD01 (create) or investigate the data
+        source for the missing key.
+      __null__: >-
+        Customer number was never populated — likely a data migration gap. Create the
+        customer via FD01 or correct the data load.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: KUNNR is {actual_value}. Assign a valid customer number
+      via transaction FD01 or correct the source data load.
+
+  - id: AR002
+    field: KNB1.KUNNR
+    check_class: regex_check
+    pattern: "^[0-9]{10}$"
+    severity: critical
+    dimension: validity
+    message: "Customer number must be 10-digit numeric for S/4HANA conversion"
+    why_it_matters: >-
+      S/4HANA requires customer numbers to be exactly 10 numeric digits. Non-conforming
+      formats are rejected by the customer migration program and cannot be used in any
+      downstream sales or financial transaction.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer rejected by S/4HANA migration program. Unusable in VA01, VL01N, VF01,
+      and automatic dunning program F150.
+    fix_map:
+      __other__: >-
+        Customer number does not match the required 10-digit numeric format. This
+        typically occurs when records were migrated from a legacy system with
+        alphanumeric or shorter numbering. Use LSMW or a conversion program to
+        renumber before migration. Coordinate with the basis team on number range
+        configuration (table TNRO, object DEBITOR).
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: number format is invalid (value: {actual_value}).
+      Reformat to 10-digit numeric or assign a new number via number range object
+      DEBITOR.
+
+  - id: AR003
+    field: KNA1.NAME1
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Customer name is mandatory — displayed on all sales and billing documents"
+    why_it_matters: >-
+      NAME1 is the primary customer name displayed on sales orders, delivery notes,
+      invoices, and all printed correspondence. In S/4HANA it is a mandatory field —
+      the customer master cannot be saved without it.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer master cannot be saved in S/4HANA. Sales orders, invoices, and dunning
+      notices display blank customer name. Audit trail is broken for AR transactions.
+    fix_map:
+      __blank__: >-
+        Customer name is empty. Obtain the legal entity name from the customer's
+        business registration or existing contracts. Set via transaction FD02 >
+        Address tab.
+      __null__: >-
+        Customer name was never populated. Obtain from the sales team or customer
+        directly. Set via FD02 > Address tab.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: NAME1 is {actual_value}. Set the customer name via
+      transaction FD02 > Address tab.
+
+  - id: AR004
+    field: KNA1.LAND1
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Country is mandatory — drives tax determination and output formatting"
+    why_it_matters: >-
+      LAND1 (country code) is a mandatory address field that drives tax determination,
+      output language, postal formatting, and is required for all partner functions in
+      SD and FI-AR. S/4HANA rejects customer records without a country code.
+    rule_authority: s4hana_migration
+    sap_impact: >-
+      Customer cannot be saved in S/4HANA. Tax determination (FTXP) fails. Output
+      determination (NACE) and all address-dependent processes produce errors.
+    fix_map:
+      __blank__: >-
+        Country code is empty. Determine the ISO country code from the customer's
+        registered address. Set via transaction FD02 > Address tab.
+      __null__: >-
+        Country was never populated — likely a data migration gap. Set the ISO
+        country code via FD02 > Address tab.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: LAND1 is {actual_value}. Set the ISO country code via
+      transaction FD02 > Address tab.
+
+  - id: AR005
+    field: KNB1.AKONT
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Reconciliation account is mandatory — links AR sub-ledger to the general ledger"
+    why_it_matters: >-
+      AKONT (reconciliation account) is the GL account that receives all customer
+      postings. Without it the AR sub-ledger cannot be reconciled to the GL and all
+      invoice postings for this customer will fail with a hard error. This is the
+      single most critical field in the customer company code segment.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      All postings to this customer fail in VF01 (billing) and F-28 (incoming
+      payment). AR sub-ledger cannot be reconciled. Period-end close for AR is
+      blocked until corrected.
+    fix_map:
+      __blank__: >-
+        Assign reconciliation account via FD02 > Company Code Data > Account
+        Management. Account must be a customer reconciliation account (account type
+        D in FS00). Typically a GL account in the 12xxxx or 14xxxx range depending
+        on the chart of accounts.
+      __null__: >-
+        Reconciliation account was never assigned. This customer cannot receive any
+        postings. Assign via FD02 > Company Code Data > Account Management.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: AKONT is {actual_value}. Assign a customer
+      reconciliation account via FD02 > Company Code Data > Account Management.
+
+  - id: AR006
+    field: KNB1.ZTERM
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Payment terms missing — affects invoice due date and dunning trigger"
+    why_it_matters: >-
+      ZTERM (payment terms) determines when a customer invoice is due and when dunning
+      notices are triggered. Without payment terms, invoices have no defined due date,
+      dunning cannot be executed, and cash flow forecasting is inaccurate.
+    rule_authority: best_practice
+    sap_impact: >-
+      Invoice due date is undefined. Dunning program F150 cannot calculate overdue
+      status. Cash flow forecasting in FF7A is inaccurate.
+    fix_map:
+      __blank__: >-
+        Payment terms are empty. Obtain the agreed payment terms from the sales
+        contract or commercial team. Set via FD02 > Company Code Data > Payment
+        Transactions. Common values: 0001 (due immediately), ZB30 (30 days net).
+      __null__: >-
+        Payment terms were never assigned. Set via FD02 > Company Code Data >
+        Payment Transactions.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: ZTERM is {actual_value}. Set payment terms via FD02 >
+      Company Code Data > Payment Transactions.
+
+  - id: AR007
+    field: KNB1.KLIMK
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Credit limit missing — customer has effectively unlimited credit exposure"
+    why_it_matters: >-
+      KLIMK sets the maximum credit exposure allowed for this customer. Missing
+      credit limit means the customer has effectively unlimited credit — a significant
+      financial risk that will not be caught by the credit management check (FD32).
+    rule_authority: best_practice
+    sap_impact: >-
+      Credit management check in VA01/VA02 always passes — no credit block is
+      triggered regardless of outstanding receivables. Credit exposure report
+      (S_ALR_87012215) shows no limit for this customer. FD32 credit overview
+      is incomplete.
+    fix_map:
+      __blank__: >-
+        Credit limit is not set. Determine the appropriate credit limit based on
+        the customer's payment history, size, and risk profile. Set via FD32
+        (credit management) or FD02 > Company Code Data.
+      __null__: >-
+        Credit limit was never assigned. This customer has unlimited credit
+        exposure. Set via FD32 based on the credit assessment.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: KLIMK is {actual_value} — no credit limit set.
+      Assign a credit limit via FD32 or FD02.
+
+  - id: AR008
+    field: KNA1.STCD1
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Tax number missing — required for VAT reporting and tax compliance"
+    why_it_matters: >-
+      STCD1 (tax number 1) is required for VAT reporting, output tax calculation,
+      and tax authority submissions. Without it, tax reports are incomplete and the
+      company may face compliance penalties.
+    rule_authority: best_practice
+    sap_impact: >-
+      VAT returns show incomplete customer tax data. Tax invoices cannot include the
+      customer's tax registration number. Tax audit trail is incomplete.
+    fix_map:
+      __blank__: >-
+        Tax number is empty. Obtain the customer's VAT registration number or tax ID
+        from the customer directly or from the sales team. Set via FD02 > General
+        Data > Control tab.
+      __null__: >-
+        Tax number was never populated. Request from the customer and set via FD02 >
+        General Data > Control tab.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: STCD1 is {actual_value}. Set the tax number via FD02 >
+      General Data > Control tab.
+
+  - id: AR009
+    field: KNB1.MAHNS
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Dunning procedure missing — overdue invoices will not be automatically chased"
+    why_it_matters: >-
+      MAHNS (dunning procedure) controls how overdue invoices are escalated through
+      dunning levels. Without a dunning procedure, the customer is excluded from the
+      automatic dunning run (F150) and overdue invoices are never systematically chased.
+    rule_authority: best_practice
+    sap_impact: >-
+      Customer excluded from dunning run F150. Overdue invoices are not automatically
+      escalated. Days Sales Outstanding (DSO) increases due to lack of systematic
+      collection follow-up.
+    fix_map:
+      __blank__: >-
+        Dunning procedure is not assigned. Set the appropriate dunning procedure via
+        FD02 > Company Code Data > Correspondence tab. Common values: 0001 (standard
+        4-level dunning), 0002 (simplified 2-level).
+      __null__: >-
+        Dunning procedure was never assigned. Set via FD02 > Company Code Data >
+        Correspondence tab.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: MAHNS is {actual_value}. Assign a dunning procedure via
+      FD02 > Company Code Data > Correspondence tab.
+
+  - id: AR010
+    field: KNA1.SMTP_ADDR
+    check_class: domain_value_check
+    allowed_values: null
+    format: email
+    severity: medium
+    dimension: completeness
+    message: "Email required for e-invoicing and automated statement delivery"
+    why_it_matters: >-
+      Email address is required for electronic invoicing, automated statement delivery,
+      and customer communication. Without it, invoices and statements must be sent
+      manually and e-invoicing workflows cannot be activated.
+    rule_authority: best_practice
+    sap_impact: >-
+      Customer statements and invoices cannot be sent electronically. Dunning notices
+      (F150 output) fall back to paper. E-invoicing integration is not possible.
+    fix_map:
+      __blank__: >-
+        No email address on record. Obtain from the customer or sales team and add
+        via FD02 > Address tab > Communication.
+      __other__: >-
+        Value does not match email format. Check for typos, missing @ symbol, or
+        invalid domain. Correct via FD02 > Address tab > Communication.
+    record_fix_template: >-
+      Customer {KNB1.KUNNR}: email address is '{actual_value}'.
+      {fix_instruction} Use transaction FD02 to update.

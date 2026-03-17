@@ -1,0 +1,203 @@
+module: mm_purchasing
+target_state: S4HANA_2023
+rules:
+  - id: PUR001
+    field: EKKO.EBELN
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Purchase order number is mandatory — primary key for all PO transactions"
+    why_it_matters: >-
+      EBELN is the purchase order document number and primary key for all purchasing
+      transactions. Without it, no goods receipt (MIGO), invoice verification (MIRO),
+      or PO history can be maintained. The record is fundamentally unusable.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      PO cannot be referenced in MIGO, MIRO, or any procurement workflow. Goods
+      receipt and invoice verification are impossible. The record is orphaned.
+    fix_map:
+      __blank__: >-
+        Purchase order number is empty. This record cannot exist without EBELN.
+        Investigate the data source — this is likely a data load error. Create a
+        valid PO via ME21N or correct the source data.
+      __null__: >-
+        PO number was never populated. This is a critical data integrity issue.
+        Create via ME21N or correct the data load.
+    record_fix_template: >-
+      PO {EKKO.EBELN}: EBELN is {actual_value}. Create a valid PO via ME21N or
+      correct the source data load.
+
+  - id: PUR002
+    field: EKKO.LIFNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Vendor number is mandatory — PO cannot be processed without a valid vendor"
+    why_it_matters: >-
+      LIFNR on the PO header identifies the vendor supplying the goods or services.
+      Without a valid vendor number, the PO cannot be goods receipted, invoiced, or
+      paid. The vendor master must exist and be active for the purchasing organisation.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      PO cannot be goods receipted (MIGO) or invoice verified (MIRO). Payment via
+      F110 is impossible. The entire procurement cycle for this PO is blocked.
+    fix_map:
+      __blank__: >-
+        Vendor number is empty. Assign the correct vendor via ME22N > Header >
+        Vendor tab. The vendor must exist in the vendor master (FK03) and be
+        active for the relevant purchasing organisation.
+      __null__: >-
+        Vendor was never assigned to this PO. Set via ME22N > Header > Vendor tab.
+    record_fix_template: >-
+      PO {EKKO.EBELN}: LIFNR is {actual_value}. Assign a valid vendor number
+      via ME22N > Header > Vendor tab.
+
+  - id: PUR003
+    field: EKPO.MATNR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Material number missing — PO line cannot be matched to inventory"
+    why_it_matters: >-
+      MATNR on a PO line item links the purchase to the material master. Without it,
+      goods receipt cannot update inventory, and three-way matching (PO, GR, invoice)
+      is not possible for stock items.
+    rule_authority: best_practice
+    sap_impact: >-
+      Goods receipt cannot update material inventory (MM03). Three-way match in MIRO
+      cannot verify material. MRP (MD04) does not see this PO as supply.
+    fix_map:
+      __blank__: >-
+        Material number is empty. For stock items, assign the correct material number
+        via ME22N > Item Detail > Material tab. For service POs, material may be
+        intentionally blank — verify the item category.
+      __null__: >-
+        Material was never assigned. If this is a stock PO, assign via ME22N.
+        If this is a service or text item, verify the item category is correct.
+    record_fix_template: >-
+      PO {EKKO.EBELN} item {EKPO.EBELP}: MATNR is {actual_value}. Assign the
+      material number via ME22N if this is a stock item.
+
+  - id: PUR004
+    field: EKPO.MENGE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Order quantity is mandatory — zero means PO cannot be receipted or invoiced"
+    why_it_matters: >-
+      MENGE is the order quantity on the PO line item. Zero or blank means no goods
+      can be received against this line and no invoice can be verified. The line is
+      effectively dead — it consumes no budget and delivers no goods.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      PO line cannot be goods receipted in MIGO. Invoice verification in MIRO has
+      no quantity to match. Budget consumption is zero — commitment accounting is
+      incorrect.
+    fix_map:
+      __blank__: >-
+        Order quantity is zero or blank. Set the correct quantity via ME22N > Item
+        Detail > Quantity tab. Verify the unit of measure is also correct.
+      __null__: >-
+        Quantity was never populated. Set via ME22N > Item Detail > Quantity tab.
+    record_fix_template: >-
+      PO {EKKO.EBELN} item {EKPO.EBELP}: MENGE is {actual_value}. Set the correct
+      order quantity via ME22N.
+
+  - id: PUR005
+    field: EKPO.NETPR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Net price is mandatory — invoice verification cannot confirm price match"
+    why_it_matters: >-
+      NETPR is the net price per unit on the PO line. Missing price means invoice
+      verification (MIRO) cannot perform price matching, budget consumption is zero,
+      and the line has no financial value. This is a critical procurement data gap.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Invoice verification in MIRO cannot match price — manual intervention required
+      for every invoice. Budget consumption (commitment) is zero. Accruals and
+      provisions based on PO value are understated.
+    fix_map:
+      __blank__: >-
+        Net price is zero or blank. Obtain the agreed price from the contract or
+        vendor quotation. Set via ME22N > Item Detail > Conditions tab. Verify
+        the price unit and currency are correct.
+      __null__: >-
+        Price was never populated. Set via ME22N > Item Detail > Conditions tab.
+    record_fix_template: >-
+      PO {EKKO.EBELN} item {EKPO.EBELP}: NETPR is {actual_value}. Set the correct
+      net price via ME22N > Conditions tab.
+
+  - id: PUR006
+    field: EKKO.WAERS
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Currency code missing — all PO values are meaningless without currency"
+    why_it_matters: >-
+      WAERS (currency key) defines the currency for all monetary values on the PO.
+      Without it, prices and totals have no currency context, exchange rate
+      determination fails, and financial postings cannot be generated correctly.
+    rule_authority: best_practice
+    sap_impact: >-
+      PO values have no currency context. Exchange rate determination in MIRO fails.
+      Financial postings generate errors. Spend analysis reports are inaccurate.
+    fix_map:
+      __blank__: >-
+        Currency code is empty. Set the correct ISO currency code via ME22N >
+        Header > Delivery/Invoice tab. Common values: ZAR, USD, EUR, GBP.
+      __null__: >-
+        Currency was never assigned. Set via ME22N > Header > Delivery/Invoice tab.
+    record_fix_template: >-
+      PO {EKKO.EBELN}: WAERS is {actual_value}. Set the currency code via
+      ME22N > Header > Delivery/Invoice tab.
+
+  - id: PUR007
+    field: EKPO.WERKS
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Plant missing — goods receipt location unknown"
+    why_it_matters: >-
+      WERKS (plant) on the PO line determines where goods are received and stored.
+      Without it, goods receipt (MIGO) does not know which plant's inventory to
+      update and MRP cannot see this PO as incoming supply.
+    rule_authority: best_practice
+    sap_impact: >-
+      Goods receipt in MIGO cannot determine receiving plant. MRP run (MD01/MD02)
+      does not see this PO as supply for any plant. Inventory valuation is
+      affected.
+    fix_map:
+      __blank__: >-
+        Plant is empty. Assign the correct receiving plant via ME22N > Item Detail >
+        Delivery tab. The plant must be valid for the purchasing organisation.
+      __null__: >-
+        Plant was never assigned. Set via ME22N > Item Detail > Delivery tab.
+    record_fix_template: >-
+      PO {EKKO.EBELN} item {EKPO.EBELP}: WERKS is {actual_value}. Assign the
+      receiving plant via ME22N > Delivery tab.
+
+  - id: PUR008
+    field: EKKO.BEDAT
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "PO date missing — affects delivery scheduling and reporting"
+    why_it_matters: >-
+      BEDAT (PO date) is the document date used for delivery scheduling, reporting
+      period assignment, and supplier performance tracking. Missing PO date makes
+      it impossible to determine when the order was placed.
+    rule_authority: best_practice
+    sap_impact: >-
+      Delivery scheduling has no baseline date. PO reporting by period is inaccurate.
+      Supplier lead time analysis cannot include this PO.
+    fix_map:
+      __blank__: >-
+        PO date is empty. Set to the date the order was originally placed via
+        ME22N > Header > PO Date field.
+      __null__: >-
+        PO date was never populated. Set via ME22N > Header > PO Date.
+    record_fix_template: >-
+      PO {EKKO.EBELN}: BEDAT is {actual_value}. Set the PO date via ME22N >
+      Header.

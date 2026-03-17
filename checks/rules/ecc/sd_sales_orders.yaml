@@ -1,0 +1,243 @@
+module: sd_sales_orders
+target_state: S4HANA_2023
+rules:
+  - id: SDSO001
+    field: VBAK.VBELN
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Sales order number is mandatory — primary key for all SD order transactions"
+    why_it_matters: >-
+      VBELN is the sales order document number and primary key for all order
+      processing. Without it, no deliveries (VL01N), billing documents (VF01),
+      or order status tracking can be maintained.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Sales order cannot be referenced in VL01N, VF01, or any SD workflow.
+      Delivery creation and billing are impossible. The record is orphaned.
+    fix_map:
+      __blank__: >-
+        Sales order number is empty. This record cannot exist without VBELN.
+        Investigate the data source — this is likely a data load error. Create
+        a valid order via VA01 or correct the source data.
+      __null__: >-
+        Order number was never populated. Create via VA01 or correct the data load.
+    record_fix_template: >-
+      SO {VBAK.VBELN}: VBELN is {actual_value}. Create a valid sales order via
+      VA01 or correct the source data load.
+
+  - id: SDSO002
+    field: VBAK.KUNNR
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Sold-to customer is mandatory — required for billing and AR posting"
+    why_it_matters: >-
+      KUNNR (sold-to party) is the customer who ordered the goods and to whom the
+      invoice is addressed. Without it, billing cannot be created, AR postings
+      cannot be generated, and the order has no commercial counterparty.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Billing document (VF01) cannot be created — no sold-to party for the invoice.
+      AR posting has no customer to debit. Revenue recognition is impossible.
+    fix_map:
+      __blank__: >-
+        Sold-to customer is empty. Assign the correct customer number via VA02 >
+        Header > Partners tab. The customer must exist and have a valid sales area.
+      __null__: >-
+        Sold-to customer was never assigned. Set via VA02 > Header > Partners tab.
+    record_fix_template: >-
+      SO {VBAK.VBELN}: KUNNR is {actual_value}. Assign the sold-to customer via
+      VA02 > Header > Partners tab.
+
+  - id: SDSO003
+    field: VBAP.MATNR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Material number missing — order line cannot be matched to inventory"
+    why_it_matters: >-
+      MATNR on a sales order line links the order to the material master. Without
+      it, availability check (ATP) cannot be performed, delivery cannot pick stock,
+      and the line cannot be properly priced from condition records.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      ATP check (CO09) cannot be performed. Delivery (VL01N) cannot pick stock.
+      Material-based pricing conditions are not found. The line may be skipped
+      in delivery processing.
+    fix_map:
+      __blank__: >-
+        Material number is empty. Assign the correct material via VA02 > Item >
+        Material field. For service items, material may be intentionally blank —
+        verify the item category.
+      __null__: >-
+        Material was never assigned. Set via VA02 if this is a stock item.
+    record_fix_template: >-
+      SO {VBAK.VBELN} item {VBAP.POSNR}: MATNR is {actual_value}. Assign the
+      material number via VA02 if this is a stock item.
+
+  - id: SDSO004
+    field: VBAP.KWMENG
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Order quantity is mandatory — zero means order cannot be delivered or invoiced"
+    why_it_matters: >-
+      KWMENG is the order quantity on the sales order line. Zero or blank means no
+      delivery can be created and no billing document can be generated. The line is
+      effectively dead — it appears on the order but produces no output.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Delivery (VL01N) creates no delivery quantity. Billing (VF01) has no
+      quantity to invoice. Revenue is zero. Backlog reporting is incorrect.
+    fix_map:
+      __blank__: >-
+        Order quantity is zero or blank. Set the correct quantity via VA02 > Item >
+        Quantity field. Verify the sales unit of measure is also correct.
+      __null__: >-
+        Quantity was never populated. Set via VA02 > Item > Quantity field.
+    record_fix_template: >-
+      SO {VBAK.VBELN} item {VBAP.POSNR}: KWMENG is {actual_value}. Set the
+      correct order quantity via VA02.
+
+  - id: SDSO005
+    field: VBAK.WAERK
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Currency code missing — all order values are meaningless without currency"
+    why_it_matters: >-
+      WAERK (document currency) defines the currency for all monetary values on the
+      sales order. Without it, prices and totals have no currency context, exchange
+      rate determination fails in billing, and financial postings cannot be generated.
+    rule_authority: best_practice
+    sap_impact: >-
+      Order values have no currency context. Billing document (VF01) cannot determine
+      exchange rates. Financial postings generate errors. Revenue reporting by
+      currency is inaccurate.
+    fix_map:
+      __blank__: >-
+        Currency code is empty. Set the correct ISO currency code via VA02 >
+        Header > Sales tab. This is typically inherited from the customer master
+        or sales organisation.
+      __null__: >-
+        Currency was never assigned. Set via VA02 > Header > Sales tab.
+    record_fix_template: >-
+      SO {VBAK.VBELN}: WAERK is {actual_value}. Set the currency code via
+      VA02 > Header > Sales tab.
+
+  - id: SDSO006
+    field: VBAP.NETWR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Net value missing — order line has no financial value"
+    why_it_matters: >-
+      NETWR is the net value of the sales order line after all pricing conditions
+      are applied. Zero or blank means the line has no revenue value — billing will
+      produce a zero-value invoice and revenue recognition records nothing.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Billing document (VF01) shows zero value. Revenue recognition is zero.
+      Profitability analysis (CO-PA) records no contribution. Sales reporting
+      understates revenue.
+    fix_map:
+      __blank__: >-
+        Net value is zero or blank. Check the pricing conditions in VA02 > Item >
+        Conditions tab. Verify the pricing procedure is assigned and condition
+        records exist for this material/customer combination.
+      __null__: >-
+        Net value was never calculated. Review pricing configuration and condition
+        records via VA02 > Conditions tab.
+    record_fix_template: >-
+      SO {VBAK.VBELN} item {VBAP.POSNR}: NETWR is {actual_value}. Review pricing
+      conditions via VA02 > Conditions tab.
+
+  - id: SDSO007
+    field: VBAK.VKORG
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Sales organisation is mandatory — determines pricing and output"
+    why_it_matters: >-
+      VKORG (sales organisation) on the order header determines which pricing
+      conditions, output types, and organisational settings apply. Without it,
+      the order has no organisational context and cannot be processed through
+      any SD workflow.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Order cannot be processed — no sales area context. Pricing, output
+      determination, and delivery plant determination all fail. The order
+      is stuck in an incomplete state.
+    fix_map:
+      __blank__: >-
+        Sales organisation is empty. This is typically set automatically from the
+        customer's sales area. Verify the customer master has a valid sales area
+        and recreate the order via VA01 if needed.
+      __null__: >-
+        Sales organisation was never assigned. Correct via VA02 or recreate the
+        order with the correct customer sales area.
+    record_fix_template: >-
+      SO {VBAK.VBELN}: VKORG is {actual_value}. Verify the customer's sales
+      area and correct via VA02.
+
+  - id: SDSO008
+    field: VBAK.LIFSK
+    check_class: domain_value_check
+    allowed_values: ["", "01", "02", "ZL", "ZC"]
+    severity: medium
+    dimension: validity
+    message: "Delivery block must be a valid code or blank (unblocked)"
+    why_it_matters: >-
+      LIFSK (delivery block) controls whether the order can proceed to delivery.
+      Invalid block codes cause processing errors — the system cannot determine
+      how to handle the block and the order may be stuck in an undefined state.
+    rule_authority: best_practice
+    sap_impact: >-
+      Invalid delivery block code causes errors in delivery creation (VL01N).
+      Order may be permanently blocked with no valid release path. Delivery
+      due list (VL04) cannot process the order.
+    valid_values_with_labels:
+      "": "No block — order is free for delivery"
+      "01": "Credit block — pending credit check release"
+      "02": "General delivery block — manual release required"
+      "ZL": "Custom logistics block — warehouse approval required"
+      "ZC": "Custom compliance block — export control review"
+    fix_map:
+      __other__: >-
+        Delivery block code '{invalid_value}' is not a recognised value. Valid
+        codes are: blank (no block), 01 (credit block), 02 (general block),
+        ZL (logistics block), ZC (compliance block). Correct via VA02 > Header >
+        Shipping tab > Delivery Block field. If the block should be removed, set
+        to blank.
+    record_fix_template: >-
+      SO {VBAK.VBELN}: LIFSK is '{actual_value}'. Set to a valid delivery block
+      code or blank via VA02 > Shipping tab.
+
+  - id: SDSO009
+    field: VBAP.PSTYV
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Item category missing — controls delivery, billing, and revenue relevance"
+    why_it_matters: >-
+      PSTYV (item category) controls whether the order line is relevant for
+      delivery, billing, and revenue recognition. Missing = line may be skipped
+      entirely in delivery and billing processing.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Delivery relevance is undefined — VL01N may skip this line. Billing
+      relevance is undefined — VF01 may not invoice it. Revenue recognition
+      and CO-PA posting may be incorrect.
+    fix_map:
+      __blank__: >-
+        Item category is empty. This is normally determined automatically from the
+        sales document type, item category group (material master), and usage. Check
+        the item category determination configuration (VOV4/VOV5) and the material
+        master item category group. Set manually via VA02 if needed.
+      __null__: >-
+        Item category was never determined. Verify the material master and sales
+        document type configuration. Set via VA02 > Item > Item Category.
+    record_fix_template: >-
+      SO {VBAK.VBELN} item {VBAP.POSNR}: PSTYV is {actual_value}. Verify item
+      category determination and correct via VA02.

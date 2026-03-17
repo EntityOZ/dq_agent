@@ -1,0 +1,264 @@
+module: production_planning
+target_state: S4HANA_2023
+rules:
+  - id: PP001
+    field: MARA.DISMM
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "MRP type is mandatory — missing means material excluded from MRP run"
+    why_it_matters: >-
+      DISMM (MRP type) is the most critical planning field on the material master.
+      It determines whether and how the material is planned by MRP. Missing = the
+      material is completely excluded from MRP runs (MD01/MD02) and no procurement
+      proposals or planned orders are generated.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material excluded from MRP run (MD01/MD02). No planned orders or purchase
+      requisitions generated. Stock/requirements list (MD04) shows no planning
+      data. Production and procurement for this material are unplanned.
+    fix_map:
+      __blank__: >-
+        MRP type is empty. Determine the correct planning method for this material.
+        Set via MM02 > MRP 1 tab. Common values: PD (MRP), VB (reorder point),
+        ND (no planning — only for materials that should not be planned).
+      __null__: >-
+        MRP type was never assigned. This material is invisible to the planning
+        system. Set via MM02 > MRP 1 tab.
+    record_fix_template: >-
+      Material {MARA.MATNR}: DISMM is {actual_value}. Assign the MRP type via
+      MM02 > MRP 1 tab.
+
+  - id: PP002
+    field: MARA.DISMM
+    check_class: domain_value_check
+    allowed_values: ["ND", "PD", "VB", "VM", "M0"]
+    severity: high
+    dimension: validity
+    message: "MRP type must be a valid planning method code"
+    why_it_matters: >-
+      DISMM must be one of the standard MRP type codes. Invalid values cause the
+      MRP run to skip the material or produce errors. Each code determines a
+      fundamentally different planning approach.
+    rule_authority: best_practice
+    sap_impact: >-
+      MRP run may skip material or produce errors with invalid MRP type. Planning
+      results in MD04 may be incorrect or missing.
+    valid_values_with_labels:
+      "ND": "No planning — material is not included in MRP"
+      "PD": "MRP — standard material requirements planning"
+      "VB": "Reorder point — automatic procurement at reorder level"
+      "VM": "Auto reorder point — system calculates reorder level"
+      "M0": "MPS — master production scheduling for critical materials"
+    fix_map:
+      __other__: >-
+        MRP type '{invalid_value}' is not a recognised planning method. Valid
+        codes: ND (no planning), PD (MRP), VB (reorder point), VM (auto reorder),
+        M0 (MPS). Set the correct value via MM02 > MRP 1 tab.
+    record_fix_template: >-
+      Material {MARA.MATNR}: DISMM is '{actual_value}'. Set to a valid MRP type
+      via MM02 > MRP 1 tab.
+
+  - id: PP003
+    field: CRHD.ARBPL
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Work centre number is mandatory — required for capacity planning"
+    why_it_matters: >-
+      ARBPL (work centre) identifies a production resource where operations are
+      performed. Without it, routing operations have no resource assignment,
+      capacity planning (CM01) cannot schedule the operation, and production
+      order costing has no basis for activity costs.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Routing operations have no work centre. Capacity planning (CM01/CM25) cannot
+      schedule. Production order costing has no activity rates. Detailed scheduling
+      is impossible.
+    fix_map:
+      __blank__: >-
+        Work centre number is empty. Assign a valid work centre via CR02. The
+        work centre must exist in the plant and have capacity and costing data
+        maintained.
+      __null__: >-
+        Work centre was never created. Create via CR01 with the correct plant,
+        work centre category, and capacity data.
+    record_fix_template: >-
+      Work centre {CRHD.ARBPL}: ARBPL is {actual_value}. Create or assign the
+      work centre via CR01/CR02.
+
+  - id: PP004
+    field: CRHD.WERKS
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Plant is mandatory for work centre — determines organisational assignment"
+    why_it_matters: >-
+      WERKS (plant) on the work centre determines the organisational context for
+      capacity planning and costing. A work centre without a plant cannot be used
+      in any routing or production order.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Work centre cannot be used in routings (CA01). Production orders referencing
+      this work centre fail. Capacity evaluation (CM01) cannot find the resource.
+    fix_map:
+      __blank__: >-
+        Plant is empty for this work centre. Assign the correct manufacturing
+        plant via CR02 > Basic Data tab.
+      __null__: >-
+        Plant was never assigned. Set via CR02 > Basic Data tab. The plant must
+        be a valid manufacturing plant in the enterprise structure.
+    record_fix_template: >-
+      Work centre {CRHD.ARBPL}: WERKS is {actual_value}. Assign the plant via
+      CR02 > Basic Data tab.
+
+  - id: PP005
+    field: STKO.STLAL
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "BOM alternative number missing — BOM cannot be uniquely identified"
+    why_it_matters: >-
+      STLAL (BOM alternative) identifies which version of the Bill of Materials
+      is used when multiple alternatives exist. Missing means the BOM selection
+      logic cannot pick the correct alternative for production orders.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      BOM selection in production order creation (CO01) may pick the wrong
+      alternative or fail entirely. Material reservations may be incorrect.
+    fix_map:
+      __blank__: >-
+        BOM alternative is empty. If only one BOM exists, set to 1. If multiple
+        alternatives exist, set the correct alternative number via CS02.
+      __null__: >-
+        BOM alternative was never assigned. Set via CS02 > Header > Alternative.
+    record_fix_template: >-
+      BOM {STKO.STLNR}: STLAL is {actual_value}. Set the BOM alternative
+      number via CS02.
+
+  - id: PP006
+    field: STKO.WERKS
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "BOM plant missing — BOM cannot be assigned to a manufacturing location"
+    why_it_matters: >-
+      WERKS (plant) on the BOM header determines which manufacturing location
+      uses this BOM. Without it, the BOM cannot be selected during production
+      order creation for any plant.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      BOM cannot be selected during production order creation (CO01) for any
+      plant. MRP cannot explode this BOM for dependent requirements.
+    fix_map:
+      __blank__: >-
+        BOM plant is empty. Assign the correct manufacturing plant via CS02 >
+        Header > Plant.
+      __null__: >-
+        Plant was never assigned to this BOM. Set via CS02 > Header > Plant.
+    record_fix_template: >-
+      BOM {STKO.STLNR}: WERKS is {actual_value}. Assign the plant via CS02.
+
+  - id: PP007
+    field: STPO.IDNRK
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "BOM component material is mandatory — missing means no material reservations"
+    why_it_matters: >-
+      IDNRK is the component material number on a BOM line. Without it, the
+      production order has no material reservation for this line — the component
+      will not be staged, not consumed, and not backflushed. The finished product
+      will be produced without this component.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Production order creates no reservation for this component. Goods issue
+      (MIGO) has nothing to post. MRP does not generate dependent requirements.
+      The finished product is produced with missing components.
+    fix_map:
+      __blank__: >-
+        Component material is empty. Assign the correct material number via CS02 >
+        Item > Component field. The material must exist in the plant's material
+        master.
+      __null__: >-
+        Component material was never assigned. This BOM line is non-functional.
+        Set via CS02 > Item > Component.
+    record_fix_template: >-
+      BOM {STKO.STLNR} item {STPO.POSNR}: IDNRK is {actual_value}. Assign the
+      component material via CS02.
+
+  - id: PP008
+    field: STPO.MENGE
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "BOM component quantity is mandatory — zero means no material reserved for production"
+    why_it_matters: >-
+      MENGE on a BOM line defines how much of the component is consumed per
+      parent unit produced. Zero or blank = no material reserved for production,
+      causing stock shortages during execution.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Material reservation quantity is zero. Goods issue (MIGO) posts zero.
+      MRP generates no dependent requirements for this component. Production
+      execution has no material to consume — stock shortages on the shop floor.
+    fix_map:
+      __blank__: >-
+        Component quantity is zero or blank. Set the correct quantity per base
+        unit of the parent material via CS02 > Item > Quantity field. Verify the
+        unit of measure is correct.
+      __null__: >-
+        Component quantity was never set. Determine from the engineering
+        specification and set via CS02 > Item > Quantity.
+    record_fix_template: >-
+      BOM {STKO.STLNR} item {STPO.POSNR}: MENGE is {actual_value}. Set the
+      component quantity via CS02.
+
+  - id: PP009
+    field: PLKOD.PLNNR
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Routing number missing — routing cannot be uniquely identified"
+    why_it_matters: >-
+      PLNNR (routing number) is the unique identifier for a routing (sequence of
+      operations). Without it, the routing cannot be assigned to a production order
+      and operations/scheduling cannot be determined.
+    rule_authority: best_practice
+    sap_impact: >-
+      Routing cannot be used in production order creation (CO01). Operations and
+      scheduling data are missing. Capacity requirements are not generated.
+    fix_map:
+      __blank__: >-
+        Routing number is empty. Create or assign a valid routing via CA01/CA02.
+        The routing must have at least one operation with a work centre assignment.
+      __null__: >-
+        Routing was never created. Create via CA01 with the correct operations
+        and work centre assignments.
+    record_fix_template: >-
+      Routing {PLKOD.PLNNR}: PLNNR is {actual_value}. Create or assign the
+      routing via CA01/CA02.
+
+  - id: PP010
+    field: PLKOD.WERKS
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Routing plant missing — routing cannot be assigned to a manufacturing location"
+    why_it_matters: >-
+      WERKS (plant) on the routing determines which manufacturing location uses
+      this routing. Without it, the routing cannot be selected during production
+      order creation for any plant.
+    rule_authority: best_practice
+    sap_impact: >-
+      Routing cannot be selected for production orders at any plant. Operations
+      and scheduling are not available for production execution.
+    fix_map:
+      __blank__: >-
+        Routing plant is empty. Assign the correct manufacturing plant via CA02 >
+        Header > Plant.
+      __null__: >-
+        Plant was never assigned to this routing. Set via CA02 > Header > Plant.
+    record_fix_template: >-
+      Routing {PLKOD.PLNNR}: WERKS is {actual_value}. Assign the plant via
+      CA02 > Header.
