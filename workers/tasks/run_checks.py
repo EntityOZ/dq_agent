@@ -161,6 +161,15 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
         run_agents.delay(version_id, tenant_id)
         logger.info(f"Enqueued run_agents for version_id={version_id}")
 
+        # Enqueue cleaning detection (non-blocking — failure is non-fatal)
+        try:
+            from workers.tasks.run_cleaning import run_cleaning
+            for module_name in modules:
+                run_cleaning.delay(version_id, tenant_id, module_name, parquet_path)
+            logger.info(f"Enqueued run_cleaning for version_id={version_id}, modules={modules}")
+        except Exception as e:
+            logger.warning(f"Failed to enqueue run_cleaning (non-fatal): {e}")
+
         return {"version_id": version_id, "status": "complete", "findings_count": len(all_results)}
 
     except Exception as e:

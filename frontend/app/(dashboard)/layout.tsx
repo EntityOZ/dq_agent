@@ -32,6 +32,8 @@ import {
   FileText,
   Settings,
   ShieldCheck,
+  Sparkles,
+  GitMerge,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -50,6 +52,8 @@ const NAV_ITEMS = [
   { href: "/findings", label: "Findings", icon: AlertTriangle },
   { href: "/versions", label: "Versions", icon: GitCompareArrows },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/cleaning", label: "Cleaning", icon: Sparkles },
+  { href: "/dedup", label: "Dedup", icon: GitMerge },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

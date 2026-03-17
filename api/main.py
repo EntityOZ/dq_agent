@@ -14,6 +14,7 @@ from api.routes.reports import router as reports_router
 from api.routes.settings import router as settings_router
 from api.routes.connect import router as connect_router
 from api.routes.writeback import router as writeback_router
+from api.routes.cleaning import router as cleaning_router
 
 logger = logging.getLogger("vantax")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -99,3 +100,4 @@ app.include_router(reports_router)
 app.include_router(settings_router)
 app.include_router(connect_router)
 app.include_router(writeback_router)
+app.include_router(cleaning_router)
