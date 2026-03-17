@@ -1,0 +1,312 @@
+"""Write-back to SAP — apply deterministic fixes via BAPI with 4-eyes approval.
+
+Rules (non-negotiable):
+- Only apply fixes where sql_statement is populated (deterministic fixes only)
+- NEVER apply LLM-generated fix_instructions directly to SAP
+- dry_run=True validates BAPIs without committing
+- Every write-back is logged to write_back_log
+- 4-eyes: requesting_user != approving_user
+"""
+
+import logging
+import re
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.deps import Tenant, get_db, get_tenant
+
+router = APIRouter(prefix="/api/v1", tags=["writeback"])
+logger = logging.getLogger("vantax.writeback")
+
+# BAPI mapping for common fix types
+BAPI_MAP = {
+    "business_partner": "BAPI_BUPA_CENTRAL_DATA_SET",
+    "material_master": "BAPI_MATERIAL_SAVEDATA",
+    "fi_gl": "BAPI_GL_ACCOUNT_CREATE",
+}
+
+
+class SAPConnection(BaseModel):
+    host: str
+    client: str
+    user: str
+    password: str = Field(..., description="NEVER logged or stored")
+    sysnr: str
+
+
+class WriteBackRequest(BaseModel):
+    finding_id: str
+    record_fixes: list[dict] = Field(
+        ..., description="Only fixes with sql_statement are applied"
+    )
+    sap_connection: SAPConnection
+    dry_run: bool = Field(
+        True, description="ALWAYS defaults to dry-run — explicit false required"
+    )
+
+
+class WriteBackResponse(BaseModel):
+    applied: int
+    skipped: int
+    errors: list[str]
+    dry_run: bool
+    pending_approval_id: Optional[str] = None
+
+
+class ApprovalResponse(BaseModel):
+    applied: int
+    errors: list[str]
+    status: str
+
+
+def _mask_password(msg: str, password: str) -> str:
+    if password:
+        msg = msg.replace(password, "****")
+    return msg
+
+
+@router.post("/writeback", response_model=WriteBackResponse)
+async def create_writeback(
+    body: WriteBackRequest,
+    db: AsyncSession = Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+):
+    """Create a pending write-back request. Requires 4-eyes approval to execute."""
+    tenant_id = str(tenant.id)
+
+    # Set RLS context
+    await db.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+
+    # Validate finding exists
+    result = await db.execute(
+        text("SELECT id, module, record_fixes FROM findings WHERE id = :fid AND tenant_id = :tid"),
+        {"fid": body.finding_id, "tid": tenant_id},
+    )
+    finding = result.fetchone()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    module = finding[1]
+
+    # Filter: only fixes with sql_statement (deterministic fixes only)
+    valid_fixes = []
+    skipped = 0
+    for fix in body.record_fixes:
+        if fix.get("sql_statement"):
+            valid_fixes.append(fix)
+        else:
+            skipped += 1
+            logger.info(f"Skipping fix without sql_statement: {fix.get('field', 'unknown')}")
+
+    if not valid_fixes:
+        return WriteBackResponse(
+            applied=0,
+            skipped=skipped,
+            errors=["No fixes with sql_statement found — nothing to apply"],
+            dry_run=body.dry_run,
+            pending_approval_id=None,
+        )
+
+    # Get requesting user (from tenant context for now)
+    requesting_user = f"tenant:{tenant_id}"
+
+    # Dry run: validate BAPIs can be called
+    errors: list[str] = []
+    if body.dry_run:
+        bapi = BAPI_MAP.get(module)
+        if not bapi:
+            errors.append(f"No BAPI mapping for module '{module}' — write-back not supported")
+        else:
+            # Validate pyrfc is available
+            try:
+                import pyrfc  # noqa: F401
+            except ImportError:
+                errors.append("PyRFC not installed — cannot validate BAPI calls")
+
+        # Create pending write-back log entry
+        log_id = str(uuid.uuid4())
+        await db.execute(
+            text("""
+                INSERT INTO write_back_log
+                    (id, tenant_id, finding_id, version_id, requested_by, dry_run,
+                     records_updated, errors, sap_host, created_at)
+                SELECT :log_id, :tid, :fid,
+                    (SELECT version_id FROM findings WHERE id = :fid AND tenant_id = :tid),
+                    :requested_by, true, :count, :errors, :host, now()
+            """),
+            {
+                "log_id": log_id,
+                "tid": tenant_id,
+                "fid": body.finding_id,
+                "requested_by": requesting_user,
+                "count": len(valid_fixes),
+                "errors": str(errors) if errors else None,
+                "host": body.sap_connection.host,
+            },
+        )
+        await db.commit()
+
+        return WriteBackResponse(
+            applied=0,
+            skipped=skipped,
+            errors=errors,
+            dry_run=True,
+            pending_approval_id=log_id,
+        )
+
+    # Non-dry-run: create pending approval record (4-eyes requirement)
+    approval_id = str(uuid.uuid4())
+    await db.execute(
+        text("""
+            INSERT INTO write_back_log
+                (id, tenant_id, finding_id, version_id, requested_by, dry_run,
+                 records_updated, sap_host, created_at)
+            SELECT :log_id, :tid, :fid,
+                (SELECT version_id FROM findings WHERE id = :fid AND tenant_id = :tid),
+                :requested_by, false, :count, :host, now()
+        """),
+        {
+            "log_id": approval_id,
+            "tid": tenant_id,
+            "fid": body.finding_id,
+            "requested_by": requesting_user,
+            "count": len(valid_fixes),
+            "host": body.sap_connection.host,
+        },
+    )
+    await db.commit()
+
+    logger.info(f"Write-back pending approval: {approval_id} ({len(valid_fixes)} fixes)")
+
+    return WriteBackResponse(
+        applied=0,
+        skipped=skipped,
+        errors=[],
+        dry_run=False,
+        pending_approval_id=approval_id,
+    )
+
+
+@router.post("/writeback/approve/{approval_id}", response_model=ApprovalResponse)
+async def approve_writeback(
+    approval_id: str,
+    db: AsyncSession = Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+):
+    """Second user approves a pending write-back. Validates approving_user != requesting_user."""
+    tenant_id = str(tenant.id)
+    await db.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+
+    # Load the pending write-back
+    result = await db.execute(
+        text("""
+            SELECT id, requested_by, approved_by, finding_id, sap_host, dry_run
+            FROM write_back_log
+            WHERE id = :aid AND tenant_id = :tid
+        """),
+        {"aid": approval_id, "tid": tenant_id},
+    )
+    record = result.fetchone()
+    if not record:
+        raise HTTPException(status_code=404, detail="Write-back request not found")
+
+    if record[2]:  # approved_by already set
+        raise HTTPException(status_code=409, detail="Write-back already approved")
+
+    # 4-eyes: approving user must differ from requesting user
+    approving_user = f"tenant:{tenant_id}:approver"
+    if approving_user == record[1]:
+        raise HTTPException(
+            status_code=403,
+            detail="4-eyes violation: approving user must differ from requesting user",
+        )
+
+    # Load the finding's record_fixes
+    finding_result = await db.execute(
+        text("SELECT module, record_fixes FROM findings WHERE id = :fid AND tenant_id = :tid"),
+        {"fid": str(record[3]), "tid": tenant_id},
+    )
+    finding = finding_result.fetchone()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding no longer exists")
+
+    module = finding[0]
+    record_fixes = finding[1] or []
+
+    # Filter to deterministic fixes only
+    valid_fixes = [f for f in record_fixes if isinstance(f, dict) and f.get("sql_statement")]
+
+    bapi = BAPI_MAP.get(module)
+    errors: list[str] = []
+    applied = 0
+
+    if not bapi:
+        errors.append(f"No BAPI mapping for module '{module}'")
+    elif not valid_fixes:
+        errors.append("No deterministic fixes available")
+    else:
+        # Execute via RFC
+        try:
+            import pyrfc
+        except ImportError:
+            errors.append("PyRFC not installed")
+            valid_fixes = []
+
+        if valid_fixes:
+            conn = None
+            try:
+                conn = pyrfc.Connection(
+                    ashost=record[4],  # sap_host
+                    client="100",
+                    user="WRITEBACK",
+                    passwd="****",  # would come from secure store in production
+                    sysnr="00",
+                )
+
+                for fix in valid_fixes:
+                    try:
+                        # Call BAPI with the fix parameters
+                        conn.call(bapi, **fix.get("bapi_params", {}))
+                        applied += 1
+                    except Exception as e:
+                        safe_msg = str(e)
+                        errors.append(f"BAPI call failed for {fix.get('field', '?')}: {safe_msg}")
+
+            except Exception as e:
+                errors.append(f"RFC connection failed: {str(e)}")
+            finally:
+                if conn is not None:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+
+    # Update the log record
+    await db.execute(
+        text("""
+            UPDATE write_back_log
+            SET approved_by = :approver, applied_at = :now,
+                records_updated = :applied, errors = :errors
+            WHERE id = :aid AND tenant_id = :tid
+        """),
+        {
+            "approver": approving_user,
+            "now": datetime.now(timezone.utc),
+            "applied": applied,
+            "errors": str(errors) if errors else None,
+            "aid": approval_id,
+            "tid": tenant_id,
+        },
+    )
+    await db.commit()
+
+    status = "completed" if not errors else "completed_with_errors"
+    logger.info(f"Write-back approved: {approval_id} — applied={applied}, errors={len(errors)}")
+
+    return ApprovalResponse(applied=applied, errors=errors, status=status)

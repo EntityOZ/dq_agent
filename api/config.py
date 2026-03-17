@@ -28,10 +28,20 @@ class Settings(BaseSettings):
     licence_key: Optional[str] = None
     licence_server_url: str = "https://licence.dqagent.vantax.co.za"
     licence_file: Optional[str] = None
+    licence_mode: str = "online"  # online | offline
+    licence_file_path: Optional[str] = None
+    licence_secret: Optional[str] = None
 
     # Notifications
     resend_api_key: Optional[str] = None
     teams_webhook_url: Optional[str] = None
+
+    # SMTP (air-gapped deployments)
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from: str = "noreply@vantax.local"
 
     # Auth
     clerk_secret_key: Optional[str] = None

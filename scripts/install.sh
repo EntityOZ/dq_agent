@@ -93,21 +93,34 @@ info "Required .env values present ✓"
 
 # ─── 5. Validate licence key ────────────────────────────────────────────────
 
-info "Validating licence key..."
-LICENCE_URL="${LICENCE_SERVER_URL:-https://licence.dqagent.vantax.co.za}"
-LICENCE_RESPONSE=$(curl -s -m 15 -X POST "${LICENCE_URL}/validate" \
-    -H "Content-Type: application/json" \
-    -d "{\"licenceKey\": \"${LICENCE_KEY}\", \"machineFingerprint\": \"$(hostname)\"}" \
-    2>/dev/null || echo "")
+LICENCE_MODE="${LICENCE_MODE:-online}"
 
-if echo "$LICENCE_RESPONSE" | grep -q '"valid":true'; then
-    LICENCE_MODULES=$(echo "$LICENCE_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('modules',[])))" 2>/dev/null || echo "unknown")
-    LICENCE_EXPIRES=$(echo "$LICENCE_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('expiresAt','unknown'))" 2>/dev/null || echo "unknown")
-    info "Licence valid ✓ — modules: $LICENCE_MODULES"
+if [ "$LICENCE_MODE" = "offline" ]; then
+    info "Licence mode: offline — skipping licence server connectivity test"
+    LICENCE_FILE_PATH="${LICENCE_FILE_PATH:-/etc/vantax/licence.json}"
+    if [ -f "$LICENCE_FILE_PATH" ]; then
+        info "Offline licence file found: $LICENCE_FILE_PATH ✓"
+    else
+        warn "Offline licence file not found at $LICENCE_FILE_PATH"
+        warn "Create the file or set LICENCE_FILE_PATH in .env"
+    fi
 else
-    warn "Licence key invalid or cannot reach licence server."
-    warn "Check your LICENCE_KEY in .env or visit portal.dqagent.vantax.co.za"
-    warn "Continuing anyway — the system will run in degraded mode."
+    info "Validating licence key..."
+    LICENCE_URL="${LICENCE_SERVER_URL:-https://licence.dqagent.vantax.co.za}"
+    LICENCE_RESPONSE=$(curl -s -m 15 -X POST "${LICENCE_URL}/validate" \
+        -H "Content-Type: application/json" \
+        -d "{\"licenceKey\": \"${LICENCE_KEY}\", \"machineFingerprint\": \"$(hostname)\"}" \
+        2>/dev/null || echo "")
+
+    if echo "$LICENCE_RESPONSE" | grep -q '"valid":true'; then
+        LICENCE_MODULES=$(echo "$LICENCE_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('modules',[])))" 2>/dev/null || echo "unknown")
+        LICENCE_EXPIRES=$(echo "$LICENCE_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('expiresAt','unknown'))" 2>/dev/null || echo "unknown")
+        info "Licence valid ✓ — modules: $LICENCE_MODULES"
+    else
+        warn "Licence key invalid or cannot reach licence server."
+        warn "Check your LICENCE_KEY in .env or visit portal.dqagent.vantax.co.za"
+        warn "Continuing anyway — the system will run in degraded mode."
+    fi
 fi
 
 # ─── 6. Pull images ─────────────────────────────────────────────────────────

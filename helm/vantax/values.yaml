@@ -59,35 +59,37 @@ secrets:
   resendApiKey: ""
   ollamaApiKey: ""
   anthropicApiKey: ""
+  licenceSecret: ""
+  smtpPassword: ""
 
 api:
   resources:
     requests:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "256Mi"
     limits:
-      cpu: "2"
-      memory: "2Gi"
+      cpu: "500m"
+      memory: "1Gi"
 
 worker:
   resources:
     requests:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: "200m"
+      memory: "512Mi"
     limits:
-      cpu: "4"
-      memory: "4Gi"
+      cpu: "1000m"
+      memory: "2Gi"
   autoscaling:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
-    targetCPUUtilization: 70
+    targetCPUUtilization: 60
 
 frontend:
   resources:
     requests:
       cpu: "100m"
-      memory: "128Mi"
+      memory: "256Mi"
     limits:
       cpu: "500m"
-      memory: "512Mi"
+      memory: "1Gi"

@@ -142,13 +142,8 @@ def _check_trigger(trigger: str, config: dict, version_data: dict, session: Sess
     return False
 
 
-def _send_email(config: dict, version_data: dict, trigger: str):
-    """Send notification email via Resend API."""
-    api_key = os.getenv("RESEND_API_KEY", "")
-    if not api_key or not config.get("email"):
-        logger.info("Skipping email — no API key or email configured")
-        return
-
+def _build_email_content(config: dict, version_data: dict, trigger: str) -> tuple[str, str]:
+    """Build subject and HTML body for notification email."""
     tenant_name = config.get("tenant_name", "Vantax")
     critical_count = version_data.get("critical_count", 0)
     overall_dqs = version_data.get("overall_dqs", 0)
@@ -194,6 +189,39 @@ def _send_email(config: dict, version_data: dict, trigger: str):
     </html>
     """
 
+    return subject, body
+
+
+def _send_email_smtp(recipient: str, subject: str, body: str):
+    """Send email via local SMTP relay (air-gapped deployments)."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart()
+    msg["From"] = os.getenv("SMTP_FROM", "noreply@vantax.local")
+    msg["To"] = recipient
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "html"))
+
+    try:
+        with smtplib.SMTP(os.getenv("SMTP_HOST"), int(os.getenv("SMTP_PORT", "587"))) as smtp:
+            smtp.starttls()
+            if os.getenv("SMTP_USER"):
+                smtp.login(os.getenv("SMTP_USER"), os.getenv("SMTP_PASSWORD", ""))
+            smtp.sendmail(msg["From"], recipient, msg.as_string())
+        logger.info(f"Email sent via SMTP to {recipient}")
+    except Exception as e:
+        logger.error(f"SMTP send failed: {e}")
+
+
+def _send_email_resend(recipient: str, subject: str, body: str):
+    """Send email via Resend API (standard mode)."""
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        logger.info("Skipping email — no RESEND_API_KEY configured")
+        return
+
     try:
         resp = requests.post(
             RESEND_API_URL,
@@ -203,15 +231,30 @@ def _send_email(config: dict, version_data: dict, trigger: str):
             },
             json={
                 "from": "Vantax DQ Agent <notifications@dqagent.vantax.co.za>",
-                "to": [config["email"]],
+                "to": [recipient],
                 "subject": subject,
                 "html": body,
             },
             timeout=10,
         )
-        logger.info(f"Email sent: status={resp.status_code}")
+        logger.info(f"Email sent via Resend: status={resp.status_code}")
     except Exception as e:
-        logger.error(f"Email send failed: {e}")
+        logger.error(f"Resend email send failed: {e}")
+
+
+def _send_email(config: dict, version_data: dict, trigger: str):
+    """Send notification email via SMTP relay (air-gapped) or Resend API."""
+    recipient = config.get("email")
+    if not recipient:
+        logger.info("Skipping email — no email configured")
+        return
+
+    subject, body = _build_email_content(config, version_data, trigger)
+
+    if os.getenv("SMTP_HOST"):
+        _send_email_smtp(recipient, subject, body)
+    else:
+        _send_email_resend(recipient, subject, body)
 
 
 def _send_teams_card(config: dict, version_data: dict):

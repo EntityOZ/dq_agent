@@ -1,6 +1,8 @@
 import hashlib
+import hmac as hmac_mod
 import json
 import logging
+import os
 import platform
 import time
 import uuid
@@ -23,8 +25,11 @@ _cache: dict = {
 }
 
 _last_checked_at: Optional[float] = None
+_consecutive_failures: int = 0
+_first_failure_at: Optional[float] = None
 
 CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
+FAILURE_CUTOFF_SECONDS = 48 * 60 * 60  # 48 hours
 
 
 def _get_machine_fingerprint() -> str:
@@ -78,27 +83,94 @@ def get_cached_licence() -> dict:
 
 
 def _read_offline_licence() -> dict | None:
-    """Read licence from a local JSON file for air-gapped deployments."""
-    if not settings.licence_file:
-        return None
+    """Read licence from a local JSON file for air-gapped deployments.
+
+    Requires LICENCE_MODE=offline. Validates HMAC-SHA256 signature using LICENCE_SECRET.
+    After 48h of consecutive validation failures: refuse new analysis jobs,
+    keep dashboard and existing data accessible.
+    """
+    global _consecutive_failures, _first_failure_at
+
+    licence_mode = os.getenv("LICENCE_MODE", "online")
+    if licence_mode != "offline":
+        # Legacy support: fall back to checking licence_file directly
+        if not settings.licence_file:
+            return None
+        licence_path = settings.licence_file
+    else:
+        licence_path = os.getenv("LICENCE_FILE_PATH", "/etc/vantax/licence.json")
+        if not settings.licence_file:
+            licence_path = licence_path  # use LICENCE_FILE_PATH
+        else:
+            licence_path = settings.licence_file  # prefer settings if set
+
     try:
-        with open(settings.licence_file, "r") as f:
+        with open(licence_path, "r") as f:
             data = json.load(f)
+
+        # HMAC signature verification
+        licence_secret = os.getenv("LICENCE_SECRET", "")
+        if licence_secret and "signature" in data and "payload" in data:
+            # New format: {payload: {...}, signature: "<hmac_sha256_hex>"}
+            payload = data["payload"]
+            expected = hmac_mod.new(
+                licence_secret.encode(),
+                json.dumps(payload, sort_keys=True).encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            if data["signature"] != expected:
+                logger.warning("Offline licence HMAC signature mismatch")
+                _consecutive_failures += 1
+                if _first_failure_at is None:
+                    _first_failure_at = time.time()
+                return {"valid": False, "reason": "invalid_signature"}
+        elif licence_secret and "signature" not in data:
+            # Secret is set but file has no signature — legacy format, treat as payload
+            payload = data
+        else:
+            # No secret configured — trust the file as-is (legacy behavior)
+            payload = data.get("payload", data)
+
+        # Reset failure counter on successful read
+        _consecutive_failures = 0
+        _first_failure_at = None
+
         # Check expiry locally
-        expires_at = data.get("expiresAt", "")
+        expires_at = payload.get("expiresAt", "")
         if expires_at:
             exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
             if exp_dt < datetime.now(timezone.utc):
                 return {"valid": False, "reason": "expired"}
+
         return {
-            "valid": data.get("valid", True),
-            "modules": data.get("modules", []),
-            "tenantId": data.get("tenantId", ""),
+            "valid": payload.get("active", True),
+            "modules": payload.get("modules", []),
+            "tenantId": payload.get("tenantId", ""),
             "expiresAt": expires_at,
         }
+    except FileNotFoundError:
+        logger.warning(f"Offline licence file not found: {licence_path}")
+        _consecutive_failures += 1
+        if _first_failure_at is None:
+            _first_failure_at = time.time()
+        return None
     except Exception as e:
         logger.warning(f"Failed to read offline licence file: {e}")
+        _consecutive_failures += 1
+        if _first_failure_at is None:
+            _first_failure_at = time.time()
         return None
+
+
+def is_licence_degraded() -> bool:
+    """Check if offline licence failures have exceeded the 48h cutoff.
+
+    After 48h of consecutive failures: refuse new analysis jobs,
+    keep dashboard and existing data accessible.
+    """
+    if _first_failure_at is None or _consecutive_failures == 0:
+        return False
+    return (time.time() - _first_failure_at) > FAILURE_CUTOFF_SECONDS
 
 
 async def _validate_licence() -> dict | None:
@@ -106,7 +178,12 @@ async def _validate_licence() -> dict | None:
     global _last_checked_at
     _last_checked_at = time.time()
 
-    # Check offline licence file first
+    # Offline mode: skip network call entirely
+    licence_mode = os.getenv("LICENCE_MODE", "online")
+    if licence_mode == "offline":
+        return _read_offline_licence()
+
+    # Check offline licence file first (legacy support)
     offline = _read_offline_licence()
     if offline is not None:
         return offline
