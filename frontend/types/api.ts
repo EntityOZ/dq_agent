@@ -335,3 +335,93 @@ export interface ExceptionListResponse {
   page: number;
   per_page: number;
 }
+
+/* ─── NLP ─── */
+
+export interface NlpSource {
+  type: string;
+  id: string;
+  relevance: string;
+}
+
+export interface NlpResponse {
+  answer: string;
+  sources: NlpSource[];
+  data?: Record<string, unknown>[] | null;
+  chart_type?: "bar" | "line" | "pie" | null;
+}
+
+/* ─── Lineage ─── */
+
+export interface LineageNode {
+  id: string;
+  label: string;
+  type: "record" | "finding" | "exception" | "cleaning" | "dedup";
+  data: Record<string, unknown>;
+}
+
+export interface LineageEdge {
+  source: string;
+  target: string;
+  label: string;
+}
+
+export interface LineageGraph {
+  nodes: LineageNode[];
+  edges: LineageEdge[];
+}
+
+/* ─── Contracts ─── */
+
+export type ContractStatus = "draft" | "pending_approval" | "active" | "expired";
+
+export interface Contract {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  producer: string;
+  consumer: string;
+  schema_contract: Record<string, unknown> | null;
+  quality_contract: Record<string, number> | null;
+  freshness_contract: Record<string, unknown> | null;
+  volume_contract: Record<string, unknown> | null;
+  status: ContractStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  created_at: string;
+  activated_at: string | null;
+  expires_at: string | null;
+  latest_compliant?: boolean | null;
+  last_checked?: string | null;
+}
+
+export interface ContractListResponse {
+  contracts: Contract[];
+  total: number;
+}
+
+export interface ComplianceRecord {
+  id: string;
+  contract_id: string;
+  version_id: string | null;
+  completeness_actual: number | null;
+  accuracy_actual: number | null;
+  consistency_actual: number | null;
+  timeliness_actual: number | null;
+  uniqueness_actual: number | null;
+  validity_actual: number | null;
+  overall_compliant: boolean;
+  violations: Array<{
+    dimension: string;
+    threshold: number;
+    actual: number;
+    gap: number;
+  }> | null;
+  recorded_at: string;
+}
+
+export interface ComplianceHistoryResponse {
+  contract_id: string;
+  compliance_history: ComplianceRecord[];
+}

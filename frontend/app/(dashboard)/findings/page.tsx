@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, RefreshCw, Network } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,14 @@ import {
 } from "@/components/ui/dialog";
 import { getVersions } from "@/lib/api/versions";
 import { getFindings, getFindingReportContext } from "@/lib/api/findings";
+import { getLineage } from "@/lib/api/contracts";
+import dynamic from "next/dynamic";
+import type { LineageGraph } from "@/types/api";
+
+const LineageGraphComponent = dynamic(
+  () => import("@/components/charts/lineage-graph"),
+  { ssr: false, loading: () => <Skeleton className="h-96 w-full" /> },
+);
 import {
   severityColor,
   formatModuleName,
@@ -147,6 +155,29 @@ function FindingsContent() {
   const [dimensionFilter, setDimensionFilter] = useState(paramDimension);
   const [page, setPage] = useState(0);
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [lineageFinding, setLineageFinding] = useState<Finding | null>(null);
+  const [lineageData, setLineageData] = useState<LineageGraph | null>(null);
+  const [lineageLoading, setLineageLoading] = useState(false);
+
+  const openLineage = async (f: Finding) => {
+    setLineageFinding(f);
+    setLineageLoading(true);
+    try {
+      // Extract a record key from the finding's sample data
+      const samples = f.details?.sample_failing_records ?? [];
+      const idField = f.details?.id_field_used as string | undefined;
+      const recordKey =
+        idField && samples[0]
+          ? String(samples[0][idField] ?? "")
+          : f.check_id;
+      const data = await getLineage(f.module, recordKey || f.check_id);
+      setLineageData(data);
+    } catch {
+      setLineageData({ nodes: [], edges: [] });
+    } finally {
+      setLineageLoading(false);
+    }
+  };
 
   const { data: versionData } = useQuery({
     queryKey: ["versions-list"],
@@ -371,13 +402,26 @@ function FindingsContent() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedFinding(f)}
-                        >
-                          View detail
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedFinding(f)}
+                          >
+                            View detail
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLineage(f);
+                            }}
+                            title="View Lineage"
+                          >
+                            <Network className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -412,6 +456,35 @@ function FindingsContent() {
           </Button>
         </div>
       )}
+
+      {/* ── Lineage modal ── */}
+      <Dialog
+        open={lineageFinding !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLineageFinding(null);
+            setLineageData(null);
+          }
+        }}
+      >
+        <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[90vw] max-w-[800px] h-[70vh] overflow-y-auto p-6 rounded-xl shadow-2xl border border-[var(--vx-border,#D6E4F0)] bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-[#0695A8]" />
+              Data Lineage — {lineageFinding?.check_id}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {lineageLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Skeleton className="h-96 w-full" />
+              </div>
+            ) : lineageData ? (
+              <LineageGraphComponent graph={lineageData} width={720} height={450} />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Detail modal — centred, wide, scrollable ── */}
       <Dialog

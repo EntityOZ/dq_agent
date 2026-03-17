@@ -423,3 +423,57 @@ class CostAvoidance(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "period", name="uq_cost_avoidance_tenant_period"),
     )
+
+
+# ── Phase D: Contracts ──────────────────────────────────────────────────────
+
+
+class Contract(Base):
+    __tablename__ = "contracts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    producer = Column(Text, nullable=False)
+    consumer = Column(Text, nullable=False)
+    schema_contract = Column(JSONB, nullable=True)
+    quality_contract = Column(JSONB, nullable=True)
+    freshness_contract = Column(JSONB, nullable=True)
+    volume_contract = Column(JSONB, nullable=True)
+    status = Column(Text, nullable=False, server_default="draft")
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+    approved_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    activated_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    compliance_history = relationship("ContractComplianceHistory", back_populates="contract")
+
+    __table_args__ = (
+        Index("ix_contracts_tenant_status", "tenant_id", "status"),
+    )
+
+
+class ContractComplianceHistory(Base):
+    __tablename__ = "contract_compliance_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("contracts.id"), nullable=False)
+    version_id = Column(UUID(as_uuid=True), ForeignKey("analysis_versions.id"), nullable=True)
+    completeness_actual = Column(Numeric, nullable=True)
+    accuracy_actual = Column(Numeric, nullable=True)
+    consistency_actual = Column(Numeric, nullable=True)
+    timeliness_actual = Column(Numeric, nullable=True)
+    uniqueness_actual = Column(Numeric, nullable=True)
+    validity_actual = Column(Numeric, nullable=True)
+    overall_compliant = Column(Boolean, nullable=False, server_default="false")
+    violations = Column(JSONB, nullable=True)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    contract = relationship("Contract", back_populates="compliance_history")
+
+    __table_args__ = (
+        Index("ix_contract_compliance_tenant_contract_recorded", "tenant_id", "contract_id", "recorded_at"),
+    )
