@@ -259,3 +259,106 @@ class StewardMetric(Base):
     exceptions_resolved = Column(Integer, nullable=False, server_default="0")
     dqs_impact = Column(Numeric, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
+# ── Phase B: Exception management ────────────────────────────────────────────
+
+
+class Exception_(Base):
+    __tablename__ = "exceptions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    type = Column(Text, nullable=False)
+    category = Column(Text, nullable=False)
+    severity = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, server_default="open")
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=False)
+    source_system = Column(Text, nullable=True)
+    source_reference = Column(Text, nullable=True)
+    affected_records = Column(JSONB, nullable=True)
+    estimated_impact_zar = Column(Numeric, nullable=True)
+    assigned_to = Column(UUID(as_uuid=True), nullable=True)
+    escalation_tier = Column(Integer, nullable=False, server_default="1")
+    sla_deadline = Column(DateTime(timezone=True), nullable=True)
+    root_cause_category = Column(Text, nullable=True)
+    resolution_type = Column(Text, nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+    linked_finding_id = Column(UUID(as_uuid=True), ForeignKey("findings.id"), nullable=True)
+    linked_cleaning_id = Column(UUID(as_uuid=True), ForeignKey("cleaning_queue.id"), nullable=True)
+    billing_tier = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    comments = relationship("ExceptionComment", back_populates="exception")
+
+    __table_args__ = (
+        Index("ix_exceptions_tenant_status", "tenant_id", "status"),
+        Index("ix_exceptions_tenant_type", "tenant_id", "type"),
+        Index("ix_exceptions_tenant_severity", "tenant_id", "severity"),
+        Index("ix_exceptions_sla_deadline", "sla_deadline"),
+    )
+
+
+class ExceptionComment(Base):
+    __tablename__ = "exception_comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    exception_id = Column(UUID(as_uuid=True), ForeignKey("exceptions.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
+    user_name = Column(Text, nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    exception = relationship("Exception_", back_populates="comments")
+
+    __table_args__ = (
+        Index("ix_exception_comments_exception", "exception_id"),
+    )
+
+
+class ExceptionRule(Base):
+    __tablename__ = "exception_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=False)
+    rule_type = Column(Text, nullable=False)
+    object_type = Column(Text, nullable=False)
+    condition = Column(Text, nullable=False)
+    severity = Column(Text, nullable=False)
+    auto_assign_to = Column(UUID(as_uuid=True), nullable=True)
+    is_active = Column(Boolean, nullable=False, server_default="false")
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_exception_rules_tenant", "tenant_id"),
+    )
+
+
+class ExceptionBilling(Base):
+    __tablename__ = "exception_billing"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    period = Column(Text, nullable=False)
+    tier1_count = Column(Integer, nullable=False, server_default="0")
+    tier2_count = Column(Integer, nullable=False, server_default="0")
+    tier3_count = Column(Integer, nullable=False, server_default="0")
+    tier4_count = Column(Integer, nullable=False, server_default="0")
+    tier1_amount = Column(Numeric, nullable=False, server_default="0")
+    tier2_amount = Column(Numeric, nullable=False, server_default="0")
+    tier3_amount = Column(Numeric, nullable=False, server_default="0")
+    tier4_amount = Column(Numeric, nullable=False, server_default="0")
+    base_fee = Column(Numeric, nullable=False, server_default="8000")
+    total_amount = Column(Numeric, nullable=False, server_default="0")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "period", name="uq_exception_billing_tenant_period"),
+    )

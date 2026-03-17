@@ -170,6 +170,14 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
         except Exception as e:
             logger.warning(f"Failed to enqueue run_cleaning (non-fatal): {e}")
 
+        # Enqueue exception scan (non-blocking — failure is non-fatal)
+        try:
+            from workers.tasks.run_exception_scan import run_exception_scan
+            run_exception_scan.delay(version_id, tenant_id)
+            logger.info(f"Enqueued run_exception_scan for version_id={version_id}")
+        except Exception as e:
+            logger.warning(f"Failed to enqueue run_exception_scan (non-fatal): {e}")
+
         return {"version_id": version_id, "status": "complete", "findings_count": len(all_results)}
 
     except Exception as e:
