@@ -542,14 +542,25 @@ async def update_rule(
 ):
     await _set_rls(db, tenant.id)
 
+    # Explicit whitelist: body field name → SQL column name
+    _ALLOWED_RULE_UPDATE_FIELDS: dict[str, str] = {
+        "name": "name",
+        "description": "description",
+        "rule_type": "rule_type",
+        "object_type": "object_type",
+        "condition": "condition",
+        "severity": "severity",
+        "auto_assign_to": "auto_assign_to",
+    }
+
     updates = []
     params: dict = {"rid": rule_id, "tid": str(tenant.id)}
 
-    for field in ["name", "description", "rule_type", "object_type", "condition", "severity", "auto_assign_to"]:
-        val = getattr(body, field, None)
+    for body_field, col_name in _ALLOWED_RULE_UPDATE_FIELDS.items():
+        val = getattr(body, body_field, None)
         if val is not None:
-            updates.append(f"{field} = :{field}")
-            params[field] = val
+            updates.append(f"{col_name} = :{body_field}")
+            params[body_field] = val
 
     if body.is_active is not None:
         updates.append("is_active = :is_active")

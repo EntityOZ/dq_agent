@@ -121,6 +121,7 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
                             CAST(:value_fix_map AS jsonb),
                             CAST(:record_fixes AS jsonb)
                         )
+                        ON CONFLICT (version_id, check_id, tenant_id) DO NOTHING
                     """),
                     {
                         "version_id": version_id,
@@ -174,6 +175,7 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
                             :timeliness, :uniqueness, :validity,
                             :finding_count
                         )
+                        ON CONFLICT (tenant_id, module_id, (recorded_at::date)) DO NOTHING
                     """),
                     {
                         "tenant_id": tenant_id,

@@ -7,7 +7,6 @@ The SAP password is NEVER logged or stored.
 import io
 import logging
 import re
-import time
 import uuid
 from typing import Optional
 
@@ -21,9 +20,68 @@ from api.deps import Tenant, get_db, get_tenant
 router = APIRouter(prefix="/api/v1", tags=["connect"])
 logger = logging.getLogger("vantax.connect")
 
-# Rate limiting: max 1 live connection per tenant per 5 minutes
-_rate_limit: dict[str, float] = {}
 RATE_LIMIT_SECONDS = 5 * 60
+
+# ── ABAP injection prevention ────────────────────────────────────────────────
+_SAFE_WHERE = re.compile(
+    r"^[A-Z0-9_]+ (=|<>|<|>|<=|>=|LIKE|IN) '([^']|'')*'"
+    r"( (AND|OR) [A-Z0-9_]+ (=|<>|<|>|<=|>=|LIKE|IN) '([^']|'')*')*$",
+    re.IGNORECASE,
+)
+_BLOCKED = re.compile(r"SELECT|EXEC|CALL|FUNCTION|--|/\*|SUBMIT", re.IGNORECASE)
+
+
+def validate_rfc_where(where: str | None) -> str | None:
+    """Validate RFC WHERE clause against ABAP injection.
+
+    Only permits simple field comparisons: FIELD = 'VALUE', FIELD LIKE 'VALUE%'.
+    Rejects SQL/ABAP keywords and unsafe character sequences.
+    """
+    if where is None:
+        return None
+    stripped = where.strip()
+    if not stripped:
+        return None
+    if _BLOCKED.search(stripped):
+        raise HTTPException(status_code=422, detail="Invalid WHERE clause")
+    if not _SAFE_WHERE.match(stripped):
+        raise HTTPException(
+            status_code=422, detail="WHERE clause format not permitted"
+        )
+    return stripped
+
+
+# ── Redis-backed rate limiting ────────────────────────────────────────────────
+
+
+def _check_rfc_rate_limit(tenant_id: str) -> None:
+    """Raises 429 if tenant has exceeded 1 RFC connection per 5 minutes.
+
+    Uses Redis INCR + EXPIRE for persistence across API restarts.
+    Falls back to allow-through if Redis is unreachable.
+    """
+    try:
+        import redis as _redis
+        from api.config import settings
+
+        r = _redis.Redis.from_url(settings.redis_url, decode_responses=True)
+        key = f"rate_limit:rfc:{tenant_id}"
+        count = r.incr(key)
+        if count == 1:
+            r.expire(key, RATE_LIMIT_SECONDS)
+        if count > 1:
+            ttl = r.ttl(key)
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limited",
+                    "detail": f"Max 1 live connection per 5 min. Retry in {ttl}s.",
+                },
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Rate limit Redis unavailable: {e} — allowing request")
 
 
 class SAPConnectionRequest(BaseModel):
@@ -94,19 +152,8 @@ async def connect_sap(
     """
     tenant_key = str(tenant.id)
 
-    # Rate limiting: max 1 connection per tenant per 5 minutes
-    now = time.time()
-    last_call = _rate_limit.get(tenant_key, 0.0)
-    if now - last_call < RATE_LIMIT_SECONDS:
-        remaining = int(RATE_LIMIT_SECONDS - (now - last_call))
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "rate_limited",
-                "detail": f"Max 1 live connection per 5 minutes. Retry in {remaining}s.",
-            },
-        )
-    _rate_limit[tenant_key] = now
+    # Rate limiting: Redis-backed, persists across restarts
+    _check_rfc_rate_limit(tenant_key)
 
     # Import pyrfc — optional dependency
     try:
@@ -131,7 +178,8 @@ async def connect_sap(
             sysnr=body.sysnr,
         )
 
-        options = [{"TEXT": body.where}] if body.where else []
+        validated_where = validate_rfc_where(body.where)
+        options = [{"TEXT": validated_where}] if validated_where else []
 
         result = conn.call(
             "RFC_READ_TABLE",
@@ -166,7 +214,8 @@ async def connect_sap(
         )
 
     row_count = len(df)
-    logger.info(f"RFC extracted {row_count} rows from {body.table} for tenant {tenant_key}")
+    logger.debug(f"RFC extracted {row_count} rows from {body.table} for tenant {tenant_key}")
+    logger.info(f"RFC extraction complete: {row_count} rows")
 
     # Apply column mapping (same pipeline as CSV upload)
     from api.services.column_mapper import apply_column_mapping

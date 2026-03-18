@@ -184,6 +184,7 @@ def _snapshot_for_tenant(engine, tenant_id: str) -> None:
                     :sc, :score,
                     :backlog, :sync_pct
                 )
+                ON CONFLICT (tenant_id, snapshot_date, domain) DO NOTHING
             """),
             {
                 "tid": tenant_id,
