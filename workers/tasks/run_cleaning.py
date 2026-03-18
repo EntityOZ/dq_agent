@@ -68,6 +68,38 @@ def run_cleaning(self, version_id: str, tenant_id: str, object_type: str, parque
         with Session(db_engine) as session:
             session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
 
+            # Golden record batch lookup — one query, not per-record
+            record_keys = list({c['record_key'] for c in candidates})
+            golden_map: dict[str, dict] = {}
+            if record_keys:
+                # Batch in groups of 500 to avoid query size limits
+                for batch_start in range(0, len(record_keys), 500):
+                    batch = record_keys[batch_start:batch_start + 500]
+                    placeholders = ', '.join(f':k{i}' for i in range(len(batch)))
+                    params = {'tid': tenant_id, 'domain': object_type}
+                    params.update({f'k{i}': k for i, k in enumerate(batch)})
+                    result = session.execute(text(f"""
+                        SELECT sap_object_key, id, golden_fields
+                        FROM master_records
+                        WHERE tenant_id = :tid
+                          AND domain = :domain
+                          AND status = 'golden'
+                          AND sap_object_key IN ({placeholders})
+                    """), params)
+                    for row in result.fetchall():
+                        golden_map[row[0]] = {'id': str(row[1]), 'golden_fields': row[2] or {}}
+
+            # Enrich each candidate with golden record data
+            for c in candidates:
+                gr = golden_map.get(c['record_key'])
+                if gr:
+                    c['golden_record_id'] = gr['id']
+                    field_name = c.get('field_name') or c.get('check_id', '')
+                    c['golden_field_value'] = gr['golden_fields'].get(field_name)
+                else:
+                    c['golden_record_id'] = None
+                    c['golden_field_value'] = None
+
             for c in candidates:
                 # Separate dedup candidates
                 if c.get("category") == "dedup" and c.get("merge_preview"):
@@ -102,11 +134,13 @@ def run_cleaning(self, version_id: str, tenant_id: str, object_type: str, parque
                         INSERT INTO cleaning_queue (
                             id, tenant_id, rule_id, object_type, status, confidence,
                             record_key, record_data_before, record_data_after,
-                            merge_preview, priority, version_id
+                            merge_preview, priority, version_id,
+                            golden_record_id, golden_field_value
                         ) VALUES (
                             gen_random_uuid(), :tid, :rid, :ot, 'detected', :conf,
                             :rk, CAST(:before AS jsonb), CAST(:after AS jsonb),
-                            CAST(:mp AS jsonb), :pri, :vid
+                            CAST(:mp AS jsonb), :pri, :vid,
+                            CAST(:grid AS uuid), :gfv
                         )
                     """),
                     {
@@ -120,6 +154,8 @@ def run_cleaning(self, version_id: str, tenant_id: str, object_type: str, parque
                         "mp": json.dumps(c.get("merge_preview") or {}),
                         "pri": c.get("priority", 50),
                         "vid": version_id,
+                        "grid": c.get("golden_record_id"),
+                        "gfv": c.get("golden_field_value"),
                     },
                 )
 

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -275,10 +275,15 @@ async def get_contract_compliance(
 @router.post("/nlp/query")
 async def nlp_query(
     body: NlpQueryBody,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
 ):
     await _set_rls(db, tenant.id)
+
+    # Extract user role from request state (set by LicenceMiddleware)
+    # Falls back to 'viewer' if not present — the safest default
+    user_role = getattr(request.state, 'user_role', 'viewer')
 
     from api.services.nlp_service import process_query
 
@@ -286,6 +291,7 @@ async def nlp_query(
         question=body.question,
         tenant_context={"tenant_id": tenant.id},
         db=db,
+        user_role=user_role,
     )
     return result
 

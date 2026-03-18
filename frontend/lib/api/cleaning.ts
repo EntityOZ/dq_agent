@@ -18,6 +18,9 @@ export interface CleaningQueueItem {
   merge_preview: Record<string, { a: string; b: string; survivor: string }> | null;
   record_data_before: Record<string, unknown> | null;
   record_data_after: Record<string, unknown> | null;
+  golden_record_id: string | null;
+  golden_field_value: string | null;
+  golden_record_exists: boolean;
   audit?: AuditEntry[];
 }
 

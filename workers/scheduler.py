@@ -89,6 +89,51 @@ def daily_analysis():
                     logger.info(f"  tenant={tid}: already ran today, skipping")
                     continue
 
+                # AI batch quality scoring — runs before rules checks, never blocks pipeline
+                try:
+                    from workers.tasks.ai_sync_quality import score_batch
+                    import pandas as pd
+
+                    findings_result = session.execute(
+                        text("""
+                            SELECT module, check_id, severity, pass_rate, affected_count, total_count
+                            FROM findings
+                            WHERE tenant_id = :tid AND version_id = :vid
+                        """),
+                        {'tid': tid, 'vid': version_id},
+                    )
+                    findings_rows = findings_result.fetchall()
+
+                    if findings_rows:
+                        df = pd.DataFrame(
+                            [dict(r._mapping) for r in findings_rows]
+                        )
+                        ai_result = score_batch(
+                            tenant_id=tid,
+                            domain='all',
+                            df=df,
+                        )
+                        if ai_result:
+                            session.execute(
+                                text("""
+                                    UPDATE analysis_versions
+                                    SET ai_quality_score = :score,
+                                        anomaly_flags = CAST(:flags AS jsonb)
+                                    WHERE id = :vid AND tenant_id = :tid
+                                """),
+                                {
+                                    'score': ai_result.get('ai_quality_score'),
+                                    'flags': json.dumps(ai_result.get('anomaly_flags', {})),
+                                    'vid': version_id,
+                                    'tid': tid,
+                                },
+                            )
+                            session.commit()
+                            logger.info(f"  tenant={tid}: AI quality score={ai_result.get('ai_quality_score', 'n/a')}")
+                except Exception as e:
+                    logger.warning(f"  tenant={tid}: ai_sync_quality scoring failed: {e} — continuing")
+                    session.rollback()
+
                 # Enqueue run_checks
                 from workers.tasks.run_checks import run_checks
                 run_checks.delay(version_id, tid)
@@ -555,6 +600,32 @@ def daily_digest():
                     except Exception as e:
                         logger.warning(f"  tenant={tid}: predictive analytics failed: {e}")
 
+                # 2b. Anomaly warning — flag low-quality sync runs in last 24h
+                anomaly_warning = None
+                try:
+                    low_quality = session.execute(
+                        text("""
+                            SELECT sp.domain, sr.ai_quality_score
+                            FROM sync_runs sr
+                            JOIN sync_profiles sp ON sp.id = sr.profile_id
+                            WHERE sr.tenant_id = :tid
+                              AND sr.started_at > now() - interval '24 hours'
+                              AND sr.ai_quality_score IS NOT NULL
+                              AND sr.ai_quality_score < 0.7
+                            ORDER BY sr.ai_quality_score ASC
+                            LIMIT 5
+                        """),
+                        {'tid': tid},
+                    ).fetchall()
+                    if low_quality:
+                        summary = ', '.join(
+                            f"{r[0]} ({r[1]:.2f})" for r in low_quality
+                        )
+                        anomaly_warning = f'Data anomalies detected in {len(low_quality)} sync run(s): {summary}'
+                        logger.info(f"  tenant={tid}: anomaly warning: {anomaly_warning}")
+                except Exception as e:
+                    logger.warning(f"  tenant={tid}: anomaly digest check failed: {e}")
+
                 # 3. Generate next-best actions
                 next_actions: list[dict] = []
                 try:
@@ -582,6 +653,7 @@ def daily_digest():
                                 "exceptions": new_exceptions,
                                 "early_warnings": early_warnings,
                                 "next_actions": next_actions,
+                                "anomaly_warning": anomaly_warning,
                             }),
                         },
                     )
