@@ -25,6 +25,8 @@ from api.routes.master_records import router as master_records_router
 from api.routes.ai_feedback import router as ai_feedback_router
 from api.routes.match_rules import router as match_rules_router
 from api.routes.glossary import router as glossary_router
+from api.routes.relationships import router as relationships_router
+from api.routes.stewardship import router as stewardship_router
 
 logger = logging.getLogger("vantax")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -121,3 +123,5 @@ app.include_router(master_records_router)
 app.include_router(ai_feedback_router)
 app.include_router(match_rules_router)
 app.include_router(glossary_router)
+app.include_router(relationships_router)
+app.include_router(stewardship_router)

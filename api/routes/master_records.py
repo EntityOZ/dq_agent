@@ -251,7 +251,7 @@ async def promote_master_record(
     # Load current record
     result = await db.execute(
         text("""
-            SELECT id, status, golden_fields, source_contributions
+            SELECT id, status, golden_fields, source_contributions, domain, sap_object_key
             FROM master_records
             WHERE id = :id AND tenant_id = :tid
         """),
@@ -316,7 +316,72 @@ async def promote_master_record(
     await db.commit()
     logger.info(f"Master record {record_id} promoted to golden by {user_id}")
 
-    return {"status": "golden", "promoted_at": now.isoformat()}
+    # ── Impact propagation: queue related domain records for steward review ──
+    record_domain = row[4]
+    record_key = row[5]
+
+    related_result = await db.execute(
+        text("""
+            SELECT DISTINCT
+                CASE WHEN from_domain = :domain AND from_key = :key
+                     THEN to_domain ELSE from_domain END AS related_domain,
+                CASE WHEN from_domain = :domain AND from_key = :key
+                     THEN to_key ELSE from_key END AS related_key,
+                id AS relationship_id
+            FROM record_relationships
+            WHERE tenant_id = :tid
+              AND active = true
+              AND (
+                  (from_domain = :domain AND from_key = :key)
+                  OR (to_domain = :domain AND to_key = :key)
+              )
+        """),
+        {"tid": tenant_id, "domain": record_domain, "key": record_key},
+    )
+
+    queued_count = 0
+    for rel_row in related_result.fetchall():
+        related_domain = rel_row[0]
+        related_key = rel_row[1]
+        relationship_id = rel_row[2]
+
+        # Find the master_record id for the related record (if it exists)
+        mr_result = await db.execute(
+            text("""
+                SELECT id FROM master_records
+                WHERE tenant_id = :tid AND domain = :related_domain AND sap_object_key = :related_key
+                LIMIT 1
+            """),
+            {"tid": tenant_id, "related_domain": related_domain, "related_key": related_key},
+        )
+        mr_row = mr_result.fetchone()
+        source_id = str(mr_row[0]) if mr_row else str(relationship_id)
+
+        await db.execute(
+            text("""
+                INSERT INTO stewardship_queue (
+                    id, tenant_id, item_type, source_id, domain, priority, status
+                ) VALUES (
+                    gen_random_uuid(), :tid, 'golden_record_review', :source_id,
+                    :related_domain, 2, 'open'
+                )
+            """),
+            {
+                "tid": tenant_id,
+                "source_id": source_id,
+                "related_domain": related_domain,
+            },
+        )
+        queued_count += 1
+
+    if queued_count > 0:
+        await db.commit()
+        logger.info(
+            f"Impact propagation: queued {queued_count} stewardship items "
+            f"for related domains after promoting {record_id}"
+        )
+
+    return {"status": "golden", "promoted_at": now.isoformat(), "related_reviews_queued": queued_count}
 
 
 @router.post("/master-records/{record_id}/writeback")

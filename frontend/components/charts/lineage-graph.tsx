@@ -10,6 +10,7 @@ const NODE_COLOURS: Record<string, string> = {
   exception: "#DC2626",
   cleaning: "#D97706",
   dedup: "#7C3AED",
+  relationship: "#2563EB",
 };
 
 const NODE_RADIUS = 18;
@@ -59,6 +60,10 @@ export default function LineageGraphComponent({
     svg.call(zoom);
 
     const nodes: SimNode[] = graph.nodes.map((n) => ({ ...n }));
+    // Build a lookup of node data by id for edge styling
+    const nodeDataById: Record<string, Record<string, unknown>> = {};
+    graph.nodes.forEach((n) => { nodeDataById[n.id] = n.data; });
+
     const links: SimLink[] = graph.edges.map((e) => ({
       source: e.source,
       target: e.target,
@@ -82,9 +87,25 @@ export default function LineageGraphComponent({
       .selectAll("line")
       .data(links)
       .join("line")
-      .attr("stroke", "#D6E4F0")
-      .attr("stroke-width", 1.5)
-      .attr("stroke-opacity", 0.7);
+      .attr("stroke", (d) => {
+        // Relationship edges get a distinct colour
+        const targetId = typeof d.target === "string" ? d.target : (d.target as SimNode).id;
+        const targetNode = graph.nodes.find((n) => n.id === targetId);
+        return targetNode?.type === "relationship" ? "#2563EB" : "#D6E4F0";
+      })
+      .attr("stroke-width", (d) => {
+        // Edge weight = impact_score (thicker = higher impact)
+        const targetId = typeof d.target === "string" ? d.target : (d.target as SimNode).id;
+        const impact = nodeDataById[targetId]?.impact_score as number | undefined;
+        return impact ? 1.5 + impact * 3 : 1.5;
+      })
+      .attr("stroke-opacity", 0.7)
+      .attr("stroke-dasharray", (d) => {
+        // Dashed line for ai_inferred relationships
+        const targetId = typeof d.target === "string" ? d.target : (d.target as SimNode).id;
+        const isAiInferred = nodeDataById[targetId]?.ai_inferred as boolean | undefined;
+        return isAiInferred ? "6,3" : "none";
+      });
 
     const linkLabel = g
       .append("g")

@@ -844,6 +844,29 @@ class GlossaryTermRule(Base):
     )
 
 
+class StewardshipQueueItem(Base):
+    __tablename__ = "stewardship_queue"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    item_type = Column(Text, nullable=False)
+    source_id = Column(UUID(as_uuid=True), nullable=False)
+    domain = Column(Text, nullable=False)
+    priority = Column(Integer, nullable=False, server_default="3")
+    due_at = Column(DateTime(timezone=True), nullable=True)
+    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    status = Column(Text, nullable=False, server_default="open")
+    sla_hours = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    ai_recommendation = Column(Text, nullable=True)
+    ai_confidence = Column(Float, nullable=True)
+
+    __table_args__ = (
+        Index("ix_stewardship_queue_priority", "tenant_id", "status", "priority", "due_at"),
+    )
+
+
 class GlossaryChangeLog(Base):
     __tablename__ = "glossary_change_log"
 
@@ -864,3 +887,42 @@ class GlossaryChangeLog(Base):
         Index("ix_glossary_change_log_term", "term_id"),
     )
 
+
+class RelationshipType(Base):
+    """Reference table of known SAP cross-domain relationship types. No RLS — shared data."""
+    __tablename__ = "relationship_types"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    from_table = Column(Text, nullable=False)
+    to_table = Column(Text, nullable=False)
+    relationship_type = Column(Text, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+
+
+class RecordRelationship(Base):
+    """Cross-domain relationships between master records. RLS on tenant_id."""
+    __tablename__ = "record_relationships"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    from_domain = Column(Text, nullable=False)
+    from_key = Column(Text, nullable=False)
+    to_domain = Column(Text, nullable=False)
+    to_key = Column(Text, nullable=False)
+    relationship_type = Column(Text, nullable=False)
+    sap_link_table = Column(Text, nullable=True)
+    discovered_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    active = Column(Boolean, nullable=False, server_default="true")
+    ai_inferred = Column(Boolean, nullable=False, server_default="false")
+    ai_confidence = Column(Float, nullable=True)
+    impact_score = Column(Float, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "from_domain", "from_key", "to_domain", "to_key", "relationship_type",
+            name="uq_record_relationships_pair",
+        ),
+        Index("ix_record_relationships_tenant", "tenant_id"),
+        Index("ix_record_relationships_from", "tenant_id", "from_domain", "from_key"),
+        Index("ix_record_relationships_to", "tenant_id", "to_domain", "to_key"),
+    )

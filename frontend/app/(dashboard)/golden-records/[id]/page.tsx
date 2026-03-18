@@ -15,6 +15,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  GitBranch,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,19 @@ import {
   writebackMasterRecord,
 } from "@/lib/api/master-records";
 import { batchLookupGlossary } from "@/lib/api/glossary";
+import { getRelationships } from "@/lib/api/relationships";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatModuleName, relativeTime } from "@/lib/format";
 import type {
   MasterRecordDetail,
   MasterRecordHistoryEntry,
   SourceContribution,
+  RecordRelationship,
 } from "@/types/api";
 
 function ConfidenceBar({
@@ -231,12 +240,129 @@ function HistoryPanel({ recordId }: { recordId: string }) {
   );
 }
 
+function RelationshipsPanel({
+  domain,
+  objectKey,
+}: {
+  domain: string;
+  objectKey: string;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["relationships", domain, objectKey],
+    queryFn: () => getRelationships({ domain, key: objectKey }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-[#0695A8]" />
+      </div>
+    );
+  }
+
+  const relationships = data?.relationships ?? [];
+
+  if (relationships.length === 0) {
+    return (
+      <p className="py-4 text-center text-sm text-[#6B92AD]">
+        No cross-domain relationships found
+      </p>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="space-y-2">
+        {relationships.map((rel: RecordRelationship) => {
+          // Show the "other" side of the relationship
+          const isFrom = rel.from_domain === domain && rel.from_key === objectKey;
+          const otherDomain = isFrom ? rel.to_domain : rel.from_domain;
+          const otherKey = isFrom ? rel.to_key : rel.from_key;
+          const impactPct = rel.impact_score != null ? Math.round(rel.impact_score * 100) : null;
+
+          return (
+            <div
+              key={rel.id}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
+                rel.ai_inferred
+                  ? "border-dashed border-[#2563EB]/30 bg-[#2563EB]/5"
+                  : "border-[#F0F5FA]"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB]/10">
+                  <GitBranch className="h-4 w-4 text-[#2563EB]" />
+                </div>
+                <div>
+                  <Link
+                    href={`/golden-records?domain=${otherDomain}`}
+                    className="text-sm font-medium text-[#0F2137] hover:text-[#0695A8]"
+                  >
+                    {formatModuleName(otherDomain)} / {otherKey}
+                  </Link>
+                  <p className="text-xs text-[#6B92AD]">
+                    {rel.relationship_type.replace(/_/g, " ")}
+                    {rel.sap_link_table && ` · via ${rel.sap_link_table}`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {impactPct !== null && (
+                  <div className="flex items-center gap-1">
+                    <div className="h-1.5 w-12 rounded-full bg-[#F0F5FA]">
+                      <div
+                        className={`h-1.5 rounded-full ${
+                          impactPct >= 70
+                            ? "bg-[#DC2626]"
+                            : impactPct >= 40
+                              ? "bg-[#D97706]"
+                              : "bg-[#059669]"
+                        }`}
+                        style={{ width: `${impactPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-[#0F2137]">
+                      {impactPct}%
+                    </span>
+                  </div>
+                )}
+                {rel.ai_inferred && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Badge
+                        variant="outline"
+                        className="gap-1 bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20 text-[10px]"
+                      >
+                        <Brain className="h-2.5 w-2.5" />
+                        Probable
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        Probable — not confirmed in SAP
+                        {rel.ai_confidence != null &&
+                          ` (${Math.round(rel.ai_confidence * 100)}% confidence)`}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </TooltipProvider>
+  );
+}
+
 export default function GoldenRecordDetailPage() {
   const params = useParams();
   const router = useRouter();
   const qc = useQueryClient();
   const recordId = params.id as string;
   const [showHistory, setShowHistory] = useState(false);
+  const [showRelationships, setShowRelationships] = useState(false);
 
   const { data: record, isLoading } = useQuery({
     queryKey: ["master-record", recordId],
@@ -432,6 +558,36 @@ export default function GoldenRecordDetailPage() {
                 businessName={glossaryLookup?.lookup?.[field]?.business_name}
               />
             ))
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Relationships tab */}
+      <Card className="border-[#D6E4F0] bg-white">
+        <CardContent className="p-0">
+          <button
+            onClick={() => setShowRelationships(!showRelationships)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#F0F5FA]/50"
+          >
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-[#2563EB]" />
+              <span className="text-sm font-semibold text-[#0F2137]">
+                Relationships
+              </span>
+            </div>
+            {showRelationships ? (
+              <ChevronUp className="h-4 w-4 text-[#6B92AD]" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-[#6B92AD]" />
+            )}
+          </button>
+          {showRelationships && (
+            <div className="border-t border-[#F0F5FA] px-4 py-3">
+              <RelationshipsPanel
+                domain={record.domain}
+                objectKey={record.sap_object_key}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

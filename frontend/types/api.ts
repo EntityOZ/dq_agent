@@ -361,7 +361,7 @@ export interface NlpResponse {
 export interface LineageNode {
   id: string;
   label: string;
-  type: "record" | "finding" | "exception" | "cleaning" | "dedup";
+  type: "record" | "finding" | "exception" | "cleaning" | "dedup" | "relationship";
   data: Record<string, unknown>;
 }
 
@@ -742,4 +742,85 @@ export interface BatchLookupEntry {
 
 export interface BatchLookupResponse {
   lookup: Record<string, BatchLookupEntry>;
+}
+
+/* ─── Stewardship Queue ─── */
+
+export type StewardshipItemType =
+  | "merge_decision"
+  | "golden_record_review"
+  | "exception"
+  | "writeback_approval"
+  | "contract_breach"
+  | "glossary_review";
+
+export type StewardshipStatus = "open" | "in_progress" | "resolved" | "escalated";
+
+export interface StewardshipQueueItem {
+  id: string;
+  tenant_id: string;
+  item_type: StewardshipItemType;
+  source_id: string;
+  domain: string;
+  priority: number;
+  due_at: string | null;
+  assigned_to: string | null;
+  status: StewardshipStatus;
+  sla_hours: number | null;
+  created_at: string;
+  updated_at: string;
+  ai_recommendation: string | null;
+  ai_confidence: number | null;
+}
+
+export interface StewardshipQueueListResponse {
+  items: StewardshipQueueItem[];
+  total: number;
+}
+
+export interface StewardshipMetrics {
+  items_by_type: Record<string, number>;
+  items_by_status: Record<string, number>;
+  avg_resolution_hours_by_type: Record<string, number>;
+  backlog_total: number;
+  sla_compliance_rate: number;
+  ai_acceptance_rate: number | null;
+  steward_breakdown: StewardBreakdown[] | null;
+}
+
+export interface StewardBreakdown {
+  steward_name: string;
+  resolved: number;
+  total: number;
+  avg_resolution_hours: number | null;
+}
+
+/* ─── Relationships ─── */
+
+export interface RecordRelationship {
+  id: string;
+  from_domain: string;
+  from_key: string;
+  to_domain: string;
+  to_key: string;
+  relationship_type: string;
+  sap_link_table: string | null;
+  discovered_at: string;
+  active: boolean;
+  ai_inferred: boolean;
+  ai_confidence: number | null;
+  impact_score: number | null;
+}
+
+export interface RelationshipListResponse {
+  relationships: RecordRelationship[];
+  total: number;
+}
+
+export interface RelationshipTypeRef {
+  id: string;
+  from_table: string;
+  to_table: string;
+  relationship_type: string;
+  description: string | null;
 }
