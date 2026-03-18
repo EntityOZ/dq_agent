@@ -19,7 +19,15 @@ logger = logging.getLogger("vantax.nlp")
 INTENT_SYSTEM_PROMPT = (
     "You are a data quality assistant for SAP systems. "
     "Classify the user question into one of these intents: "
-    "findings_query, cleaning_query, exception_query, analytics_query, module_status, general. "
+    "findings_query, cleaning_query, exception_query, analytics_query, module_status, "
+    "golden_record_query, glossary_query, relationship_query, sync_query, stewardship_query, "
+    "ai_rules_query, general. "
+    "golden_record_query: questions about golden records, confidence scores, survivorship or promoted records. "
+    "glossary_query: questions about SAP field business meanings, mandatory fields, approved values. "
+    "relationship_query: questions about cross-domain links — BPs as customers/vendors, material at plant. "
+    "sync_query: questions about sync runs, anomaly scores, batch quality, last sync time. "
+    "stewardship_query: questions about pending work items, queue backlog, SLA compliance, merge decisions. "
+    "ai_rules_query: questions about AI-proposed match rules pending human review. "
     "Also extract any filters mentioned (module name, severity, date range, status). "
     'Respond in JSON only: {"intent": "...", "filters": {"module": null, "severity": null, '
     '"date_from": null, "date_to": null, "status": null}, '
@@ -191,6 +199,133 @@ async def _retrieve_module_status(
     return [dict(r._mapping) for r in result.fetchall()]
 
 
+async def _retrieve_golden_records(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve golden record summaries. Strips AI confidence for non-privileged roles."""
+    from api.services.rbac import has_permission
+    conditions = ["tenant_id = :tid", "status != 'superseded'"]
+    params: dict = {"tid": tenant_id, "lim": MAX_RETRIEVE}
+    if filters.get("module"):
+        conditions.append("domain = :domain")
+        params["domain"] = filters["module"]
+    where = " AND ".join(conditions)
+    ai_col = "overall_confidence" if has_permission(user_role, "view_ai_confidence") else "NULL as overall_confidence"
+    result = await db.execute(text(f"""
+        SELECT id, domain, sap_object_key, status, {ai_col},
+               promoted_at, promoted_by
+        FROM master_records WHERE {where}
+        ORDER BY promoted_at DESC NULLS LAST LIMIT :lim
+    """), params)
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def _retrieve_glossary(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve glossary term summaries."""
+    conditions = ["tenant_id = :tid", "status = 'active'"]
+    params: dict = {"tid": tenant_id, "lim": MAX_RETRIEVE}
+    if filters.get("module"):
+        conditions.append("domain = :domain")
+        params["domain"] = filters["module"]
+    where = " AND ".join(conditions)
+    result = await db.execute(text(f"""
+        SELECT technical_name, business_name, business_definition,
+               mandatory_for_s4hana, domain, sap_table, sap_field
+        FROM glossary_terms WHERE {where}
+        ORDER BY mandatory_for_s4hana DESC, business_name LIMIT :lim
+    """), params)
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def _retrieve_relationships(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve cross-domain relationship summaries."""
+    from api.services.rbac import has_permission
+    conditions = ["tenant_id = :tid", "active = true"]
+    params: dict = {"tid": tenant_id, "lim": MAX_RETRIEVE}
+    if filters.get("module"):
+        conditions.append("from_domain = :domain")
+        params["domain"] = filters["module"]
+    where = " AND ".join(conditions)
+    ai_col = "ai_confidence, impact_score" if has_permission(user_role, "view_ai_confidence") else "NULL as ai_confidence, NULL as impact_score"
+    result = await db.execute(text(f"""
+        SELECT from_domain, from_key, to_domain, to_key,
+               relationship_type, ai_inferred, {ai_col}, discovered_at
+        FROM record_relationships WHERE {where}
+        ORDER BY discovered_at DESC LIMIT :lim
+    """), params)
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def _retrieve_sync_runs(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve recent sync run summaries."""
+    from api.services.rbac import has_permission
+    params: dict = {"tid": tenant_id, "lim": 20}
+    ai_cols = "ai_quality_score, anomaly_flags" if has_permission(user_role, "view_ai_confidence") else "NULL as ai_quality_score, NULL as anomaly_flags"
+    result = await db.execute(text(f"""
+        SELECT sr.id, sr.status, sr.started_at, sr.completed_at,
+               sr.rows_extracted, sr.findings_delta, {ai_cols},
+               sp.domain
+        FROM sync_runs sr
+        JOIN sync_profiles sp ON sp.id = sr.profile_id
+        WHERE sr.tenant_id = :tid
+        ORDER BY sr.started_at DESC LIMIT :lim
+    """), params)
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def _retrieve_stewardship(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve stewardship queue summaries."""
+    from api.services.rbac import has_permission
+    conditions = ["tenant_id = :tid", "status != 'resolved'"]
+    params: dict = {"tid": tenant_id, "lim": MAX_RETRIEVE}
+    if filters.get("module"):
+        conditions.append("domain = :domain")
+        params["domain"] = filters["module"]
+    if filters.get("status"):
+        conditions.append("status = :status")
+        params["status"] = filters["status"]
+    where = " AND ".join(conditions)
+    ai_cols = "ai_recommendation, ai_confidence" if has_permission(user_role, "view_ai_confidence") else "NULL as ai_recommendation, NULL as ai_confidence"
+    result = await db.execute(text(f"""
+        SELECT id, item_type, domain, priority, due_at, status,
+               sla_hours, {ai_cols}
+        FROM stewardship_queue WHERE {where}
+        ORDER BY priority ASC, due_at ASC NULLS LAST LIMIT :lim
+    """), params)
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def _retrieve_ai_rules(
+    db: AsyncSession, tenant_id: str, filters: dict,
+    user_role: str = 'viewer',
+) -> list[dict]:
+    """Retrieve pending AI-proposed rules. Restricted to roles with review_ai_rules."""
+    from api.services.rbac import has_permission
+    if not has_permission(user_role, "review_ai_rules"):
+        return []
+    result = await db.execute(text("""
+        SELECT id, domain, rationale, supporting_correction_count,
+               status, created_at
+        FROM ai_proposed_rules
+        WHERE tenant_id = :tid AND status = 'pending'
+        ORDER BY created_at DESC LIMIT 20
+    """), {"tid": tenant_id})
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
 _RETRIEVERS = {
     "findings_query": _retrieve_findings,
     "cleaning_query": _retrieve_cleaning,
@@ -198,6 +333,12 @@ _RETRIEVERS = {
     "analytics_query": _retrieve_analytics,
     "module_status": _retrieve_module_status,
     "general": _retrieve_findings,
+    "golden_record_query": _retrieve_golden_records,
+    "glossary_query": _retrieve_glossary,
+    "relationship_query": _retrieve_relationships,
+    "sync_query": _retrieve_sync_runs,
+    "stewardship_query": _retrieve_stewardship,
+    "ai_rules_query": _retrieve_ai_rules,
 }
 
 
@@ -242,7 +383,8 @@ async def _synthesise_answer(
 
 
 async def process_query(
-    question: str, tenant_context: dict, db: AsyncSession
+    question: str, tenant_context: dict, db: AsyncSession,
+    user_role: str = 'viewer',
 ) -> dict:
     """Main NLP query pipeline: classify → retrieve → synthesise.
 
@@ -250,10 +392,13 @@ async def process_query(
         question: Natural language question from the user.
         tenant_context: Must contain 'tenant_id'.
         db: Active async database session with RLS already set.
+        user_role: Caller's RBAC role — controls AI field visibility in retrievers.
 
     Returns:
         {answer: str, sources: [{type, id, relevance}], data?: list, chart_type?: str}
     """
+    import inspect
+
     tenant_id = str(tenant_context["tenant_id"])
 
     # Step 1 — Intent classification
@@ -266,7 +411,11 @@ async def process_query(
 
     # Step 2 — Data retrieval
     retriever = _RETRIEVERS.get(intent, _retrieve_findings)
-    data = await retriever(db, tenant_id, filters)
+    sig = inspect.signature(retriever)
+    if 'user_role' in sig.parameters:
+        data = await retriever(db, tenant_id, filters, user_role=user_role)
+    else:
+        data = await retriever(db, tenant_id, filters)
 
     # Build sources list
     sources = []

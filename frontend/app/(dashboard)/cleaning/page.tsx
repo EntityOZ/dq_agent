@@ -76,6 +76,7 @@ export default function CleaningPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
   const [exportLoading, setExportLoading] = useState(false);
+  const [approveValue, setApproveValue] = useState<string | null>(null);
 
   const { data: metricsData } = useQuery({
     queryKey: ["cleaning-metrics"],
@@ -282,7 +283,14 @@ export default function CleaningPage() {
                         className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF] cursor-pointer"
                         onClick={() => setSelectedId(item.id)}
                       >
-                        <td className="px-4 py-3 font-mono text-xs">{item.record_key}</td>
+                        <td className="px-4 py-3 font-mono text-xs">
+                          {item.record_key}
+                          {item.golden_record_exists && (
+                            <Badge variant="outline" className="ml-2 text-amber-700 border-amber-400 text-xs">
+                              Golden record exists
+                            </Badge>
+                          )}
+                        </td>
                         <td className="px-4 py-3">{item.object_type}</td>
                         <td className="px-4 py-3">
                           <Badge variant="outline">{category}</Badge>
@@ -477,6 +485,21 @@ export default function CleaningPage() {
                 </CardContent>
               </Card>
 
+              {/* Golden record value hint */}
+              {detail.golden_field_value && (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <span className="text-sm font-medium text-muted-foreground">Golden record value:</span>
+                  <code className="text-sm bg-muted px-1 rounded">{detail.golden_field_value}</code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setApproveValue(detail.golden_field_value)}
+                  >
+                    Use golden value
+                  </Button>
+                </div>
+              )}
+
               {/* Panel 2: Merge preview (for dedup) */}
               {detail.merge_preview && Object.keys(detail.merge_preview).length > 0 && (
                 <Card>
@@ -555,13 +578,24 @@ export default function CleaningPage() {
                   )}
 
                   {detail.status === "approved" && (
-                    <Button
-                      className="bg-[#059669] hover:bg-[#059669]/90 text-white"
-                      onClick={() => applyMut.mutate(detail.id)}
-                      disabled={applyMut.isPending}
-                    >
-                      Apply Change
-                    </Button>
+                    <div className="space-y-2">
+                      {approveValue && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Override value:</span>
+                          <code className="bg-muted px-1 rounded">{approveValue}</code>
+                          <Button variant="ghost" size="sm" onClick={() => setApproveValue(null)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      <Button
+                        className="bg-[#059669] hover:bg-[#059669]/90 text-white"
+                        onClick={() => applyMut.mutate(detail.id)}
+                        disabled={applyMut.isPending}
+                      >
+                        Apply Change
+                      </Button>
+                    </div>
                   )}
 
                   {detail.status === "applied" && rollbackTimeLeft(detail) && (

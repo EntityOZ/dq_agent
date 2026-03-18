@@ -151,7 +151,8 @@ async def list_cleaning_queue(
         text(f"""
             SELECT id, object_type, status, confidence, record_key, priority,
                    detected_at, applied_at, rollback_deadline, rule_id, batch_id,
-                   version_id, merge_preview, record_data_before, record_data_after
+                   version_id, merge_preview, record_data_before, record_data_after,
+                   golden_record_id, golden_field_value
             FROM cleaning_queue
             WHERE {where}
             ORDER BY priority DESC, detected_at DESC
@@ -159,7 +160,13 @@ async def list_cleaning_queue(
         """),
         params,
     )
-    items = [_row_to_dict(r) for r in result.fetchall()]
+    items = []
+    for r in result.fetchall():
+        row = _row_to_dict(r)
+        row['golden_record_exists'] = row.get('golden_record_id') is not None
+        if row.get('golden_record_id') is not None:
+            row['golden_record_id'] = str(row['golden_record_id'])
+        items.append(row)
 
     return {"items": items, "total": total, "page": page, "per_page": per_page}
 
