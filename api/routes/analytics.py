@@ -6,11 +6,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
+from api.services.rbac import has_permission
 from api.services.analytics_engine import (
     BusinessImpactAnalytics,
     OperationalAnalytics,
@@ -515,3 +516,47 @@ async def get_capacity(
     capacity = operational.capacity_planning(daily_inflow, avg_per_steward, max(1, unique_stewards))
 
     return capacity
+
+
+# ── 12. GET /analytics/mdm-health ──────────────────────────────────────────
+
+
+@router.get("/mdm-health")
+async def get_mdm_health(
+    days: int = Query(56, ge=7, le=365),
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+):
+    """MDM health score history from mdm_metrics table. Strips AI fields for unprivileged roles."""
+    await _set_tenant(db, tenant)
+
+    user_role = getattr(request.state, 'user_role', 'viewer') if request else 'viewer'
+    can_see_ai = has_permission(user_role, 'view_ai_confidence')
+
+    result = await db.execute(text("""
+        SELECT snapshot_date, mdm_health_score,
+               golden_record_coverage_pct, avg_match_confidence,
+               steward_sla_compliance_pct, source_consistency_pct,
+               backlog_count,
+               ai_projected_score, ai_narrative, ai_risk_flags
+        FROM mdm_metrics
+        WHERE tenant_id = :tid
+          AND snapshot_date > now() - (:days || ' days')::interval
+        ORDER BY snapshot_date ASC
+    """), {'tid': str(tenant.id), 'days': days})
+    rows = result.fetchall()
+
+    data = []
+    for r in rows:
+        row = dict(r._mapping)
+        if not can_see_ai:
+            row['ai_projected_score'] = None
+            row['ai_narrative'] = None
+            row['ai_risk_flags'] = None
+        # Convert date to string
+        if hasattr(row.get('snapshot_date'), 'isoformat'):
+            row['snapshot_date'] = row['snapshot_date'].isoformat()
+        data.append(row)
+
+    return {'data': data, 'days': days}

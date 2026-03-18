@@ -21,11 +21,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import {
   getContracts,
   createContract,
   getContractCompliance,
 } from "@/lib/api/contracts";
 import type { Contract, ComplianceRecord } from "@/types/api";
+import Link from "next/link";
 import {
   LineChart,
   Line,
@@ -286,6 +295,66 @@ function ContractDetail({
           )}
         </CardContent>
       </Card>
+
+      {/* Golden Record Violations */}
+      {(() => {
+        const goldenViolations = history.filter(
+          (h: ComplianceRecord) =>
+            (h.violations as Record<string, unknown>)?.type === "golden_record_field"
+        );
+
+        return goldenViolations.length > 0 ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Golden Record Violations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Object Key</TableHead>
+                    <TableHead>Field</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Detected</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {goldenViolations.map((v: ComplianceRecord) => {
+                    const viol = v.violations as {
+                      type: string;
+                      object_key: string;
+                      field_violations: { field: string; reason: string }[];
+                    };
+                    return viol.field_violations?.map(
+                      (fv: { field: string; reason: string }, i: number) => (
+                        <TableRow key={`${v.id}-${i}`}>
+                          <TableCell>
+                            <Link
+                              href={`/golden-records?key=${viol.object_key}`}
+                              className="underline text-[#0695A8]"
+                            >
+                              {viol.object_key}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{fv.field}</TableCell>
+                          <TableCell>{fv.reason}</TableCell>
+                          <TableCell>
+                            {new Date(v.recorded_at).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : (
+          <p className="text-sm text-[#6B92AD]">
+            No golden record violations.
+          </p>
+        );
+      })()}
 
       {/* Schema contract */}
       {contract.schema_contract && (
