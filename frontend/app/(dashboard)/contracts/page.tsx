@@ -300,7 +300,8 @@ function ContractDetail({
       {(() => {
         const goldenViolations = history.filter(
           (h: ComplianceRecord) =>
-            (h.violations as Record<string, unknown>)?.type === "golden_record_field"
+            !Array.isArray(h.violations) &&
+            (h.violations as unknown as { type?: string } | null)?.type === "golden_record_field"
         );
 
         return goldenViolations.length > 0 ? (
@@ -320,7 +321,7 @@ function ContractDetail({
                 </TableHeader>
                 <TableBody>
                   {goldenViolations.map((v: ComplianceRecord) => {
-                    const viol = v.violations as {
+                    const viol = v.violations as unknown as {
                       type: string;
                       object_key: string;
                       field_violations: { field: string; reason: string }[];

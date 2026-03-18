@@ -48,79 +48,79 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ─── Vantax Light Theme ─── */
+/* ─── Vantax Corporate Theme — Profisee-inspired ─── */
 :root {
   /* Surfaces */
-  --background: #F0F5FA;
-  --foreground: #0F2137;
+  --background: #EAF0F6;
+  --foreground: #1B2A4A;
   --card: #FFFFFF;
-  --card-foreground: #0F2137;
+  --card-foreground: #1B2A4A;
   --popover: #FFFFFF;
-  --popover-foreground: #0F2137;
+  --popover-foreground: #1B2A4A;
 
-  /* Accent */
+  /* Accent — Teal */
   --primary: #0695A8;
   --primary-foreground: #FFFFFF;
-  --secondary: #F0F5FA;
-  --secondary-foreground: #3D6080;
-  --muted: #F0F5FA;
-  --muted-foreground: #6B92AD;
-  --accent: #F5F9FF;
-  --accent-foreground: #0F2137;
+  --secondary: #EAF0F6;
+  --secondary-foreground: #3D5068;
+  --muted: #EAF0F6;
+  --muted-foreground: #6B8299;
+  --accent: #F3F7FB;
+  --accent-foreground: #1B2A4A;
 
   /* Status */
   --destructive: #DC2626;
 
   /* Borders & focus */
-  --border: #D6E4F0;
-  --input: #D6E4F0;
+  --border: #D0DBE5;
+  --input: #D0DBE5;
   --ring: #0695A8;
 
   /* Charts */
   --chart-1: #0695A8;
-  --chart-2: #1D6ECC;
-  --chart-3: #059669;
-  --chart-4: #D97706;
+  --chart-2: #E8913A;
+  --chart-3: #10B981;
+  --chart-4: #6366F1;
   --chart-5: #DC2626;
 
   /* Radius */
   --radius: 0.75rem;
 
-  /* Sidebar (dark) */
-  --sidebar: #0F2137;
-  --sidebar-foreground: #A8C5D8;
+  /* Sidebar */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #3D5068;
   --sidebar-primary: #0695A8;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(255, 255, 255, 0.08);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-accent: rgba(6, 149, 168, 0.08);
+  --sidebar-accent-foreground: #1B2A4A;
+  --sidebar-border: #D0DBE5;
   --sidebar-ring: #0695A8;
 
   /* ─── Vantax Direct Tokens ─── */
-  --vx-bg-base: #F0F5FA;
+  --vx-bg-base: #EAF0F6;
   --vx-bg-card: #FFFFFF;
-  --vx-bg-card-hover: #F5F9FF;
-  --vx-border: #D6E4F0;
+  --vx-bg-card-hover: #F3F7FB;
+  --vx-border: #D0DBE5;
   --vx-teal-bright: #0695A8;
-  --vx-teal-mid: #047A8A;
-  --vx-teal-dim: #D0EEF2;
-  --vx-blue-bright: #1D6ECC;
-  --vx-blue-mid: #1557A8;
-  --vx-amber: #D97706;
+  --vx-teal-mid: #057A8A;
+  --vx-teal-dim: #E0F4F7;
+  --vx-blue-bright: #0695A8;
+  --vx-blue-mid: #057A8A;
+  --vx-amber: #E8913A;
   --vx-red: #DC2626;
-  --vx-green: #059669;
-  --vx-text-primary: #0F2137;
-  --vx-text-secondary: #3D6080;
-  --vx-text-tertiary: #6B92AD;
-  --vx-sidebar-bg: #0F2137;
-  --vx-sidebar-text: #A8C5D8;
+  --vx-green: #10B981;
+  --vx-text-primary: #1B2A4A;
+  --vx-text-secondary: #3D5068;
+  --vx-text-tertiary: #6B8299;
+  --vx-sidebar-bg: #FFFFFF;
+  --vx-sidebar-text: #3D5068;
 }
 
 /* ─── Animations ─── */
 @keyframes vx-fade-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -131,7 +131,7 @@
 @keyframes vx-count-up {
   from {
     opacity: 0;
-    transform: scale(0.85);
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
@@ -141,7 +141,23 @@
 
 @keyframes vx-pulse-dot {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes vx-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vx-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 /* ─── Base styles ─── */
@@ -160,10 +176,23 @@
 /* ─── Utility classes ─── */
 .vx-card {
   background: var(--vx-bg-card);
-  border: 1px solid var(--vx-border);
-  border-radius: 12px;
-  padding: 20px;
-  animation: vx-fade-in 0.3s ease-out both;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 4px 12px rgba(15, 23, 42, 0.04);
+  animation: vx-fade-in 0.35s ease-out both;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.vx-card:hover {
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.vx-card-interactive:hover {
+  transform: translateY(-1px);
 }
 
 .font-display {
@@ -172,22 +201,40 @@
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #E2EBF3;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #0695A8;
-  border-radius: 3px;
+  background: #CBD5E1;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #047A8A;
+  background: #94A3B8;
+}
+
+/* Sidebar scrollbar */
+.vx-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #D0DBE5;
+}
+.vx-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6B8299;
+}
+.vx-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* ─── Selection ─── */
 ::selection {
-  background: #D0EEF2;
-  color: #0F2137;
+  background: #B2E0E6;
+  color: #1B2A4A;
+}
+
+/* ─── Focus ring ─── */
+:focus-visible {
+  outline: 2px solid #0695A8;
+  outline-offset: 2px;
+  border-radius: 4px;
 }

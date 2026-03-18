@@ -197,19 +197,19 @@ function ExceptionCard({
           {exception.title}
         </h4>
         <span
-          className={`inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${SEVERITY_COLORS[exception.severity] || ""}`}
+          className={`inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[12px] font-semibold uppercase ${SEVERITY_COLORS[exception.severity] || ""}`}
         >
           {exception.severity}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <span
-          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${TYPE_COLORS[exception.type] || ""}`}
+          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[12px] font-medium ${TYPE_COLORS[exception.type] || ""}`}
         >
           {formatType(exception.type)}
         </span>
         {exception.assigned_to && (
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-[#6B92AD]">
+          <span className="inline-flex items-center gap-0.5 text-[12px] text-[#6B92AD]">
             <User className="h-2.5 w-2.5" />
             Assigned
           </span>
@@ -217,7 +217,7 @@ function ExceptionCard({
       </div>
       {sla.text !== "No SLA" && (
         <div
-          className={`mt-2 flex items-center gap-1 text-[11px] ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-[#6B92AD]"}`}
+          className={`mt-2 flex items-center gap-1 text-[13px] ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-[#6B92AD]"}`}
         >
           <Clock className="h-3 w-3" />
           {sla.text}
@@ -410,7 +410,7 @@ function ExceptionDetail({
             {/* Info Grid */}
             <div className="grid grid-cols-2 gap-3 border-b border-[#D6E4F0] p-5">
               <div>
-                <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                   Source
                 </span>
                 <p className="text-sm text-[#0F2137]">
@@ -418,19 +418,19 @@ function ExceptionDetail({
                 </p>
               </div>
               <div>
-                <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                   Escalation Tier
                 </span>
                 <p className="text-sm text-[#0F2137]">{exc.escalation_tier}</p>
               </div>
               <div>
-                <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                   Category
                 </span>
                 <p className="text-sm text-[#0F2137]">{exc.category}</p>
               </div>
               <div>
-                <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                   Created
                 </span>
                 <p className="text-sm text-[#0F2137]">
@@ -439,7 +439,7 @@ function ExceptionDetail({
               </div>
               {exc.linked_finding_id && (
                 <div className="col-span-2">
-                  <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                  <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                     Linked Finding
                   </span>
                   <a
@@ -453,7 +453,7 @@ function ExceptionDetail({
               )}
               {exc.linked_cleaning_id && (
                 <div className="col-span-2">
-                  <span className="text-[11px] font-medium uppercase text-[#6B92AD]">
+                  <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
                     Linked Cleaning Item
                   </span>
                   <a
@@ -560,7 +560,7 @@ function ExceptionDetail({
                       <span className="text-xs font-medium text-[#0695A8]">
                         {c.user_name}
                       </span>
-                      <span className="text-[10px] text-[#6B92AD]">
+                      <span className="text-[12px] text-[#6B92AD]">
                         {relativeTime(c.created_at)}
                       </span>
                     </div>
@@ -1041,21 +1041,21 @@ export default function ExceptionsPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${TYPE_COLORS[exc.type] || ""}`}
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[13px] font-medium ${TYPE_COLORS[exc.type] || ""}`}
                         >
                           {formatType(exc.type)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase ${SEVERITY_COLORS[exc.severity] || ""}`}
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[13px] font-semibold uppercase ${SEVERITY_COLORS[exc.severity] || ""}`}
                         >
                           {exc.severity}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLORS[exc.status] || ""}`}
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[13px] font-medium ${STATUS_COLORS[exc.status] || ""}`}
                         >
                           {exc.status.replace(/_/g, " ")}
                         </span>
@@ -1144,7 +1144,7 @@ export default function ExceptionsPage() {
                               </TableCell>
                               <TableCell>
                                 <span
-                                  className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase ${SEVERITY_COLORS[exc.severity] || ""}`}
+                                  className={`inline-flex rounded-full border px-2 py-0.5 text-[13px] font-semibold uppercase ${SEVERITY_COLORS[exc.severity] || ""}`}
                                 >
                                   {exc.severity}
                                 </span>
@@ -1161,7 +1161,7 @@ export default function ExceptionsPage() {
                               </TableCell>
                               <TableCell>
                                 <span
-                                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLORS[exc.status] || ""}`}
+                                  className={`inline-flex rounded-full px-2 py-0.5 text-[13px] font-medium ${STATUS_COLORS[exc.status] || ""}`}
                                 >
                                   {exc.status.replace(/_/g, " ")}
                                 </span>
@@ -1224,7 +1224,7 @@ export default function ExceptionsPage() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase ${SEVERITY_COLORS[rule.severity] || ""}`}
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[13px] font-semibold uppercase ${SEVERITY_COLORS[rule.severity] || ""}`}
                       >
                         {rule.severity}
                       </span>

@@ -291,7 +291,7 @@ export default function StewardshipMetricsPage() {
                       <p className="text-sm font-medium text-[#0F2137]">
                         {s.steward_name}
                       </p>
-                      <p className="text-[10px] text-[#6B92AD]">
+                      <p className="text-[12px] text-[#6B92AD]">
                         {s.resolved} resolved / {s.total} total
                       </p>
                     </div>
@@ -300,7 +300,7 @@ export default function StewardshipMetricsPage() {
                         <p className="text-sm font-medium text-[#0F2137]">
                           {s.avg_resolution_hours}h
                         </p>
-                        <p className="text-[10px] text-[#6B92AD]">avg time</p>
+                        <p className="text-[12px] text-[#6B92AD]">avg time</p>
                       </div>
                     )}
                   </div>

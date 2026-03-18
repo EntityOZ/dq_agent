@@ -1,17 +1,17 @@
-/** Score color: green ≥85, amber 60–84, red <60 */
+/** Score color: green >=85, amber 60-84, red <60 */
 export function scoreColor(score: number): string {
-  if (score >= 85) return "#059669";
-  if (score >= 60) return "#D97706";
-  return "#DC2626";
+  if (score >= 85) return "#10B981";
+  if (score >= 60) return "#F59E0B";
+  return "#EF4444";
 }
 
 export function scoreBg(score: number): string {
-  if (score >= 85) return "bg-[#059669]/10 text-[#059669]";
-  if (score >= 60) return "bg-[#D97706]/10 text-[#D97706]";
-  return "bg-[#DC2626]/10 text-[#DC2626]";
+  if (score >= 85) return "bg-[#10B981]/10 text-[#10B981]";
+  if (score >= 60) return "bg-[#F59E0B]/10 text-[#F59E0B]";
+  return "bg-[#EF4444]/10 text-[#EF4444]";
 }
 
-/** "business_partner" → "Business Partner" */
+/** "business_partner" -> "Business Partner" */
 export function formatModuleName(name: string): string {
   return name
     .split("_")
@@ -31,24 +31,24 @@ export function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-/** Severity badge pill classes for light theme */
+/** Severity badge pill classes */
 export function severityColor(severity: string): string {
   switch (severity) {
     case "critical":
-      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
+      return "bg-[#FEF2F2] text-[#EF4444] border border-[#FECACA]";
     case "high":
-      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
+      return "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]";
     case "medium":
-      return "bg-[#FFF9C4] text-[#B45309] border border-[#FDE68A]";
+      return "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]";
     case "low":
-      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
+      return "bg-[#E0F4F7] text-[#0695A8] border border-[#B2E0E6]";
     default:
-      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
+      return "bg-[#F1F5F9] text-[#6B8299] border border-[#E2E8F0]";
   }
 }
 
 export function passRateColor(rate: number): string {
-  if (rate >= 95) return "bg-[#059669]";
-  if (rate >= 80) return "bg-[#D97706]";
-  return "bg-[#DC2626]";
+  if (rate >= 95) return "bg-[#10B981]";
+  if (rate >= 80) return "bg-[#F59E0B]";
+  return "bg-[#EF4444]";
 }

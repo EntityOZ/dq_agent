@@ -1066,11 +1066,11 @@ function MatchRulesTab() {
             Test Simulation
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Add Rule
-              </Button>
+            <DialogTrigger
+              render={<Button size="sm" />}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Add Rule
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

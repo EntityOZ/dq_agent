@@ -103,7 +103,7 @@ function FieldRow({
               {businessName || fieldName}
             </span>
             {businessName && (
-              <span className="block text-[10px] font-mono text-[#6B92AD]">{fieldName}</span>
+              <span className="block text-[12px] font-mono text-[#6B92AD]">{fieldName}</span>
             )}
             <p className="text-xs text-[#6B92AD]">
               {contribution
@@ -122,7 +122,7 @@ function FieldRow({
           {hasAi && (
             <Badge
               variant="outline"
-              className="gap-1 bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20 text-[10px]"
+              className="gap-1 bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20 text-[12px]"
             >
               <Brain className="h-3 w-3" />
               AI
@@ -210,7 +210,7 @@ function HistoryPanel({ recordId }: { recordId: string }) {
               {entry.ai_was_involved && (
                 <Badge
                   variant="outline"
-                  className="gap-1 text-[10px] bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20"
+                  className="gap-1 text-[12px] bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20"
                 >
                   <Brain className="h-2.5 w-2.5" />
                   AI involved
@@ -219,7 +219,7 @@ function HistoryPanel({ recordId }: { recordId: string }) {
               {entry.ai_recommendation_accepted !== null && (
                 <Badge
                   variant="outline"
-                  className={`text-[10px] ${
+                  className={`text-[12px] ${
                     entry.ai_recommendation_accepted
                       ? "bg-[#059669]/10 text-[#059669] border-[#059669]/20"
                       : "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20"
@@ -322,7 +322,7 @@ function RelationshipsPanel({
                         style={{ width: `${impactPct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-medium text-[#0F2137]">
+                    <span className="text-[12px] font-medium text-[#0F2137]">
                       {impactPct}%
                     </span>
                   </div>
@@ -332,7 +332,7 @@ function RelationshipsPanel({
                     <TooltipTrigger>
                       <Badge
                         variant="outline"
-                        className="gap-1 bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20 text-[10px]"
+                        className="gap-1 bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20 text-[12px]"
                       >
                         <Brain className="h-2.5 w-2.5" />
                         Probable
