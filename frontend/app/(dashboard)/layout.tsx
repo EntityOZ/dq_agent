@@ -49,6 +49,7 @@ import {
   BrainCircuit,
   type LucideIcon,
 } from "lucide-react";
+import "@/app/sidebar-responsive.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
@@ -287,7 +288,12 @@ const NAV_GROUPS: NavGroup[] = [
 
 const ROLES_WITH_AI_RULES = ["admin", "steward", "ai_reviewer"];
 
-/* ─── Sidebar content ─── */
+/*
+ * Sidebar content — uses data-* attributes for CSS-driven responsive collapse.
+ * Between lg (1024px) and xl (1280px), globals.css hides labels and collapses
+ * the sidebar to 72px via aside[data-sidebar] selectors.
+ * When user manually collapses, JS `collapsed` prop hides labels directly.
+ */
 function SidebarNav({
   collapsed,
   pathname,
@@ -313,12 +319,15 @@ function SidebarNav({
         return (
           <div key={group}>
             {!collapsed && (
-              <span className="mb-1.5 block px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#6B8299]">
+              <span data-sidebar-label className="mb-1.5 block px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#6B8299]">
                 {group}
               </span>
             )}
             {collapsed && (
               <div className="mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />
+            )}
+            {!collapsed && (
+              <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />
             )}
             <div className="flex flex-col gap-0.5">
               {visibleItems.map(({ href, label, icon: Icon }) => {
@@ -327,7 +336,8 @@ function SidebarNav({
                   <Link
                     key={href}
                     href={href}
-                    title={collapsed ? label : undefined}
+                    data-sidebar-link
+                    title={label}
                     onClick={onNavClick}
                     className={`group relative flex items-center gap-3 rounded-xl transition-all duration-150 ${
                       collapsed
@@ -339,9 +349,9 @@ function SidebarNav({
                         : "text-[#3D5068] hover:bg-[#EAF0F6] hover:text-[#1B2A4A]"
                     }`}
                   >
-                    <Icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
+                    <Icon data-sidebar-icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
                     {!collapsed && (
-                      <span className="text-[16px] font-medium truncate">{label}</span>
+                      <span data-sidebar-label className="text-[16px] font-medium truncate">{label}</span>
                     )}
                   </Link>
                 );
@@ -354,9 +364,11 @@ function SidebarNav({
       {/* Settings — standalone */}
       <div>
         {collapsed && <div className="mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />}
+        {!collapsed && <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />}
         <Link
           href="/settings"
-          title={collapsed ? "Settings" : undefined}
+          data-sidebar-link
+          title="Settings"
           onClick={onNavClick}
           className={`group relative flex items-center gap-3 rounded-xl transition-all duration-150 ${
             collapsed
@@ -368,8 +380,8 @@ function SidebarNav({
               : "text-[#3D5068] hover:bg-[#EAF0F6] hover:text-[#1B2A4A]"
           }`}
         >
-          <Settings className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
-          {!collapsed && <span className="text-[16px] font-medium">Settings</span>}
+          <Settings data-sidebar-icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
+          {!collapsed && <span data-sidebar-label className="text-[16px] font-medium">Settings</span>}
         </Link>
       </div>
     </nav>
@@ -388,7 +400,7 @@ export default function DashboardLayout({
 
   // Persist sidebar collapse preference
   useEffect(() => {
-    const saved = typeof window !== "undefined" && localStorage.getItem("vx_sidebar_collapsed");
+    const saved = localStorage.getItem("vx_sidebar_collapsed");
     if (saved === "true") setCollapsed(true);
   }, []);
 
@@ -445,6 +457,7 @@ export default function DashboardLayout({
 
       {/* ── Sidebar ── */}
       <aside
+        data-sidebar
         className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-[#D0DBE5] transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } ${
@@ -452,13 +465,13 @@ export default function DashboardLayout({
         } w-[280px]`}
       >
         {/* Logo */}
-        <div className={`flex h-16 shrink-0 items-center border-b border-[#D0DBE5] ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
+        <div data-sidebar-header className={`flex h-16 shrink-0 items-center border-b border-[#D0DBE5] ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0695A8] shadow-lg shadow-[#0695A8]/25">
               <ShieldCheck className="h-4.5 w-4.5 text-white" />
             </div>
             {!collapsed && (
-              <div className="flex items-baseline gap-1">
+              <div data-sidebar-label className="flex items-baseline gap-1">
                 <span className="font-display text-[17px] font-bold text-[#1B2A4A]">Vantax</span>
                 <span className="font-display text-[17px] font-bold text-[#0695A8]">MDM</span>
               </div>
@@ -487,11 +500,11 @@ export default function DashboardLayout({
         </ScrollArea>
 
         {/* Footer — licence + collapse toggle */}
-        <div className={`flex items-center border-t border-[#D0DBE5] ${collapsed ? "flex-col gap-3 px-2 py-3" : "justify-between px-5 py-3"}`}>
+        <div data-sidebar-footer className={`flex items-center border-t border-[#D0DBE5] ${collapsed ? "flex-col gap-3 px-2 py-3" : "justify-between px-5 py-3"}`}>
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${licenceDotColor} ${licencePulse}`} />
             {!collapsed && (
-              <span className="text-[13px] text-[#6B8299]">
+              <span data-sidebar-label className="text-[13px] text-[#6B8299]">
                 {licence?.valid === true ? "Licensed" : licence?.valid === false ? "Unlicensed" : "Checking…"}
               </span>
             )}
