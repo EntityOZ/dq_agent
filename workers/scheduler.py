@@ -815,4 +815,12 @@ celery_app.conf.beat_schedule = {
         "task": "workers.scheduler.sync_profile_scheduler",
         "schedule": crontab(minute="*/5"),  # Check every 5 minutes for due sync profiles
     },
+    "stewardship-queue-populate-every-15min": {
+        "task": "workers.tasks.populate_stewardship_queue.populate_queue",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes — populates queue, then chains ai_triage
+    },
+    "stewardship-ai-triage-every-15min": {
+        "task": "workers.tasks.ai_triage.triage_queue_items",
+        "schedule": crontab(minute="7,22,37,52"),  # Offset by 7 min from population to avoid overlap
+    },
 }
