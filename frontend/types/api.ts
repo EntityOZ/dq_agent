@@ -466,7 +466,8 @@ export type UserRole =
   | "analyst"
   | "approver"
   | "auditor"
-  | "viewer";
+  | "viewer"
+  | "ai_reviewer";
 
 export interface User {
   id: string;
@@ -483,4 +484,60 @@ export interface User {
 
 export interface UserListResponse {
   users: User[];
+}
+
+/* ─── SAP Systems / Sync ─── */
+
+export interface SAPSystem {
+  id: string;
+  name: string;
+  host: string;
+  client: string;
+  sysnr: string;
+  description: string | null;
+  environment: "PRD" | "QAS" | "DEV";
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_sync_at: string | null;
+  last_sync_status: string | null;
+}
+
+export interface SAPSystemListResponse {
+  systems: SAPSystem[];
+}
+
+export interface TestConnectionResponse {
+  connected: boolean;
+  message: string;
+}
+
+export interface SyncProfile {
+  id: string;
+  system_id: string;
+  domain: string;
+  tables: string[];
+  schedule_cron: string | null;
+  active: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
+
+export interface SyncRun {
+  id: string;
+  profile_id: string;
+  started_at: string;
+  completed_at: string | null;
+  rows_extracted: number;
+  findings_delta: number;
+  golden_records_updated: number;
+  status: "running" | "completed" | "failed";
+  error_detail: string | null;
+  ai_quality_score: number | null;
+  anomaly_flags: Array<{
+    type: string;
+    detail: string;
+    severity?: string;
+    column?: string;
+  }> | null;
 }

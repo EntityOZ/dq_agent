@@ -719,6 +719,75 @@ def weekly_archive():
             logger.error(f"  tenant={tid}: weekly_archive failed: {e}", exc_info=True)
 
 
+# ── Trigger 6: sync_profile_scheduler — every 5 minutes ──────────────────────
+
+@celery_app.task(name="workers.scheduler.sync_profile_scheduler")
+def sync_profile_scheduler():
+    """Check active sync_profiles for due next_run_at and enqueue run_sync tasks.
+
+    Reads schedule_cron from each profile and computes next_run_at if not set.
+    Enqueues run_sync for any profile whose next_run_at is in the past.
+    """
+    logger.info("sync_profile_scheduler started")
+    engine = _get_sync_engine()
+
+    with Session(engine) as session:
+        tenants = _get_tenants(session)
+
+    for t in tenants:
+        tid = str(t["id"])
+        try:
+            with Session(engine) as session:
+                _set_rls(session, tid)
+
+                # Find due profiles: active, with a schedule, and next_run_at <= now
+                result = session.execute(text("""
+                    SELECT id, schedule_cron, next_run_at
+                    FROM sync_profiles
+                    WHERE tenant_id = :tid AND active = true AND schedule_cron IS NOT NULL
+                      AND (next_run_at IS NULL OR next_run_at <= now())
+                """), {"tid": tid})
+
+                due_profiles = result.fetchall()
+
+                for row in due_profiles:
+                    profile_id = str(row[0])
+                    schedule_cron = row[1]
+
+                    # Enqueue sync task
+                    from workers.tasks.run_sync import run_sync
+                    run_sync.delay(profile_id, tid)
+                    logger.info(f"  tenant={tid}: enqueued run_sync for profile={profile_id}")
+
+                    # Compute next run time from cron expression
+                    next_run = _compute_next_run(schedule_cron)
+                    if next_run:
+                        session.execute(
+                            text("UPDATE sync_profiles SET next_run_at = :next WHERE id = :pid"),
+                            {"next": next_run, "pid": profile_id},
+                        )
+
+                session.commit()
+
+        except Exception as e:
+            logger.warning(f"  tenant={tid}: sync_profile_scheduler failed: {e}")
+
+    logger.info("sync_profile_scheduler complete")
+
+
+def _compute_next_run(cron_expression: str):
+    """Compute next run time from a cron expression. Returns datetime or None."""
+    try:
+        from croniter import croniter
+        cron = croniter(cron_expression, datetime.now(SAST))
+        return cron.get_next(datetime)
+    except ImportError:
+        # croniter not installed — fall back to 24h default
+        return datetime.now(SAST) + timedelta(hours=24)
+    except Exception:
+        return datetime.now(SAST) + timedelta(hours=24)
+
+
 # ── Beat schedule configuration ──────────────────────────────────────────────
 
 celery_app.conf.beat_schedule = {
@@ -741,5 +810,9 @@ celery_app.conf.beat_schedule = {
     "weekly-archive-sunday-midnight": {
         "task": "workers.scheduler.weekly_archive",
         "schedule": crontab(hour=22, minute=0, day_of_week=6),  # 22:00 UTC Saturday = 00:00 SAST Sunday
+    },
+    "sync-profile-scheduler-every-5min": {
+        "task": "workers.scheduler.sync_profile_scheduler",
+        "schedule": crontab(minute="*/5"),  # Check every 5 minutes for due sync profiles
     },
 }

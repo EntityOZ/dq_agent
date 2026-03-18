@@ -1,4 +1,4 @@
-"""RBAC service — 6-role permission matrix with FastAPI dependency factory."""
+"""RBAC service — 7-role permission matrix with FastAPI dependency factory."""
 
 from typing import Optional
 
@@ -9,16 +9,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import Tenant, get_db, get_tenant
 
 # ── Permission matrix ────────────────────────────────────────────────────────
-# Roles: admin, steward, analyst, approver, auditor, viewer
-# Actions: view, upload, analyse, approve, apply, export, manage_users, manage_rules
+# Roles: admin, steward, analyst, approver, auditor, viewer, ai_reviewer
+# Actions: view, upload, analyse, approve, apply, export, manage_users, manage_rules,
+#          ai_feedback, review_ai_rules, trigger_ai, view_ai_confidence
 
 PERMISSIONS: dict[str, set[str]] = {
-    "admin": {"view", "upload", "analyse", "approve", "apply", "export", "manage_users", "manage_rules"},
-    "steward": {"view", "upload", "analyse", "approve", "apply", "export", "manage_rules"},
-    "analyst": {"view", "upload", "analyse", "export"},
+    "admin": {
+        "view", "upload", "analyse", "approve", "apply", "export", "manage_users", "manage_rules",
+        "ai_feedback", "review_ai_rules", "trigger_ai", "view_ai_confidence",
+    },
+    "steward": {
+        "view", "upload", "analyse", "approve", "apply", "export", "manage_rules",
+        "ai_feedback", "review_ai_rules", "trigger_ai", "view_ai_confidence",
+    },
+    "analyst": {"view", "upload", "analyse", "export", "trigger_ai", "view_ai_confidence"},
     "approver": {"view", "approve", "export"},
     "auditor": {"view", "export"},
     "viewer": {"view"},
+    "ai_reviewer": {"view", "view_ai_confidence", "review_ai_rules", "ai_feedback"},
 }
 
 

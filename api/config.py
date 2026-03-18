@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     clerk_secret_key: Optional[str] = None
     auth_mode: str = "local"
 
+    # SAP RFC sync
+    credential_master_key: Optional[str] = None
+    sap_rfc_user: str = "RFC_USER"
+
     # Stripe (exception billing)
     stripe_api_key: Optional[str] = None
 
