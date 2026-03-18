@@ -823,4 +823,12 @@ celery_app.conf.beat_schedule = {
         "task": "workers.tasks.ai_triage.triage_queue_items",
         "schedule": crontab(minute="7,22,37,52"),  # Offset by 7 min from population to avoid overlap
     },
+    "daily-mdm-snapshot-03am": {
+        "task": "workers.tasks.snapshot_mdm_metrics.snapshot_mdm_metrics",
+        "schedule": crontab(hour=1, minute=30),  # 01:30 UTC = 03:30 SAST — after daily_analysis
+    },
+    "weekly-ai-health-narrative-monday-06am": {
+        "task": "workers.tasks.ai_health_narrative.generate_health_narrative",
+        "schedule": crontab(hour=4, minute=15, day_of_week=1),  # 04:15 UTC Monday = 06:15 SAST (offset from daily_digest)
+    },
 }
