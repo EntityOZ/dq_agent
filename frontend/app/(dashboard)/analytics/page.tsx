@@ -843,6 +843,169 @@ function OperationalTab() {
   );
 }
 
+// ── MDM Health Tab ─────────────────────────────────────────────────────────
+
+interface MDMHealthRow {
+  snapshot_date: string;
+  mdm_health_score: number;
+  golden_record_coverage_pct: number | null;
+  avg_match_confidence: number | null;
+  steward_sla_compliance_pct: number | null;
+  source_consistency_pct: number | null;
+  backlog_count: number | null;
+  ai_projected_score: number | null;
+  ai_narrative: string | null;
+  ai_risk_flags: string[] | null;
+}
+
+function MDMHealthTab() {
+  const { data: mdmHealth, isLoading } = useQuery({
+    queryKey: ["analytics", "mdm-health"],
+    queryFn: async () =>
+      (await apiClient.get("/api/v1/analytics/mdm-health")).data as {
+        data: MDMHealthRow[];
+        days: number;
+      },
+    staleTime: 60_000,
+  });
+
+  if (isLoading) return <TabSkeleton />;
+
+  const rows = mdmHealth?.data ?? [];
+
+  if (!rows.length) {
+    return (
+      <p className="text-sm text-[#6B92AD]">
+        MDM Health data will appear after the first sync cycle completes.
+      </p>
+    );
+  }
+
+  const chartData = rows.map((r) => ({
+    date: r.snapshot_date?.slice(0, 10) ?? "",
+    score: r.mdm_health_score,
+    coverage: r.golden_record_coverage_pct,
+    confidence: r.avg_match_confidence,
+  }));
+
+  const latest = rows[rows.length - 1];
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card className="border-[#D6E4F0]">
+          <CardContent className="pt-4">
+            <p className="text-xs text-[#6B92AD] mb-1">Health Score</p>
+            <p className="text-2xl font-bold text-[#0F2137]">
+              {latest.mdm_health_score?.toFixed(1) ?? "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-[#D6E4F0]">
+          <CardContent className="pt-4">
+            <p className="text-xs text-[#6B92AD] mb-1">Golden Coverage</p>
+            <p className="text-2xl font-bold text-[#0695A8]">
+              {latest.golden_record_coverage_pct != null
+                ? `${latest.golden_record_coverage_pct.toFixed(1)}%`
+                : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-[#D6E4F0]">
+          <CardContent className="pt-4">
+            <p className="text-xs text-[#6B92AD] mb-1">Match Confidence</p>
+            <p className="text-2xl font-bold text-[#0F2137]">
+              {latest.avg_match_confidence != null
+                ? `${latest.avg_match_confidence.toFixed(1)}%`
+                : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-[#D6E4F0]">
+          <CardContent className="pt-4">
+            <p className="text-xs text-[#6B92AD] mb-1">Backlog</p>
+            <p className="text-2xl font-bold text-[#0F2137]">
+              {latest.backlog_count ?? "—"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Area Chart */}
+      <Card className="border-[#D6E4F0]">
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-[#0F2137]">
+            MDM Health Score Over Time
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="grad-mdm" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0695A8" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#0695A8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8EFF5" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "#6B92AD" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: "#6B92AD" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={30}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 8,
+                    border: "1px solid #D6E4F0",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#0695A8"
+                  strokeWidth={2}
+                  fill="url(#grad-mdm)"
+                  name="Health Score"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Insights panel — only render if ai_narrative exists */}
+      {latest.ai_narrative && (
+        <Card className="border-[#D6E4F0]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[#0F2137]">
+              AI Insights
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-[#6B92AD]">{latest.ai_narrative}</p>
+            {latest.ai_projected_score != null && (
+              <p className="mt-2 text-xs text-[#0F2137]">
+                Projected score: <strong>{latest.ai_projected_score.toFixed(1)}</strong>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── Shared ───────────────────────────────────────────────────────────────────
 
 function TabSkeleton() {
@@ -877,6 +1040,7 @@ export default function AnalyticsPage() {
           <TabsTrigger value="prescriptive">Prescriptive</TabsTrigger>
           <TabsTrigger value="impact">Impact</TabsTrigger>
           <TabsTrigger value="operational">Operational</TabsTrigger>
+          <TabsTrigger value="mdm">MDM Health</TabsTrigger>
         </TabsList>
 
         <TabsContent value="predictive">
@@ -890,6 +1054,9 @@ export default function AnalyticsPage() {
         </TabsContent>
         <TabsContent value="operational">
           <OperationalTab />
+        </TabsContent>
+        <TabsContent value="mdm">
+          <MDMHealthTab />
         </TabsContent>
       </Tabs>
     </div>

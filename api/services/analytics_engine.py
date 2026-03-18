@@ -98,6 +98,27 @@ class PredictiveAnalytics:
                 factors.append(f"{dim} improved by {delta:.1f}")
         return factors
 
+    def forecast_mdm_health(self, mdm_history: list[dict]) -> dict | None:
+        """Run linear regression on mdm_health_score. Returns forecast dict or None if < 3 points."""
+        if len(mdm_history) < 3:
+            return None
+        scores = [float(h['mdm_health_score']) for h in mdm_history
+                  if h.get('mdm_health_score') is not None]
+        if len(scores) < 3:
+            return None
+        X = np.arange(len(scores)).reshape(-1, 1)
+        y = np.array(scores)
+        model = LinearRegression()
+        model.fit(X, y)
+        slope = float(model.coef_[0])
+        next_idx = len(scores)
+        return {
+            'current':  round(scores[-1], 1),
+            'day_28':   round(float(np.clip(model.predict([[next_idx + 28]])[0], 0, 100)), 1),
+            'trend':    'improving' if slope > 0.1 else 'declining' if slope < -0.1 else 'stable',
+            'data_points': len(scores),
+        }
+
     def generate_early_warnings(
         self, forecasts: list[dict], thresholds: dict | None = None
     ) -> list[dict]:

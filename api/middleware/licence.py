@@ -205,12 +205,24 @@ async def _validate_licence() -> dict | None:
 
 # Feature flag route mapping — routes requiring specific licence features
 FEATURE_ROUTE_MAP: dict[str, str] = {
+    # ── Existing Phase A-G routes ─────────────────────────────────────────
     "/api/v1/cleaning": "cleaning",
     "/api/v1/exceptions": "exceptions",
     "/api/v1/analytics": "analytics",
     "/api/v1/nlp": "nlp",
     "/api/v1/contracts": "contracts",
     "/api/v1/notifications": "notifications",
+    # ── New Phase H-O MDM routes (require 'mdm' licence feature) ──────────
+    "/api/v1/systems": "mdm",
+    "/api/v1/sync": "mdm",
+    "/api/v1/master-records": "mdm",
+    "/api/v1/stewardship": "mdm",
+    "/api/v1/glossary": "mdm",
+    "/api/v1/relationships": "mdm",
+    "/api/v1/match-rules": "mdm",
+    "/api/v1/mdm-metrics": "mdm",
+    # ── AI-specific routes (require 'ai_features' licence feature) ────────
+    "/api/v1/ai": "ai_features",
 }
 
 

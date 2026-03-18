@@ -450,5 +450,57 @@ async def check_contract_compliance(
                 "violations": violations,
             })
 
+    # ── Golden record schema_contract validation ────────────────────────────
+    for contract in contracts:
+        schema = contract.get('schema_contract')
+        if not schema:
+            continue
+
+        contract_id = str(contract['id'])
+        golden_records = await db.execute(text("""
+            SELECT id, sap_object_key, golden_fields
+            FROM master_records
+            WHERE tenant_id = :tid
+              AND status = 'golden'
+            LIMIT 200
+        """), {'tid': tenant_id})
+
+        for gr in golden_records.fetchall():
+            fields = gr[2] or {}
+            if isinstance(fields, str):
+                fields = json.loads(fields)
+            gr_violations = []
+            for field_name, rules in schema.items():
+                if not isinstance(rules, dict):
+                    continue
+                value = fields.get(field_name)
+                if rules.get('mandatory') and not value:
+                    gr_violations.append({
+                        'field': field_name,
+                        'reason': 'mandatory field missing in golden record',
+                    })
+                if value and rules.get('allowed_values'):
+                    if value not in rules['allowed_values']:
+                        gr_violations.append({
+                            'field': field_name,
+                            'reason': f'value not in allowed_values: {value}',
+                        })
+
+            if gr_violations:
+                await db.execute(text("""
+                    INSERT INTO contract_compliance_history
+                      (id, tenant_id, contract_id, overall_compliant, violations, recorded_at)
+                    VALUES
+                      (gen_random_uuid(), :tid, :cid, false, CAST(:v AS jsonb), now())
+                """), {
+                    'tid': tenant_id,
+                    'cid': contract_id,
+                    'v':   json.dumps({
+                        'type':             'golden_record_field',
+                        'object_key':        gr[1],
+                        'field_violations':  gr_violations,
+                    }),
+                })
+
     await db.commit()
     return violations_created

@@ -5,14 +5,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
 from api.services.exception_engine import ExceptionBillingCalculator
-from api.services.rbac import require_permission
+from api.services.rbac import has_permission, require_permission
 
 router = APIRouter(prefix="/api/v1", tags=["exceptions"])
 
@@ -92,11 +92,13 @@ _SLA_HOURS = {"critical": 8, "high": 24, "medium": 72, "low": 168}
 
 @router.get("/exceptions")
 async def list_exceptions(
+    request: Request,
     type: Optional[str] = None,
     status: Optional[str] = None,
     severity: Optional[str] = None,
     assigned_to: Optional[str] = None,
     category: Optional[str] = None,
+    include_queue_status: bool = Query(False),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -150,9 +152,35 @@ async def list_exceptions(
         params,
     )
     rows = result.fetchall()
+    exceptions = [_row_to_dict(r) for r in rows]
+
+    # Optionally enrich with stewardship_queue status
+    if include_queue_status and exceptions:
+        user_role = getattr(request.state, 'user_role', 'viewer')
+        can_see_ai = has_permission(user_role, 'view_ai_confidence')
+
+        exc_ids = [str(e["id"]) for e in exceptions]
+        queue_result = await db.execute(
+            text("""
+                SELECT source_id, status, ai_recommendation
+                FROM stewardship_queue
+                WHERE tenant_id = :tid
+                  AND item_type = 'exception'
+                  AND source_id = ANY(:ids)
+            """),
+            {"tid": str(tenant.id), "ids": exc_ids},
+        )
+        queue_map = {str(r[0]): {"status": r[1], "ai_recommendation": r[2]} for r in queue_result.fetchall()}
+
+        for exc in exceptions:
+            queue_row = queue_map.get(str(exc["id"]))
+            exc["queue_status"] = queue_row["status"] if queue_row else None
+            exc["ai_recommendation"] = (
+                queue_row["ai_recommendation"] if (queue_row and can_see_ai) else None
+            )
 
     return {
-        "exceptions": [_row_to_dict(r) for r in rows],
+        "exceptions": exceptions,
         "total": total,
         "page": page,
         "per_page": per_page,

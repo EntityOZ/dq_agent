@@ -111,6 +111,39 @@ def run_exception_scan(self, version_id: str, tenant_id: str):
                     },
                 )
 
+                # Upsert stewardship_queue row for this exception
+                try:
+                    priority_map = {'critical': 1, 'high': 2, 'medium': 3, 'low': 4}
+                    sla_hours = 24 if exc['severity'] == 'critical' else 72
+                    session.execute(
+                        text("""
+                            INSERT INTO stewardship_queue
+                              (id, tenant_id, item_type, source_id, domain,
+                               priority, due_at, status, sla_hours, created_at, updated_at)
+                            VALUES
+                              (gen_random_uuid(), :tid, 'exception', :source_id, :domain,
+                               :priority,
+                               now() + (:sla_hours || ' hours')::interval,
+                               'open', :sla_hours, now(), now())
+                            ON CONFLICT (source_id, item_type)
+                            WHERE status != 'resolved'
+                            DO UPDATE SET
+                              priority   = EXCLUDED.priority,
+                              due_at     = EXCLUDED.due_at,
+                              updated_at = now()
+                        """),
+                        {
+                            'tid':       tenant_id,
+                            'source_id': exc['id'],
+                            'domain':    exc.get('category', 'general'),
+                            'priority':  priority_map.get(exc['severity'], 3),
+                            'sla_hours': sla_hours,
+                        },
+                    )
+                except Exception as sq_err:
+                    logger.warning(f'stewardship_queue insert failed for exception {exc["id"]}: {sq_err}')
+                    # Do NOT re-raise — exception was created successfully
+
             session.commit()
 
         # Create notifications for critical exceptions

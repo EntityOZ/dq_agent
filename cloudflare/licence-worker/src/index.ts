@@ -112,11 +112,24 @@ async function handleProvision(
     );
   }
 
+  // Default features by tier:
+  // Standard: cleaning, exceptions, analytics, nlp, contracts, notifications, mdm
+  // Enterprise: ...Standard + ai_features
+  const STANDARD_FEATURES = [
+    "cleaning",
+    "exceptions",
+    "analytics",
+    "nlp",
+    "contracts",
+    "notifications",
+    "mdm",
+  ];
+
   const licenceKey = generateKey();
   const record: LicenceRecord = {
     tenantId,
     modules,
-    features: features || [],
+    features: features || STANDARD_FEATURES,
     expiresAt,
     active: true,
     notes: notes || undefined,
