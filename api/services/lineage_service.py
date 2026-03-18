@@ -176,6 +176,51 @@ async def get_lineage(
             })
             edges.append(_edge(root_id, eid, "exception"))
 
+    # ── Level 5: Cross-domain relationships from record_relationships ──
+    rel_result = await db.execute(
+        text("""
+            SELECT id, from_domain, from_key, to_domain, to_key,
+                   relationship_type, ai_inferred, ai_confidence, impact_score
+            FROM record_relationships
+            WHERE tenant_id = :tid
+              AND active = true
+              AND (
+                  (from_domain = :ot AND from_key = :rk)
+                  OR (to_domain = :ot AND to_key = :rk)
+              )
+            ORDER BY impact_score DESC NULLS LAST
+            LIMIT 20
+        """),
+        {"tid": tid, "rk": record_key, "ot": object_type},
+    )
+    for row in rel_result.fetchall():
+        rel_id = f"relationship:{row[0]}"
+        # Determine the "other" side of the relationship
+        if row[1] == object_type and row[2] == record_key:
+            other_domain, other_key = row[3], row[4]
+        else:
+            other_domain, other_key = row[1], row[2]
+
+        other_node_id = f"record:{other_domain}:{other_key}"
+        if other_node_id not in nodes:
+            nodes[other_node_id] = _node(
+                other_node_id,
+                f"{other_domain} / {other_key}",
+                "relationship",
+                {
+                    "domain": other_domain,
+                    "relationship_type": row[5],
+                    "ai_inferred": row[6],
+                    "ai_confidence": float(row[7]) if row[7] else None,
+                    "impact_score": float(row[8]) if row[8] else None,
+                },
+            )
+        edges.append(_edge(
+            root_id,
+            other_node_id,
+            row[5],
+        ))
+
     return {
         "nodes": list(nodes.values()),
         "edges": edges,

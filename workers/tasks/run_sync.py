@@ -168,6 +168,17 @@ def run_sync(self, profile_id: str, tenant_id: str):
                 safe_msg = re.sub(re.escape(password), "****", str(e)) if password else str(e)
                 logger.warning(f"Failed to extract {table_name}: {safe_msg}")
 
+        # Step 3b: RFC relationship discovery (while conn is still open)
+        try:
+            from api.services.relationship_discovery import discover_relationships_rfc
+
+            with Session(engine) as rfc_session:
+                rfc_session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                rfc_discovered = discover_relationships_rfc(conn, tenant_id, domain, rfc_session)
+                logger.info(f"RFC relationship discovery: {len(rfc_discovered)} relationships found")
+        except Exception as e:
+            logger.warning(f"RFC relationship discovery failed (non-fatal): {e}")
+
     except Exception as e:
         safe_msg = re.sub(re.escape(password), "****", str(e)) if password else str(e)
         _fail_sync_run(engine, tenant_id, sync_run_id, f"RFC connection failed: {safe_msg}")
@@ -287,6 +298,42 @@ def run_sync(self, profile_id: str, tenant_id: str):
             {"pid": profile_id},
         )
         session.commit()
+
+    # Step 10: Relationship discovery + AI impact scoring
+    try:
+        from api.services.relationship_discovery import (
+            discover_relationships_from_data,
+            run_ai_inference_pass,
+        )
+
+        with Session(engine) as session:
+            session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+
+            # Discover relationships from existing master_records data
+            discovered = discover_relationships_from_data(tenant_id, domain, session)
+            logger.info(f"Discovered {len(discovered)} relationships from data for domain '{domain}'")
+
+            # Get keys of golden records updated in this sync run
+            changed_result = session.execute(
+                text("""
+                    SELECT DISTINCT mr.sap_object_key
+                    FROM master_records mr
+                    JOIN master_record_history mrh ON mr.id = mrh.master_record_id
+                    WHERE mr.tenant_id = :tid AND mr.domain = :domain
+                      AND mrh.changed_at >= (
+                          SELECT started_at FROM sync_runs WHERE id = :srid
+                      )
+                """),
+                {"tid": tenant_id, "domain": domain, "srid": sync_run_id},
+            )
+            changed_keys = [r[0] for r in changed_result.fetchall()]
+
+            if changed_keys:
+                run_ai_inference_pass(tenant_id, domain, changed_keys, session)
+                logger.info(f"AI inference pass complete for {len(changed_keys)} changed keys")
+
+    except Exception as e:
+        logger.warning(f"Relationship discovery failed (non-fatal): {e}")
 
     # Add batch-level warning if AI quality score is low
     if ai_quality_score < 0.6:
