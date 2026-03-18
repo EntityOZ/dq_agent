@@ -789,3 +789,78 @@ class MatchScore(Base):
         Index("ix_match_scores_tenant_action", "tenant_id", "auto_action"),
     )
 
+
+# ── Phase K: Business Glossary ──────────────────────────────────────────────
+
+
+class GlossaryTerm(Base):
+    __tablename__ = "glossary_terms"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    domain = Column(Text, nullable=False)
+    sap_table = Column(Text, nullable=False)
+    sap_field = Column(Text, nullable=False)
+    technical_name = Column(Text, nullable=False)
+    business_name = Column(Text, nullable=False)
+    business_definition = Column(Text, nullable=True)
+    why_it_matters = Column(Text, nullable=True)
+    sap_impact = Column(Text, nullable=True)
+    approved_values = Column(JSONB, nullable=True)
+    mandatory_for_s4hana = Column(Boolean, nullable=False, server_default="false")
+    rule_authority = Column(Text, nullable=True)
+    data_steward_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    review_cycle_days = Column(Integer, nullable=False, server_default="90")
+    last_reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(Text, nullable=False, server_default="active")
+    ai_drafted = Column(Boolean, nullable=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    term_rules = relationship("GlossaryTermRule", back_populates="term", cascade="all, delete-orphan")
+    change_logs = relationship("GlossaryChangeLog", back_populates="term", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "sap_table", "sap_field", name="uq_glossary_terms_tenant_table_field"),
+        Index("ix_glossary_terms_tenant_domain", "tenant_id", "domain"),
+    )
+
+
+class GlossaryTermRule(Base):
+    __tablename__ = "glossary_term_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    term_id = Column(UUID(as_uuid=True), ForeignKey("glossary_terms.id", ondelete="CASCADE"), nullable=False)
+    rule_id = Column(Text, nullable=False)
+    domain = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    term = relationship("GlossaryTerm", back_populates="term_rules")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "term_id", "rule_id", name="uq_glossary_term_rules_tenant_term_rule"),
+        Index("ix_glossary_term_rules_tenant_term", "tenant_id", "term_id"),
+    )
+
+
+class GlossaryChangeLog(Base):
+    __tablename__ = "glossary_change_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    term_id = Column(UUID(as_uuid=True), ForeignKey("glossary_terms.id", ondelete="CASCADE"), nullable=False)
+    changed_by = Column(Text, nullable=False)
+    changed_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    field_changed = Column(Text, nullable=False)
+    old_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=True)
+    change_reason = Column(Text, nullable=True)
+
+    term = relationship("GlossaryTerm", back_populates="change_logs")
+
+    __table_args__ = (
+        Index("ix_glossary_change_log_tenant", "tenant_id"),
+        Index("ix_glossary_change_log_term", "term_id"),
+    )
+

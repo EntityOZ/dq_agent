@@ -397,8 +397,29 @@ function FindingsContent() {
                       <td className="px-4 py-3">
                         {formatModuleName(f.module)}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs">
-                        {f.check_id}
+                      <td className="px-4 py-3">
+                        <div className="font-mono text-xs">{f.check_id}</div>
+                        {f.business_name && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-xs text-[#0695A8] truncate max-w-[180px]">
+                                {f.business_name}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              {f.business_definition || f.business_name}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {f.glossary_term_id && (
+                          <a
+                            href={`/glossary/${f.glossary_term_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] text-[#1D6ECC] hover:underline"
+                          >
+                            View in Glossary
+                          </a>
+                        )}
                       </td>
                       <td className="max-w-xs truncate px-4 py-3">
                         {f.details?.message ?? "—"}

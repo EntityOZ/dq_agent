@@ -121,6 +121,10 @@ export interface Finding {
   value_fix_map: Record<string, ValueFixEntry> | null;
   record_fixes: RecordFixEntry[] | null;
   created_at: string;
+  /* Glossary enrichment (Phase K) */
+  business_name?: string | null;
+  glossary_term_id?: string | null;
+  business_definition?: string | null;
 }
 
 export interface FindingReportContext {
@@ -653,4 +657,89 @@ export interface SimulationResult {
   auto_merge_count: number;
   auto_dismiss_count: number;
   queue_count: number;
+}
+
+/* ─── Phase K: Business Glossary ─── */
+
+export type GlossaryStatus = "active" | "under_review" | "deprecated";
+
+export interface GlossaryTermSummary {
+  id: string;
+  sap_table: string;
+  sap_field: string;
+  technical_name: string;
+  business_name: string;
+  domain: string;
+  mandatory_for_s4hana: boolean;
+  status: GlossaryStatus;
+  ai_drafted: boolean;
+  last_reviewed_at: string | null;
+  review_cycle_days: number;
+  linked_rules_count: number;
+}
+
+export interface LinkedRule {
+  rule_id: string;
+  domain: string;
+  pass_rate: number | null;
+  severity: string | null;
+  affected_count: number | null;
+  total_count: number | null;
+}
+
+export interface GlossaryChangeEntry {
+  id: string;
+  changed_by: string;
+  changed_at: string;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  change_reason: string | null;
+}
+
+export interface GlossaryTermDetail {
+  id: string;
+  sap_table: string;
+  sap_field: string;
+  technical_name: string;
+  business_name: string;
+  business_definition: string | null;
+  why_it_matters: string | null;
+  sap_impact: string | null;
+  domain: string;
+  approved_values: Record<string, string> | string[] | null;
+  mandatory_for_s4hana: boolean;
+  rule_authority: string | null;
+  data_steward_id: string | null;
+  review_cycle_days: number;
+  last_reviewed_at: string | null;
+  status: GlossaryStatus;
+  ai_drafted: boolean;
+  created_at: string;
+  updated_at: string;
+  linked_rules: LinkedRule[];
+  change_history: GlossaryChangeEntry[];
+}
+
+export interface GlossaryListResponse {
+  terms: GlossaryTermSummary[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface AIDraftResponse {
+  business_definition: string;
+  why_it_matters_business: string;
+  committed: boolean;
+}
+
+export interface BatchLookupEntry {
+  business_name: string;
+  id: string;
+  business_definition: string | null;
+}
+
+export interface BatchLookupResponse {
+  lookup: Record<string, BatchLookupEntry>;
 }

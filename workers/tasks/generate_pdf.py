@@ -122,6 +122,23 @@ def generate_pdf(self, version_id: str, tenant_id: str):
                 LIMIT 10
             """), {"tid": tenant_id}).fetchall()
 
+            # Glossary terms — top 30 by linked rules count (Phase K)
+            glossary_result = session.execute(text("""
+                SELECT gt.sap_table, gt.sap_field, gt.business_name, gt.business_definition,
+                       gt.mandatory_for_s4hana, COUNT(gtr.id) as rule_count
+                FROM glossary_terms gt
+                LEFT JOIN glossary_term_rules gtr ON gtr.term_id = gt.id AND gtr.tenant_id = gt.tenant_id
+                WHERE gt.tenant_id = :tid
+                GROUP BY gt.id
+                ORDER BY rule_count DESC
+                LIMIT 30
+            """), {"tid": tenant_id})
+            glossary_terms = [
+                {"sap_table": r[0], "sap_field": r[1], "business_name": r[2],
+                 "business_definition": r[3], "mandatory": r[4], "rule_count": r[5]}
+                for r in glossary_result.fetchall()
+            ]
+
         # Step 2: Render HTML template with Jinja2
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
         template = env.get_template("executive_report.html")
@@ -133,6 +150,7 @@ def generate_pdf(self, version_id: str, tenant_id: str):
             impact=impact._asdict() if impact else {},
             contracts=contracts._asdict() if contracts else {},
             dqs_trend=[{"recorded_at": str(r[0]), "dqs_score": float(r[1]) if r[1] else 0, "module_id": r[2]} for r in dqs_trend] if dqs_trend else [],
+            glossary_terms=glossary_terms if glossary_terms else [],
         )
 
         # Step 3: Convert to PDF using WeasyPrint

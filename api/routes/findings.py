@@ -60,6 +60,31 @@ async def list_findings(
     result = await db.execute(stmt)
     findings = result.scalars().all()
 
+    # Glossary enrichment: batch-lookup business names for check_ids
+    check_ids = list({f.check_id for f in findings if f.check_id})
+    glossary_lookup: dict[str, dict] = {}
+    if check_ids:
+        placeholders = ", ".join(f":cid{i}" for i in range(len(check_ids)))
+        gparams = {"tid": str(tenant.id)}
+        gparams.update({f"cid{i}": cid for i, cid in enumerate(check_ids)})
+        glossary_result = await db.execute(
+            text(f"""
+                SELECT gtr.rule_id, gt.business_name, gt.id AS glossary_term_id,
+                       gt.business_definition
+                FROM glossary_term_rules gtr
+                JOIN glossary_terms gt ON gt.id = gtr.term_id AND gt.tenant_id = gtr.tenant_id
+                WHERE gtr.rule_id IN ({placeholders})
+                  AND gtr.tenant_id = :tid
+            """),
+            gparams,
+        )
+        for row in glossary_result.fetchall():
+            glossary_lookup[row[0]] = {
+                "business_name": row[1],
+                "glossary_term_id": str(row[2]),
+                "business_definition": row[3],
+            }
+
     return {
         "findings": [
             {
@@ -77,6 +102,9 @@ async def list_findings(
                 "value_fix_map": f.value_fix_map,
                 "record_fixes": f.record_fixes,
                 "created_at": f.created_at.isoformat() if f.created_at else None,
+                "business_name": glossary_lookup.get(f.check_id, {}).get("business_name"),
+                "glossary_term_id": glossary_lookup.get(f.check_id, {}).get("glossary_term_id"),
+                "business_definition": glossary_lookup.get(f.check_id, {}).get("business_definition"),
             }
             for f in findings
         ],
