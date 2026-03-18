@@ -604,3 +604,53 @@ export interface SyncRun {
     column?: string;
   }> | null;
 }
+
+/* ─── Match & Merge Engine ─── */
+
+export type MatchType = "exact" | "fuzzy" | "phonetic" | "numeric_range" | "semantic";
+
+export interface MatchRule {
+  id: string;
+  tenant_id: string;
+  domain: string;
+  field: string;
+  match_type: MatchType;
+  weight: number;
+  threshold: number;
+  active: boolean;
+}
+
+export interface MatchRulesListResponse {
+  rules: MatchRule[];
+  total: number;
+}
+
+export interface AIProposedRule {
+  id: string;
+  tenant_id: string;
+  domain: string;
+  proposed_rule: {
+    field: string;
+    match_type: MatchType;
+    weight: number;
+    threshold: number;
+  };
+  rationale: string;
+  supporting_correction_count: number;
+  status: "pending" | "approved" | "rejected";
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface AIProposedRulesListResponse {
+  rules: AIProposedRule[];
+  total: number;
+}
+
+export interface SimulationResult {
+  total_pairs: number;
+  auto_merge_count: number;
+  auto_dismiss_count: number;
+  queue_count: number;
+}

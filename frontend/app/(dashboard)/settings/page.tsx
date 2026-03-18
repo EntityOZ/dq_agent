@@ -14,6 +14,10 @@ import {
   CreditCard,
   Check,
   X,
+  GitMerge,
+  Sparkles,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +35,26 @@ import {
 } from "@/lib/api/settings";
 import { getExceptionBilling } from "@/lib/api/exceptions";
 import { getUsers, updateUser, inviteUser } from "@/lib/api/users";
+import {
+  getMatchRules,
+  createMatchRule,
+  updateMatchRule,
+  deleteMatchRule,
+  simulateMatchRules,
+  getProposedRules,
+  approveProposedRule,
+  rejectProposedRule,
+} from "@/lib/api/match-rules";
 import { formatModuleName } from "@/lib/format";
-import type { DimensionScores, UserRole, ExceptionBilling } from "@/types/api";
+import type {
+  DimensionScores,
+  UserRole,
+  ExceptionBilling,
+  MatchRule,
+  MatchType,
+  AIProposedRule,
+  SimulationResult,
+} from "@/types/api";
 
 const DEFAULT_WEIGHTS: DimensionScores = {
   completeness: 25,
@@ -132,6 +154,14 @@ export default function SettingsPage() {
           <TabsTrigger value="billing">
             <CreditCard className="mr-1 h-4 w-4" />
             Billing
+          </TabsTrigger>
+          <TabsTrigger value="match-rules">
+            <GitMerge className="mr-1 h-4 w-4" />
+            Match Rules
+          </TabsTrigger>
+          <TabsTrigger value="ai-rules">
+            <Sparkles className="mr-1 h-4 w-4" />
+            AI Proposed Rules
           </TabsTrigger>
         </TabsList>
 
@@ -415,6 +445,16 @@ export default function SettingsPage() {
             stripeCustomerId={settings?.stripe_customer_id ?? null}
             licensedModules={settings?.licensed_modules ?? []}
           />
+        </TabsContent>
+
+        {/* ── Match Rules Tab ────────────────────────────────────────── */}
+        <TabsContent value="match-rules">
+          <MatchRulesTab />
+        </TabsContent>
+
+        {/* ── AI Proposed Rules Tab ──────────────────────────────────── */}
+        <TabsContent value="ai-rules">
+          <AIProposedRulesTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -878,6 +918,480 @@ function BillingTab({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+
+/* ── Match Rules tab sub-component ─────────────────────────────────────────── */
+
+const MATCH_TYPE_OPTIONS: { value: MatchType; label: string }[] = [
+  { value: "exact", label: "Exact" },
+  { value: "fuzzy", label: "Fuzzy" },
+  { value: "phonetic", label: "Phonetic" },
+  { value: "numeric_range", label: "Numeric Range" },
+  { value: "semantic", label: "Semantic (AI)" },
+];
+
+const MATCH_TYPE_COLORS: Record<string, string> = {
+  exact: "bg-[#D1FAE5] text-[#059669]",
+  fuzzy: "bg-[#DBEAFE] text-[#1D6ECC]",
+  phonetic: "bg-[#FEF3C7] text-[#D97706]",
+  numeric_range: "bg-[#F0F5FA] text-[#6B92AD]",
+  semantic: "bg-[#EDE9FE] text-[#7C3AED]",
+};
+
+const DOMAIN_OPTIONS = [
+  "business_partner",
+  "material_master",
+  "fi_gl",
+  "employee_central",
+  "ap_ar",
+];
+
+function MatchRulesTab() {
+  const qc = useQueryClient();
+  const [domainFilter, setDomainFilter] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+
+  // Form state
+  const [formDomain, setFormDomain] = useState("business_partner");
+  const [formField, setFormField] = useState("");
+  const [formType, setFormType] = useState<MatchType>("exact");
+  const [formWeight, setFormWeight] = useState(50);
+  const [formThreshold, setFormThreshold] = useState(0.8);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["match-rules", domainFilter],
+    queryFn: () => getMatchRules(domainFilter || undefined),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => {
+      const body = {
+        domain: formDomain,
+        field: formField,
+        match_type: formType,
+        weight: formWeight,
+        threshold: formThreshold,
+      };
+      return editId ? updateMatchRule(editId, body) : createMatchRule(body);
+    },
+    onSuccess: () => {
+      toast.success(editId ? "Match rule updated" : "Match rule created");
+      qc.invalidateQueries({ queryKey: ["match-rules"] });
+      setAddOpen(false);
+      _resetForm();
+    },
+    onError: () => toast.error(editId ? "Failed to update rule" : "Failed to create rule"),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      updateMatchRule(id, { active }),
+    onSuccess: () => {
+      toast.success("Rule updated");
+      qc.invalidateQueries({ queryKey: ["match-rules"] });
+    },
+    onError: () => toast.error("Failed to update rule"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteMatchRule(id),
+    onSuccess: () => {
+      toast.success("Rule deleted");
+      qc.invalidateQueries({ queryKey: ["match-rules"] });
+    },
+    onError: () => toast.error("Failed to delete rule"),
+  });
+
+  const simulateMutation = useMutation({
+    mutationFn: () => simulateMatchRules({ domain: domainFilter || "business_partner" }),
+    onSuccess: (result) => {
+      setSimResult(result);
+      toast.success("Simulation complete");
+    },
+    onError: () => toast.error("Simulation failed"),
+  });
+
+  function _resetForm() {
+    setFormDomain("business_partner");
+    setFormField("");
+    setFormType("exact");
+    setFormWeight(50);
+    setFormThreshold(0.8);
+    setEditId(null);
+  }
+
+  if (isLoading) return <Skeleton className="h-64 mt-4" />;
+
+  return (
+    <div className="space-y-6 pt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-[#0F2137]">Match Rules</h2>
+          <p className="text-sm text-[#6B92AD]">
+            Configure weighted match scoring rules per domain
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={domainFilter}
+            onChange={(e) => setDomainFilter(e.target.value)}
+            className="rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+          >
+            <option value="">All Domains</option>
+            {DOMAIN_OPTIONS.map((d) => (
+              <option key={d} value={d}>
+                {formatModuleName(d)}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => simulateMutation.mutate()}
+            disabled={simulateMutation.isPending}
+          >
+            Test Simulation
+          </Button>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-1 h-4 w-4" />
+                Add Rule
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editId ? "Edit Rule" : "Add Match Rule"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Domain</label>
+                  <select
+                    value={formDomain}
+                    onChange={(e) => setFormDomain(e.target.value)}
+                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  >
+                    {DOMAIN_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {formatModuleName(d)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Field</label>
+                  <input
+                    type="text"
+                    value={formField}
+                    onChange={(e) => setFormField(e.target.value)}
+                    placeholder="e.g. BUT000.BU_TYPE"
+                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Match Type</label>
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value as MatchType)}
+                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  >
+                    {MATCH_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">
+                      Weight (0-100)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={formWeight}
+                      onChange={(e) => setFormWeight(parseInt(e.target.value) || 0)}
+                      className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">
+                      Threshold (0-1)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={formThreshold}
+                      onChange={(e) =>
+                        setFormThreshold(parseFloat(e.target.value) || 0)
+                      }
+                      className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={() => createMutation.mutate()}
+                  disabled={!formField || createMutation.isPending}
+                  className="w-full"
+                >
+                  {editId ? "Update Rule" : "Create Rule"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Simulation result */}
+      {simResult && (
+        <Alert>
+          <AlertDescription>
+            <div className="flex items-center gap-6 text-sm">
+              <span className="font-medium">Simulation Result:</span>
+              <span>
+                <strong>{simResult.total_pairs}</strong> pairs tested
+              </span>
+              <span className="text-[#059669]">
+                <strong>{simResult.auto_merge_count}</strong> auto-merge
+              </span>
+              <span className="text-[#DC2626]">
+                <strong>{simResult.auto_dismiss_count}</strong> auto-dismiss
+              </span>
+              <span className="text-[#D97706]">
+                <strong>{simResult.queue_count}</strong> queued for review
+              </span>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Rules table */}
+      <Card>
+        <CardContent className="p-0">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#D6E4F0] text-left text-xs font-medium text-[#6B92AD]">
+                <th className="px-4 py-3">Domain</th>
+                <th className="px-4 py-3">Field</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Weight</th>
+                <th className="px-4 py-3">Threshold</th>
+                <th className="px-4 py-3">Active</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(!data?.rules || data.rules.length === 0) ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-[#6B92AD]">
+                    No match rules configured. Add a rule to get started.
+                  </td>
+                </tr>
+              ) : (
+                data.rules.map((rule) => (
+                  <tr
+                    key={rule.id}
+                    className="border-b border-[#F0F5FA] last:border-b-0"
+                  >
+                    <td className="px-4 py-3 text-sm">
+                      {formatModuleName(rule.domain)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono">{rule.field}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        className={`text-xs ${MATCH_TYPE_COLORS[rule.match_type] || ""}`}
+                      >
+                        {rule.match_type}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono">{rule.weight}</td>
+                    <td className="px-4 py-3 text-sm font-mono">
+                      {rule.threshold.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={rule.active}
+                        onClick={() =>
+                          toggleMutation.mutate({
+                            id: rule.id,
+                            active: !rule.active,
+                          })
+                        }
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                          rule.active ? "bg-[#059669]" : "bg-gray-300"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                            rule.active ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditId(rule.id);
+                          setFormDomain(rule.domain);
+                          setFormField(rule.field);
+                          setFormType(rule.match_type);
+                          setFormWeight(rule.weight);
+                          setFormThreshold(rule.threshold);
+                          setAddOpen(true);
+                        }}
+                        className="rounded p-1 text-[#6B92AD] hover:bg-[#DBEAFE] hover:text-[#1D6ECC]"
+                        title="Edit rule"
+                      >
+                        <GitMerge className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteMutation.mutate(rule.id)}
+                        className="rounded p-1 text-[#6B92AD] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
+                        title="Delete rule"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+/* ── AI Proposed Rules tab sub-component ───────────────────────────────────── */
+
+function AIProposedRulesTab() {
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["proposed-rules"],
+    queryFn: () => getProposedRules("pending"),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => approveProposedRule(id),
+    onSuccess: () => {
+      toast.success("Rule approved and added to match rules");
+      qc.invalidateQueries({ queryKey: ["proposed-rules"] });
+      qc.invalidateQueries({ queryKey: ["match-rules"] });
+    },
+    onError: () => toast.error("Failed to approve rule"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => rejectProposedRule(id),
+    onSuccess: () => {
+      toast.success("Rule rejected");
+      qc.invalidateQueries({ queryKey: ["proposed-rules"] });
+    },
+    onError: () => toast.error("Failed to reject rule"),
+  });
+
+  if (isLoading) return <Skeleton className="h-64 mt-4" />;
+
+  return (
+    <div className="space-y-6 pt-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[#0F2137]">
+          AI Proposed Rules
+        </h2>
+        <p className="text-sm text-[#6B92AD]">
+          Review and approve match rules proposed by the AI based on steward
+          correction patterns
+        </p>
+      </div>
+
+      {(!data?.rules || data.rules.length === 0) ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-[#6B92AD]">
+            No pending rule proposals. The AI will propose rules after
+            accumulating steward corrections.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {data.rules.map((rule) => (
+            <Card key={rule.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`text-xs ${
+                          MATCH_TYPE_COLORS[rule.proposed_rule.match_type] || ""
+                        }`}
+                      >
+                        {rule.proposed_rule.match_type}
+                      </Badge>
+                      <span className="text-sm font-medium">
+                        {formatModuleName(rule.domain)}
+                      </span>
+                      <span className="font-mono text-sm text-[#6B92AD]">
+                        {rule.proposed_rule.field}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[#6B92AD]">{rule.rationale}</p>
+                    <div className="flex items-center gap-4 text-xs text-[#6B92AD]">
+                      <span>
+                        Weight: <strong>{rule.proposed_rule.weight}</strong>
+                      </span>
+                      <span>
+                        Threshold:{" "}
+                        <strong>{rule.proposed_rule.threshold}</strong>
+                      </span>
+                      <span>
+                        Based on{" "}
+                        <strong>{rule.supporting_correction_count}</strong>{" "}
+                        corrections
+                      </span>
+                      <span>
+                        Proposed:{" "}
+                        {new Date(rule.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => approveMutation.mutate(rule.id)}
+                      disabled={approveMutation.isPending}
+                    >
+                      <Check className="mr-1 h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => rejectMutation.mutate(rule.id)}
+                      disabled={rejectMutation.isPending}
+                    >
+                      <X className="mr-1 h-4 w-4" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
