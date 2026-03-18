@@ -114,6 +114,8 @@ function NotificationBell() {
       <PopoverTrigger>
         <button
           type="button"
+          title="Notifications"
+          aria-label="Notifications"
           className="relative flex h-8 w-8 items-center justify-center rounded-lg text-[#6B92AD] hover:bg-[#F0F5FA] hover:text-[#0F2137] transition-colors"
         >
           <Bell className="h-[18px] w-[18px]" />
@@ -300,7 +302,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Content */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-hidden">
           <main className="p-6">{children}</main>
         </ScrollArea>
       </div>

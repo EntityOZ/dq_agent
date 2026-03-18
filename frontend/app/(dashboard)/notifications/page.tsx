@@ -15,6 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
@@ -117,6 +123,7 @@ export default function NotificationsPage() {
   };
 
   return (
+    <TooltipProvider delay={0}>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -247,14 +254,21 @@ export default function NotificationsPage() {
                     </p>
                   </div>
                   {notif.link && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => router.push(notif.link!)}
-                      className="shrink-0 text-[#0695A8]"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => router.push(notif.link!)}
+                            className="shrink-0 text-[#0695A8]"
+                          />
+                        }
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Go to item</TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
               ))}
@@ -291,5 +305,6 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }

@@ -7,6 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { uploadFile } from "@/lib/api/upload";
 import { pollVersionStatus } from "@/lib/api/reports";
@@ -181,13 +187,22 @@ export default function UploadPage() {
                     ({(file.size / 1024 / 1024).toFixed(1)} MB)
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFile(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <TooltipProvider delay={0}>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFile(null)}
+                        />
+                      }
+                    >
+                      <X className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Remove file</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
 

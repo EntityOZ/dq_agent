@@ -7,6 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { sendNlpQuery } from "@/lib/api/contracts";
 import type { NlpResponse } from "@/types/api";
 import {
@@ -310,13 +316,22 @@ export default function NlpPage() {
           className="flex-1 rounded-lg border border-[#D6E4F0] bg-white px-4 py-2.5 text-sm text-[#0F2137] placeholder-[#6B92AD] outline-none transition-colors focus:border-[#0695A8] focus:ring-1 focus:ring-[#0695A8]"
           disabled={mutation.isPending}
         />
-        <Button
-          onClick={() => handleSend()}
-          disabled={mutation.isPending || !input.trim()}
-          className="bg-[#0695A8] hover:bg-[#057A8A]"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        <TooltipProvider delay={0}>
+          <UiTooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  onClick={() => handleSend()}
+                  disabled={mutation.isPending || !input.trim()}
+                  className="bg-[#0695A8] hover:bg-[#057A8A]"
+                />
+              }
+            >
+              <Send className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Send message</TooltipContent>
+          </UiTooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

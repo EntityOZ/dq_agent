@@ -2,7 +2,7 @@ import apiClient from "./client";
 import type { FindingList, FindingReportContext } from "@/types/api";
 
 export async function getFindings(params: {
-  version_id: string;
+  version_id?: string;
   module?: string;
   severity?: string;
   dimension?: string;

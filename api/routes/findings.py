@@ -15,7 +15,7 @@ logger = logging.getLogger("vantax.findings")
 
 @router.get("/findings")
 async def list_findings(
-    version_id: str = Query(...),
+    version_id: Optional[str] = Query(None),
     module: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
     dimension: Optional[str] = Query(None),
@@ -25,13 +25,14 @@ async def list_findings(
     tenant: Tenant = Depends(get_tenant),
 ):
     await db.execute(text(f"SET app.tenant_id = '{tenant.id}'"))
-    vid = uuid.UUID(version_id)
 
-    filters_applied = {"version_id": version_id}
-    base = select(Finding).where(
-        Finding.tenant_id == tenant.id,
-        Finding.version_id == vid,
-    )
+    filters_applied: dict = {}
+    base = select(Finding).where(Finding.tenant_id == tenant.id)
+
+    if version_id:
+        vid = uuid.UUID(version_id)
+        base = base.where(Finding.version_id == vid)
+        filters_applied["version_id"] = version_id
 
     if module:
         base = base.where(Finding.module == module)

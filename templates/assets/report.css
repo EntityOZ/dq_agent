@@ -232,3 +232,84 @@ li {
     color: #888;
     text-align: center;
 }
+
+/* ── New Phase A–G Sections ─────────────────────────────────────── */
+
+.report-section {
+    margin-bottom: 24pt;
+}
+
+.section-title {
+    page-break-before: always;
+    font-size: 16pt;
+    color: #0F2137;
+    border-bottom: 2px solid #0695A8;
+    padding-bottom: 6pt;
+    margin-bottom: 12pt;
+    margin-top: 0;
+}
+
+/* KPI grid for financial impact */
+.kpi-grid {
+    display: flex;
+    gap: 12pt;
+    margin-bottom: 16pt;
+}
+
+.kpi-box {
+    flex: 1;
+    background: #F8FAFC;
+    border: 1px solid #D6E4F0;
+    border-radius: 6pt;
+    padding: 12pt;
+    text-align: center;
+}
+
+.kpi-box .kpi-value {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #0F2137;
+    margin-bottom: 4pt;
+}
+
+.kpi-box .kpi-label {
+    font-size: 8pt;
+    color: #6B92AD;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+}
+
+.kpi-risk .kpi-value  { color: #DC2626; }
+.kpi-saving .kpi-value { color: #1A7A4A; }
+
+/* Exception severity row colours */
+.severity-critical td { background: #FEE2E2; color: #7F1D1D; font-weight: bold; }
+.severity-high td     { background: #FEF3C7; color: #78350F; font-weight: bold; }
+
+/* Breach warning row */
+.breach-warning td {
+    background: #FEE2E2;
+    color: #7F1D1D;
+    font-weight: bold;
+}
+
+/* Impact section highlight */
+.impact-section {
+    border-left: 4px solid #1A7A4A;
+    padding-left: 12pt;
+}
+
+/* Readiness badge colours */
+.readiness-badge {
+    text-align: center;
+    padding: 12pt;
+    margin-bottom: 20pt;
+    border-radius: 6pt;
+    font-size: 16pt;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.readiness-ready       { background: #DCFCE7; color: #14532D; padding: 4pt 10pt; border-radius: 4pt; font-weight: bold; }
+.readiness-needs-work  { background: #FEF3C7; color: #78350F; padding: 4pt 10pt; border-radius: 4pt; font-weight: bold; }
+.readiness-blocked     { background: #FEE2E2; color: #7F1D1D; padding: 4pt 10pt; border-radius: 4pt; font-weight: bold; }

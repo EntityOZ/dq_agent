@@ -19,6 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getVersions,
   compareVersions,
   patchVersionLabel,
@@ -116,6 +122,7 @@ export default function VersionsPage() {
   const versions = data?.versions ?? [];
 
   return (
+    <TooltipProvider delay={0}>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Versions</h1>
@@ -242,27 +249,42 @@ export default function VersionsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          <Link href={`/findings?version_id=${v.id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Link href={`/findings?version_id=${v.id}`}>
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </TooltipTrigger>
+                            <TooltipContent>View findings</TooltipContent>
+                          </Tooltip>
                           {v.status === "agents_complete" && (
-                            <a href={getReportDownloadUrl(v.id)} download>
-                              <Button variant="ghost" size="sm">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            </a>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <a href={getReportDownloadUrl(v.id)} download>
+                                  <Button variant="ghost" size="sm">
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent>Download report</TooltipContent>
+                            </Tooltip>
                           )}
-                          <Button
-                            variant={
-                              compareIds.includes(v.id) ? "default" : "ghost"
-                            }
-                            size="sm"
-                            onClick={() => toggleCompare(v.id)}
-                          >
-                            <GitCompareArrows className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Button
+                                variant={
+                                  compareIds.includes(v.id) ? "default" : "ghost"
+                                }
+                                size="sm"
+                                onClick={() => toggleCompare(v.id)}
+                              >
+                                <GitCompareArrows className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Compare versions</TooltipContent>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -274,6 +296,7 @@ export default function VersionsPage() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
 

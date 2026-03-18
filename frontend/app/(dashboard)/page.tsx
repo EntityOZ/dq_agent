@@ -66,13 +66,25 @@ export default function DashboardPage() {
   const completed = versions.filter((v) => v.status === "agents_complete" && v.dqs_summary);
   const latestComplete = completed[0];
 
+  // Build merged DQS: latest run per module across ALL completed versions
+  const mergedDqs: Record<string, DQSSummary> = {};
+  const moduleVersionMap: Record<string, string> = {}; // module → version_id
+  for (const v of completed) {
+    if (!v.dqs_summary) continue;
+    for (const [mod, summary] of Object.entries(v.dqs_summary)) {
+      if (!mergedDqs[mod]) {
+        mergedDqs[mod] = summary;
+        moduleVersionMap[mod] = v.id;
+      }
+    }
+  }
+
   const {
     data: criticalFindings,
   } = useQuery({
-    queryKey: ["critical-findings", latestComplete?.id],
+    queryKey: ["critical-findings"],
     queryFn: () =>
       getFindings({
-        version_id: latestComplete!.id,
         severity: "critical",
         limit: 10,
       }),
@@ -105,7 +117,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!latestComplete || !latestComplete.dqs_summary) {
+  if (!latestComplete || Object.keys(mergedDqs).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-24">
         <UploadIcon className="h-16 w-16 text-[#6B92AD]" />
@@ -118,7 +130,7 @@ export default function DashboardPage() {
     );
   }
 
-  const dqs = latestComplete.dqs_summary;
+  const dqs = mergedDqs;
   const overallScore = averageDqs(dqs);
   const dimensions = averageDimensions(dqs);
   const severityCounts = aggregateSeverityCounts(dqs);
@@ -172,7 +184,7 @@ export default function DashboardPage() {
             {moduleEntries.slice(0, 5).map((m, i) => (
               <Link
                 key={m.name}
-                href={`/findings?module=${m.name}&version_id=${latestComplete.id}`}
+                href={`/findings?module=${m.name}&version_id=${moduleVersionMap[m.name] ?? latestComplete.id}`}
                 className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#F5F9FF]"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0695A8] font-display text-xs font-bold text-white">
@@ -279,7 +291,7 @@ export default function DashboardPage() {
           {moduleEntries.map((m) => (
             <Link
               key={m.name}
-              href={`/findings?module=${m.name}&version_id=${latestComplete.id}`}
+              href={`/findings?module=${m.name}&version_id=${moduleVersionMap[m.name] ?? latestComplete.id}`}
               className="group rounded-lg border border-[#D6E4F0] bg-white p-3 transition-all hover:-translate-y-0.5 hover:border-[#0695A8]"
               style={{ borderLeft: `3px solid ${scoreColor(m.score)}` }}
             >

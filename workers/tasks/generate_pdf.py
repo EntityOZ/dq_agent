@@ -62,10 +62,78 @@ def generate_pdf(self, version_id: str, tenant_id: str):
 
         report_json = row[0]
 
+        # Step 1b: Load Phase A–G data for extended report sections
+        with Session(engine) as session:
+            session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+
+            # Cleaning summary
+            cleaning = session.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending,
+                       SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) as approved,
+                       SUM(CASE WHEN status='applied' THEN 1 ELSE 0 END) as applied
+                FROM cleaning_queue
+                WHERE version_id = :vid AND tenant_id = :tid
+            """), {"vid": version_id, "tid": tenant_id}).fetchone()
+
+            # Dedup summary (no version_id column on this table)
+            dedup = session.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending,
+                       SUM(CASE WHEN status='merged' THEN 1 ELSE 0 END) as merged
+                FROM dedup_candidates
+                WHERE tenant_id = :tid
+            """), {"tid": tenant_id}).fetchone()
+
+            # Exceptions summary
+            exceptions = session.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN severity='critical' THEN 1 ELSE 0 END) as critical,
+                       SUM(CASE WHEN severity='high' THEN 1 ELSE 0 END) as high,
+                       SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) as open_count
+                FROM exceptions
+                WHERE tenant_id = :tid
+            """), {"tid": tenant_id}).fetchone()
+
+            # Financial impact
+            impact = session.execute(text("""
+                SELECT SUM(annual_risk_zar) as total_risk,
+                       SUM(mitigated_zar) as total_avoidance,
+                       COUNT(*) as record_count
+                FROM impact_records
+                WHERE version_id = :vid AND tenant_id = :tid
+            """), {"vid": version_id, "tid": tenant_id}).fetchone()
+
+            # Contracts summary
+            contracts = session.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active,
+                       SUM(CASE WHEN status='breached' THEN 1 ELSE 0 END) as breached
+                FROM contracts
+                WHERE tenant_id = :tid
+            """), {"tid": tenant_id}).fetchone()
+
+            # DQS trend — last 10 runs
+            dqs_trend = session.execute(text("""
+                SELECT recorded_at, dqs_score, module_id
+                FROM dqs_history
+                WHERE tenant_id = :tid
+                ORDER BY recorded_at DESC
+                LIMIT 10
+            """), {"tid": tenant_id}).fetchall()
+
         # Step 2: Render HTML template with Jinja2
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
         template = env.get_template("executive_report.html")
-        html_content = template.render(report=report_json)
+        html_content = template.render(
+            report=report_json,
+            cleaning=cleaning._asdict() if cleaning else {},
+            dedup=dedup._asdict() if dedup else {},
+            exceptions=exceptions._asdict() if exceptions else {},
+            impact=impact._asdict() if impact else {},
+            contracts=contracts._asdict() if contracts else {},
+            dqs_trend=[{"recorded_at": str(r[0]), "dqs_score": float(r[1]) if r[1] else 0, "module_id": r[2]} for r in dqs_trend] if dqs_trend else [],
+        )
 
         # Step 3: Convert to PDF using WeasyPrint
         from weasyprint import HTML

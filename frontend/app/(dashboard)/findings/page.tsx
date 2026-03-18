@@ -8,6 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -90,22 +96,29 @@ const displayValue = (val: string) =>
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-6 px-1.5"
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? (
-        <Check className="h-3 w-3 text-green-600" />
-      ) : (
-        <Copy className="h-3 w-3" />
-      )}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5"
+            onClick={() => {
+              navigator.clipboard.writeText(text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          />
+        }
+      >
+        {copied ? (
+          <Check className="h-3 w-3 text-green-600" />
+        ) : (
+          <Copy className="h-3 w-3" />
+        )}
+      </TooltipTrigger>
+      <TooltipContent>{copied ? "Copied!" : "Copy to clipboard"}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -187,8 +200,8 @@ function FindingsContent() {
     (v) => v.status === "agents_complete" || v.status === "complete"
   );
 
-  const activeVersionId =
-    versionId || completedVersions[0]?.id || "";
+  // Default to URL param if provided, otherwise empty string = "all versions"
+  const activeVersionId = versionId || "";
 
   const {
     data: findingsData,
@@ -206,14 +219,13 @@ function FindingsContent() {
     ],
     queryFn: () =>
       getFindings({
-        version_id: activeVersionId,
+        version_id: activeVersionId || undefined,
         module: moduleFilter || undefined,
         severity: severityFilter || undefined,
         dimension: dimensionFilter || undefined,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       }),
-    enabled: !!activeVersionId,
   });
 
   const updateUrl = (params: Record<string, string>) => {
@@ -238,6 +250,7 @@ function FindingsContent() {
     : 0;
 
   return (
+    <TooltipProvider delay={0}>
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Findings</h1>
 
@@ -254,12 +267,19 @@ function FindingsContent() {
             }}
             className="rounded-md border border-border bg-accent px-3 py-1.5 text-sm"
           >
-            <option value="">Select version...</option>
-            {completedVersions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {new Date(v.run_at).toLocaleDateString()} {v.label ? `— ${v.label}` : ""}
-              </option>
-            ))}
+            <option value="">All versions</option>
+            {completedVersions.map((v) => {
+              const modules = v.metadata?.modules?.map((m: string) =>
+                m.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+              ).join(", ") ?? "";
+              return (
+                <option key={v.id} value={v.id}>
+                  {new Date(v.run_at).toLocaleDateString()}
+                  {modules ? ` — ${modules}` : ""}
+                  {v.label ? ` (${v.label})` : ""}
+                </option>
+              );
+            })}
           </select>
 
           {/* Module filter */}
@@ -410,17 +430,23 @@ function FindingsContent() {
                           >
                             View detail
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openLineage(f);
-                            }}
-                            title="View Lineage"
-                          >
-                            <Network className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openLineage(f);
+                                  }}
+                                />
+                              }
+                            >
+                              <Network className="h-4 w-4" />
+                            </TooltipTrigger>
+                            <TooltipContent>View lineage</TooltipContent>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -531,6 +557,7 @@ function FindingsContent() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
 
