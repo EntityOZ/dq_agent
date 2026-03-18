@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -885,6 +886,34 @@ class GlossaryChangeLog(Base):
     __table_args__ = (
         Index("ix_glossary_change_log_tenant", "tenant_id"),
         Index("ix_glossary_change_log_term", "term_id"),
+    )
+
+
+# ── Phase N: MDM Governance Metrics ──────────────────────────────────────────
+
+
+class MdmMetric(Base):
+    """Daily MDM health snapshot per tenant. RLS on tenant_id."""
+    __tablename__ = "mdm_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    snapshot_date = Column(Date, nullable=False)
+    domain = Column(Text, nullable=True)
+    golden_record_count = Column(Integer, nullable=False, server_default="0")
+    golden_record_coverage_pct = Column(Float, nullable=False, server_default="0.0")
+    avg_match_confidence = Column(Float, nullable=False, server_default="0.0")
+    steward_sla_compliance_pct = Column(Float, nullable=False, server_default="0.0")
+    source_consistency_pct = Column(Float, nullable=False, server_default="0.0")
+    mdm_health_score = Column(Float, nullable=False, server_default="0.0")
+    backlog_count = Column(Integer, nullable=False, server_default="0")
+    sync_coverage_pct = Column(Float, nullable=False, server_default="0.0")
+    ai_narrative = Column(Text, nullable=True)
+    ai_projected_score = Column(Float, nullable=True)
+    ai_risk_flags = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        Index("ix_mdm_metrics_tenant_date", "tenant_id", "snapshot_date"),
     )
 
 

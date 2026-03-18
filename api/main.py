@@ -27,6 +27,7 @@ from api.routes.match_rules import router as match_rules_router
 from api.routes.glossary import router as glossary_router
 from api.routes.relationships import router as relationships_router
 from api.routes.stewardship import router as stewardship_router
+from api.routes.mdm_metrics import router as mdm_metrics_router
 
 logger = logging.getLogger("vantax")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -125,3 +126,4 @@ app.include_router(match_rules_router)
 app.include_router(glossary_router)
 app.include_router(relationships_router)
 app.include_router(stewardship_router)
+app.include_router(mdm_metrics_router)

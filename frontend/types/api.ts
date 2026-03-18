@@ -824,3 +824,31 @@ export interface RelationshipTypeRef {
   relationship_type: string;
   description: string | null;
 }
+
+/* ─── MDM Governance Metrics ─── */
+
+export interface MdmMetric {
+  snapshot_date: string;
+  domain: string | null;
+  golden_record_count: number;
+  golden_record_coverage_pct: number;
+  avg_match_confidence: number;
+  steward_sla_compliance_pct: number;
+  source_consistency_pct: number;
+  mdm_health_score: number;
+  backlog_count: number;
+  sync_coverage_pct: number;
+  ai_narrative: string | null;
+  ai_projected_score: number | null;
+  ai_risk_flags: string[] | null;
+}
+
+export interface MdmDashboardResponse {
+  latest: MdmMetric | null;
+  trend: MdmMetric[];
+  active_systems_count: number;
+}
+
+export interface MdmHistoryResponse {
+  history: MdmMetric[];
+}
