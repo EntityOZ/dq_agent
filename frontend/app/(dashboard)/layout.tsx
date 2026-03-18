@@ -41,6 +41,7 @@ import {
   FileCheck2,
   Server,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -200,6 +201,7 @@ const NAV_ITEMS = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/nlp", label: "Ask AI", icon: MessageSquareText },
   { href: "/contracts", label: "Contracts", icon: FileCheck2 },
+  { href: "/glossary", label: "Glossary", icon: BookOpen },
   { href: "/systems", label: "Systems", icon: Server },
   { href: "/sync", label: "Sync", icon: RefreshCw },
   { href: "/settings", label: "Settings", icon: Settings },

@@ -26,6 +26,7 @@ import {
   promoteMasterRecord,
   writebackMasterRecord,
 } from "@/lib/api/master-records";
+import { batchLookupGlossary } from "@/lib/api/glossary";
 import { formatModuleName, relativeTime } from "@/lib/format";
 import type {
   MasterRecordDetail,
@@ -63,11 +64,13 @@ function FieldRow({
   goldenValue,
   contribution,
   showAi,
+  businessName,
 }: {
   fieldName: string;
   goldenValue: unknown;
   contribution: SourceContribution | undefined;
   showAi: boolean;
+  businessName?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasAi = showAi && contribution?.ai_recommendation;
@@ -88,8 +91,11 @@ function FieldRow({
           )}
           <div>
             <span className="text-sm font-medium text-[#0F2137]">
-              {fieldName}
+              {businessName || fieldName}
             </span>
+            {businessName && (
+              <span className="block text-[10px] font-mono text-[#6B92AD]">{fieldName}</span>
+            )}
             <p className="text-xs text-[#6B92AD]">
               {contribution
                 ? `From ${contribution.source_system} · ${relativeTime(contribution.extracted_at)}`
@@ -235,6 +241,15 @@ export default function GoldenRecordDetailPage() {
   const { data: record, isLoading } = useQuery({
     queryKey: ["master-record", recordId],
     queryFn: () => getMasterRecord(recordId),
+  });
+
+  // Glossary lookup for field business names
+  const fieldKeys = record ? Object.keys(record.golden_fields) : [];
+  const { data: glossaryLookup } = useQuery({
+    queryKey: ["glossary-lookup", fieldKeys],
+    queryFn: () => batchLookupGlossary(fieldKeys),
+    enabled: fieldKeys.length > 0,
+    staleTime: 5 * 60_000,
   });
 
   const promoteMutation = useMutation({
@@ -414,6 +429,7 @@ export default function GoldenRecordDetailPage() {
                 goldenValue={record.golden_fields[field]}
                 contribution={contributions[field]}
                 showAi={hasAiFields}
+                businessName={glossaryLookup?.lookup?.[field]?.business_name}
               />
             ))
           )}
