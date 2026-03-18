@@ -747,3 +747,45 @@ class LLMAuditLog(Base):
         Index("ix_llm_audit_log_tenant_service", "tenant_id", "service_name"),
     )
 
+
+# ── Phase J: Match & Merge Engine ────────────────────────────────────────────
+
+
+class MatchRule(Base):
+    __tablename__ = "match_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    domain = Column(Text, nullable=False)
+    field = Column(Text, nullable=False)
+    match_type = Column(Text, nullable=False)
+    weight = Column(Integer, nullable=False, server_default="50")
+    threshold = Column(Float, nullable=False, server_default="0.8")
+    active = Column(Boolean, nullable=False, server_default="true")
+
+    __table_args__ = (
+        Index("ix_match_rules_tenant_domain", "tenant_id", "domain"),
+    )
+
+
+class MatchScore(Base):
+    __tablename__ = "match_scores"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    candidate_a_key = Column(Text, nullable=False)
+    candidate_b_key = Column(Text, nullable=False)
+    domain = Column(Text, nullable=False)
+    total_score = Column(Float, nullable=False)
+    field_scores = Column(JSONB, nullable=False, server_default="{}")
+    ai_semantic_score = Column(Float, nullable=True)
+    auto_action = Column(Text, nullable=False)
+    reviewed_by = Column(UUID(as_uuid=True), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_match_scores_tenant_domain", "tenant_id", "domain"),
+        Index("ix_match_scores_tenant_action", "tenant_id", "auto_action"),
+    )
+
