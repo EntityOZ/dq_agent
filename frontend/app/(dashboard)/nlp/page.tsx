@@ -41,9 +41,12 @@ interface Message {
 const SUGGESTED_QUESTIONS = [
   "What are my most critical findings this week?",
   "Which modules have the worst DQS trend?",
-  "What cleaning actions are pending approval?",
-  "How many exceptions are overdue on SLA?",
-  "Show me the DQS score breakdown by module",
+  "Show me all Business Partners with confidence below 80%",
+  "What mandatory fields are missing for S/4HANA migration?",
+  "Which business partners are also vendors?",
+  "Which sync run had the lowest AI quality score this week?",
+  "What match rules has the AI proposed for Business Partner domain?",
+  "How many merge decisions are pending for Material domain?",
 ];
 
 const CHART_COLOURS = [
@@ -181,8 +184,9 @@ export default function NlpPage() {
                 Ask anything about your data quality
               </h2>
               <p className="mb-6 max-w-md text-sm text-[#6B92AD]">
-                Query findings, cleaning actions, exceptions, and analytics
-                using natural language.
+                Query golden records, glossary, relationships, sync history,
+                findings, stewardship queue, and AI proposed rules using
+                natural language.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {SUGGESTED_QUESTIONS.map((q) => (

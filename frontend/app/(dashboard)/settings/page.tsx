@@ -74,13 +74,18 @@ const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
   validity: "Validity",
 };
 
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+const ROLE_OPTIONS: { value: UserRole; label: string; tooltip?: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "steward", label: "Steward" },
   { value: "analyst", label: "Analyst" },
   { value: "approver", label: "Approver" },
   { value: "auditor", label: "Auditor" },
   { value: "viewer", label: "Viewer" },
+  {
+    value: "ai_reviewer",
+    label: "AI Reviewer",
+    tooltip: "Can review AI recommendations and approve proposed rules, but cannot approve data actions.",
+  },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -90,6 +95,7 @@ const ROLE_COLORS: Record<string, string> = {
   approver: "bg-[#FEF3C7] text-[#D97706]",
   auditor: "bg-[#F0F5FA] text-[#6B92AD]",
   viewer: "bg-[#F0F5FA] text-[#6B92AD]",
+  ai_reviewer: "bg-[#EDE9FE] text-[#7C3AED]",
 };
 
 export default function SettingsPage() {
@@ -668,16 +674,18 @@ function TeamManagement() {
                   <th className="px-2 py-2">Apply</th>
                   <th className="px-2 py-2">Export</th>
                   <th className="px-2 py-2">Manage</th>
+                  <th className="px-2 py-2">AI Review</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { role: "Admin", perms: [true, true, true, true, true, true, true] },
-                  { role: "Steward", perms: [true, true, true, true, true, true, false] },
-                  { role: "Analyst", perms: [true, true, true, false, false, true, false] },
-                  { role: "Approver", perms: [true, false, false, true, false, true, false] },
-                  { role: "Auditor", perms: [true, false, false, false, false, true, false] },
-                  { role: "Viewer", perms: [true, false, false, false, false, false, false] },
+                  { role: "Admin", perms: [true, true, true, true, true, true, true, true] },
+                  { role: "Steward", perms: [true, true, true, true, true, true, false, true] },
+                  { role: "Analyst", perms: [true, true, true, false, false, true, false, false] },
+                  { role: "Approver", perms: [true, false, false, true, false, true, false, false] },
+                  { role: "Auditor", perms: [true, false, false, false, false, true, false, false] },
+                  { role: "Viewer", perms: [true, false, false, false, false, false, false, false] },
+                  { role: "AI Reviewer", perms: [true, false, false, false, false, true, false, true] },
                 ].map((row) => (
                   <tr key={row.role} className="border-b border-[#F0F5FA] last:border-b-0">
                     <td className="px-2 py-2 font-medium">{row.role}</td>

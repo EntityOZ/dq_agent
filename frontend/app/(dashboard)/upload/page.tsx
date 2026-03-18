@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import Link from "next/link";
-import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
+import { Upload, FileUp, CheckCircle, AlertTriangle, X, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -14,9 +14,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 import { uploadFile } from "@/lib/api/upload";
 import { pollVersionStatus } from "@/lib/api/reports";
 import { getVersion } from "@/lib/api/versions";
+import { getSystems } from "@/lib/api/systems";
 import { scoreColor, formatModuleName } from "@/lib/format";
 import type { Version } from "@/types/api";
 
@@ -72,6 +74,13 @@ export default function UploadPage() {
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  const { data: systems } = useQuery({
+    queryKey: ["systems"],
+    queryFn: getSystems,
+    staleTime: 60_000,
+  });
+  const hasConnectedSystems = (systems?.length ?? 0) > 0;
 
   const reset = () => {
     setStep("select");
@@ -148,7 +157,20 @@ export default function UploadPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">Upload SAP Data</h1>
+      <h1 className="text-2xl font-bold">Import SAP Data</h1>
+
+      {hasConnectedSystems && (
+        <Alert className="border-[#0695A8]/30 bg-[#CCEFF1]/30">
+          <Info className="h-4 w-4 text-[#0695A8]" />
+          <AlertDescription className="text-sm text-[#0F2137]">
+            Connected SAP systems detected — uploads are for one-off assessments only.
+            For continuous data quality monitoring, use{" "}
+            <Link href="/sync" className="font-medium text-[#0695A8] underline">
+              Sync Monitor
+            </Link>.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Step 1: File Selection */}
       {step === "select" && (
