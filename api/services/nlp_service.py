@@ -44,6 +44,59 @@ ANSWER_SYSTEM_PROMPT = (
 
 MAX_RETRIEVE = 50
 
+# ── NLP filter sanitisation — allowlists for LLM-extracted filter values ──────
+
+VALID_MODULES = {
+    "business_partner", "material_master", "fi_gl", "employee_central",
+    "accounts_payable", "accounts_receivable", "sd_customer_master",
+    "sd_sales_orders", "mm_purchasing", "asset_accounting",
+    "plant_maintenance", "production_planning", "compensation",
+    "benefits", "payroll_integration", "performance_goals",
+    "succession_planning", "recruiting_onboarding", "learning_management",
+    "time_attendance", "ewms_stock", "ewms_transfer_orders",
+    "batch_management", "mdg_master_data", "grc_compliance",
+    "fleet_management", "transport_management", "wm_interface",
+    "cross_system_integration",
+}
+VALID_SEVERITIES = {"critical", "high", "medium", "low", "warning"}
+VALID_STATUSES = {
+    "open", "pending", "approved", "applied", "rejected", "resolved",
+    "in_progress", "escalated", "detected", "investigating",
+    "pending_approval", "verified", "closed", "golden", "promoted",
+    "pending_review", "superseded",
+}
+VALID_DOMAINS = {
+    "business_partner", "material", "gl_account", "vendor",
+    "customer", "employee", "asset",
+}
+
+
+def sanitise_nlp_filters(filters: dict) -> dict:
+    """Validate LLM-extracted filter values against known-safe allowlists.
+
+    Any value not in the allowlist is silently dropped — never passed to SQL.
+    """
+    safe: dict = {}
+    if v := filters.get("module"):
+        if str(v).lower() in VALID_MODULES:
+            safe["module"] = str(v).lower()
+    if v := filters.get("severity"):
+        if str(v).lower() in VALID_SEVERITIES:
+            safe["severity"] = str(v).lower()
+    if v := filters.get("status"):
+        if str(v).lower() in VALID_STATUSES:
+            safe["status"] = str(v).lower()
+    if v := filters.get("domain"):
+        if str(v).lower() in VALID_DOMAINS:
+            safe["domain"] = str(v).lower()
+    # date filters — pass through only ISO-format dates
+    for date_key in ("date_from", "date_to"):
+        if v := filters.get(date_key):
+            import re as _re
+            if _re.match(r"^\d{4}-\d{2}-\d{2}$", str(v)):
+                safe[date_key] = str(v)
+    return safe
+
 
 def _strip_json_fences(text_str: str) -> str:
     """Remove markdown code fences from LLM output."""
@@ -404,7 +457,7 @@ async def process_query(
     # Step 1 — Intent classification
     classification = await _classify_intent(question)
     intent = classification["intent"]
-    filters = classification["filters"]
+    filters = sanitise_nlp_filters(classification["filters"])
     answer_type = classification["answer_type"]
 
     logger.info(f"NLP query: intent={intent}, filters={filters}, answer_type={answer_type}")

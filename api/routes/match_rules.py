@@ -218,14 +218,23 @@ async def update_match_rule(
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Match rule not found")
 
-    # Build dynamic update
+    # Explicit whitelist: body field name → SQL column name
+    _ALLOWED_MATCH_RULE_FIELDS: dict[str, str] = {
+        "domain": "domain",
+        "field": "field",
+        "match_type": "match_type",
+        "weight": "weight",
+        "threshold": "threshold",
+        "active": "active",
+    }
+
     updates = []
     params: dict = {"id": rule_id, "tid": str(tenant.id)}
-    for field_name in ("domain", "field", "match_type", "weight", "threshold", "active"):
-        value = getattr(body, field_name, None)
+    for body_field, col_name in _ALLOWED_MATCH_RULE_FIELDS.items():
+        value = getattr(body, body_field, None)
         if value is not None:
-            updates.append(f"{field_name} = :{field_name}")
-            params[field_name] = value
+            updates.append(f"{col_name} = :{body_field}")
+            params[body_field] = value
 
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
