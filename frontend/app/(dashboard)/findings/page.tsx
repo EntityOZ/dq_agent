@@ -401,10 +401,12 @@ function FindingsContent() {
                         <div className="font-mono text-xs">{f.check_id}</div>
                         {f.business_name && (
                           <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="text-xs text-[#0695A8] truncate max-w-[180px]">
-                                {f.business_name}
-                              </div>
+                            <TooltipTrigger
+                              render={
+                                <div className="text-xs text-[#0695A8] truncate max-w-[180px] cursor-default" />
+                              }
+                            >
+                              {f.business_name}
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
                               {f.business_definition || f.business_name}
@@ -415,7 +417,7 @@ function FindingsContent() {
                           <a
                             href={`/glossary/${f.glossary_term_id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-[10px] text-[#1D6ECC] hover:underline"
+                            className="text-[12px] text-[#1D6ECC] hover:underline"
                           >
                             View in Glossary
                           </a>
@@ -850,7 +852,7 @@ function FindingDetail({
                             )}
                             {sqlStatement && (
                               <div className="flex items-center gap-1 rounded bg-accent p-1.5">
-                                <code className="text-[11px] break-all">
+                                <code className="text-[13px] break-all">
                                   {sqlStatement}
                                 </code>
                                 <CopyButton text={sqlStatement} />

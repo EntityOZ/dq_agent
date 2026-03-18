@@ -82,10 +82,10 @@ function AddSystemDialog({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 bg-[#0695A8] hover:bg-[#057A8A] text-white">
-          <Plus className="h-4 w-4" /> Add System
-        </Button>
+      <DialogTrigger
+        render={<Button className="gap-2 bg-[#0695A8] hover:bg-[#057A8A] text-white" />}
+      >
+        <Plus className="h-4 w-4" /> Add System
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

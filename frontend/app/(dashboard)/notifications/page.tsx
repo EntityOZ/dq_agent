@@ -240,7 +240,7 @@ export default function NotificationsPage() {
                         {notif.title}
                       </p>
                       <Badge
-                        className={`text-[10px] ${TYPE_COLORS[notif.type] || "bg-[#F0F5FA] text-[#6B92AD]"}`}
+                        className={`text-[12px] ${TYPE_COLORS[notif.type] || "bg-[#F0F5FA] text-[#6B92AD]"}`}
                       >
                         {notif.type}
                       </Badge>

@@ -64,8 +64,14 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
   );
 }
 
+const FALLBACK_STATUS = {
+  label: "Unknown",
+  icon: <Clock className="h-3.5 w-3.5" />,
+  classes: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20",
+};
+
 function RecordRow({ record }: { record: MasterRecordSummary }) {
-  const statusConfig = STATUS_CONFIG[record.status];
+  const statusConfig = STATUS_CONFIG[record.status] ?? FALLBACK_STATUS;
 
   return (
     <Link href={`/golden-records/${record.id}`}>
@@ -81,7 +87,7 @@ function RecordRow({ record }: { record: MasterRecordSummary }) {
               </span>
               <Badge
                 variant="outline"
-                className={`text-[10px] gap-1 ${statusConfig.classes}`}
+                className={`text-[12px] gap-1 ${statusConfig.classes}`}
               >
                 {statusConfig.icon}
                 {statusConfig.label}

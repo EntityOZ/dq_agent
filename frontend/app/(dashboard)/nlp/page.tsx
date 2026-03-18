@@ -226,7 +226,7 @@ export default function NlpPage() {
                         <Badge
                           key={i}
                           variant="outline"
-                          className="bg-white/80 text-[10px]"
+                          className="bg-white/80 text-[12px]"
                         >
                           {s.type} {s.id.slice(0, 8)}
                         </Badge>
@@ -234,7 +234,7 @@ export default function NlpPage() {
                     ) : (
                       <Badge
                         variant="outline"
-                        className="bg-white/80 text-[10px]"
+                        className="bg-white/80 text-[12px]"
                       >
                         Based on {msg.sources.length} {msg.sources[0].type}s
                       </Badge>

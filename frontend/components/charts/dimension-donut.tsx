@@ -5,11 +5,11 @@ import type { DimensionScores } from "@/types/api";
 
 const DIMENSION_COLORS: Record<keyof DimensionScores, string> = {
   completeness: "#0695A8",
-  accuracy: "#1D6ECC",
-  consistency: "#047A8A",
-  timeliness: "#1557A8",
-  uniqueness: "#059669",
-  validity: "#3D6080",
+  accuracy: "#3B82F6",
+  consistency: "#06B6D4",
+  timeliness: "#10B981",
+  uniqueness: "#F59E0B",
+  validity: "#8B5CF6",
 };
 
 const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
@@ -42,8 +42,8 @@ function CustomTooltip({
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg border border-[#D6E4F0] bg-white px-3 py-2 shadow-sm">
-      <p className="font-sans text-xs text-[#3D6080]">{d.name}</p>
+    <div className="rounded-lg border border-[#D0DBE5] bg-white px-3 py-2 shadow-sm">
+      <p className="font-sans text-xs text-[#3D5068]">{d.name}</p>
       <p className="font-display text-sm font-bold" style={{ color: d.color }}>
         {d.value.toFixed(1)}%
       </p>
@@ -85,7 +85,7 @@ export function DimensionDonut({ dimensions, overallScore }: DimensionDonutProps
         </ResponsiveContainer>
         {/* Center score */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-xl font-bold text-[#0F2137]">
+          <span className="font-display text-xl font-bold text-[#1B2A4A]">
             {overallScore.toFixed(1)}
           </span>
         </div>
@@ -98,8 +98,8 @@ export function DimensionDonut({ dimensions, overallScore }: DimensionDonutProps
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: d.color }}
             />
-            <span className="text-[11px] text-[#6B92AD]">{d.name}</span>
-            <span className="text-[11px] font-medium text-[#3D6080]">
+            <span className="text-[11px] text-[#6B8299]">{d.name}</span>
+            <span className="text-[11px] font-medium text-[#3D5068]">
               {d.value.toFixed(0)}
             </span>
           </div>

@@ -389,7 +389,7 @@ function PrescriptiveTab() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] ${typeBadge(a.type)}`}
+                        className={`text-[12px] ${typeBadge(a.type)}`}
                       >
                         {a.type}
                       </Badge>
@@ -442,7 +442,7 @@ function PrescriptiveTab() {
                     <CardTitle className="text-sm font-semibold text-[#0F2137]">
                       {s.name}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-[#0695A8]/10 text-[#0695A8] text-[10px]">
+                    <Badge variant="outline" className="bg-[#0695A8]/10 text-[#0695A8] text-[12px]">
                       +{s.projected_dqs_improvement.toFixed(1)}% DQS
                     </Badge>
                   </div>
@@ -574,7 +574,7 @@ function ImpactTab() {
             <p className="text-xl font-bold text-[#0F2137]">
               {formatZAR(roi.subscription_annual)}
             </p>
-            <p className="text-[10px] text-[#6B92AD]">annual</p>
+            <p className="text-[12px] text-[#6B92AD]">annual</p>
           </CardContent>
         </Card>
         <Card className="border-[#D6E4F0]">
@@ -583,7 +583,7 @@ function ImpactTab() {
             <p className="text-xl font-bold text-emerald-600">
               {formatZAR(roi.risk_mitigated)}
             </p>
-            <p className="text-[10px] text-[#6B92AD]">annual</p>
+            <p className="text-[12px] text-[#6B92AD]">annual</p>
           </CardContent>
         </Card>
         <Card className="border-[#D6E4F0]">
@@ -592,7 +592,7 @@ function ImpactTab() {
             <p className="text-xl font-bold text-[#0695A8]">
               {roi.roi_multiple}x
             </p>
-            <p className="text-[10px] text-[#6B92AD]">return on investment</p>
+            <p className="text-[12px] text-[#6B92AD]">return on investment</p>
           </CardContent>
         </Card>
         <Card className="border-[#D6E4F0]">
@@ -601,7 +601,7 @@ function ImpactTab() {
             <p className="text-xl font-bold text-[#0F2137]">
               {roi.payback_months} mo
             </p>
-            <p className="text-[10px] text-[#6B92AD]">to break even</p>
+            <p className="text-[12px] text-[#6B92AD]">to break even</p>
           </CardContent>
         </Card>
       </div>
@@ -780,7 +780,7 @@ function OperationalTab() {
               <Card key={b.stage} className="border-amber-200 bg-amber-50/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className="bg-amber-100 text-amber-700 text-[10px]">
+                    <Badge variant="outline" className="bg-amber-100 text-amber-700 text-[12px]">
                       {b.stage}
                     </Badge>
                     <span className="text-xs text-[#6B92AD]">
@@ -812,14 +812,14 @@ function OperationalTab() {
               <p className="text-2xl font-bold text-[#0F2137]">
                 {capacity.needed}
               </p>
-              <p className="text-[10px] text-[#6B92AD]">stewards</p>
+              <p className="text-[12px] text-[#6B92AD]">stewards</p>
             </div>
             <div>
               <p className="text-xs text-[#6B92AD] mb-1">Current</p>
               <p className="text-2xl font-bold text-[#0695A8]">
                 {capacity.current}
               </p>
-              <p className="text-[10px] text-[#6B92AD]">stewards</p>
+              <p className="text-[12px] text-[#6B92AD]">stewards</p>
             </div>
             <div>
               <p className="text-xs text-[#6B92AD] mb-1">Surplus / Deficit</p>
@@ -833,7 +833,7 @@ function OperationalTab() {
                 {capacity.surplus_deficit > 0 ? "+" : ""}
                 {capacity.surplus_deficit}
               </p>
-              <p className="text-[10px] text-[#6B92AD]">stewards</p>
+              <p className="text-[12px] text-[#6B92AD]">stewards</p>
             </div>
           </div>
           <p className="text-sm text-[#6B92AD]">{capacity.recommendation}</p>

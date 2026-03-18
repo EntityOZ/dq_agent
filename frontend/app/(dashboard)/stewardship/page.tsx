@@ -185,7 +185,7 @@ function QueueRow({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const typeConfig = ITEM_TYPE_CONFIG[item.item_type];
+  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20" };
   const priorityConfig = PRIORITY_LABELS[item.priority] ?? PRIORITY_LABELS[3];
 
   return (
@@ -200,14 +200,14 @@ function QueueRow({
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className={`text-[10px] ${typeConfig.color}`}
+            className={`text-[12px] ${typeConfig.color}`}
           >
             {typeConfig.icon}
             <span className="ml-1">{typeConfig.label}</span>
           </Badge>
           <Badge
             variant="outline"
-            className={`text-[10px] ${priorityConfig.color}`}
+            className={`text-[12px] ${priorityConfig.color}`}
           >
             P{item.priority}
           </Badge>
@@ -215,7 +215,7 @@ function QueueRow({
         <p className="mt-1 truncate text-sm font-medium text-[#0F2137]">
           {item.domain}
         </p>
-        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-[#6B92AD]">
+        <div className="mt-0.5 flex items-center gap-2 text-[12px] text-[#6B92AD]">
           <span>{relativeTime(item.created_at)}</span>
           {item.due_at && (
             <span>
@@ -253,7 +253,7 @@ function ActionPanel({
   isResolving: boolean;
   userRole: string;
 }) {
-  const typeConfig = ITEM_TYPE_CONFIG[item.item_type];
+  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20" };
   const isAiReviewer = userRole === "ai_reviewer";
   const canApprove = !isAiReviewer && item.status !== "resolved";
 
@@ -691,7 +691,7 @@ export default function StewardshipWorkbench() {
       />
 
       {/* Keyboard shortcut hint */}
-      <div className="flex items-center gap-4 text-[10px] text-[#A8C5D8]">
+      <div className="flex items-center gap-4 text-[12px] text-[#A8C5D8]">
         <span>
           <kbd className="rounded border border-[#D6E4F0] px-1.5 py-0.5 font-mono">
             A
