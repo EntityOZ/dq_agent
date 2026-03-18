@@ -523,6 +523,69 @@ export interface SyncProfile {
   next_run_at: string | null;
 }
 
+/* ─── Golden Records / MDM ─── */
+
+export type MasterRecordStatus =
+  | "candidate"
+  | "pending_review"
+  | "golden"
+  | "superseded";
+
+export interface SourceContribution {
+  value: unknown;
+  source_system: string;
+  extracted_at: string;
+  confidence: number;
+  ai_recommendation?: string;
+  ai_confidence?: number;
+  ai_reasoning?: string;
+}
+
+export interface MasterRecordSummary {
+  id: string;
+  domain: string;
+  sap_object_key: string;
+  overall_confidence: number;
+  status: MasterRecordStatus;
+  source_count: number;
+  pending_issues: number;
+  promoted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MasterRecordDetail {
+  id: string;
+  domain: string;
+  sap_object_key: string;
+  golden_fields: Record<string, unknown>;
+  source_contributions: Record<string, SourceContribution>;
+  overall_confidence: number;
+  status: MasterRecordStatus;
+  promoted_at: string | null;
+  promoted_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MasterRecordListResponse {
+  records: MasterRecordSummary[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface MasterRecordHistoryEntry {
+  id: string;
+  changed_at: string;
+  changed_by: string | null;
+  change_type: string;
+  previous_fields: Record<string, unknown> | null;
+  new_fields: Record<string, unknown> | null;
+  ai_was_involved: boolean;
+  ai_recommendation_accepted: boolean | null;
+}
+
 export interface SyncRun {
   id: string;
   profile_id: string;
