@@ -358,6 +358,61 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
+         MDM Platform Health (Phase N)
+         ═══════════════════════════════════════════════════════════════ -->
+    {% if mdm_snapshot %}
+    <div class="report-section">
+        <h2 class="section-title">MDM Platform Health</h2>
+        <div class="dqs-score-box">
+            <div class="score">{{ "%.1f" | format(mdm_snapshot.mdm_health_score or 0) }}</div>
+            <div class="score-label">MDM Health Score</div>
+        </div>
+        <table>
+            <tbody>
+                <tr><td>Golden Record Coverage</td><td>{{ "%.1f" | format(mdm_snapshot.golden_record_coverage_pct or 0) }}%</td></tr>
+                <tr><td>Match Confidence</td><td>{{ "%.1f" | format(mdm_snapshot.avg_match_confidence or 0) }}%</td></tr>
+                <tr><td>Steward SLA Compliance</td><td>{{ "%.1f" | format(mdm_snapshot.steward_sla_compliance_pct or 0) }}%</td></tr>
+                <tr><td>Source Consistency</td><td>{{ "%.1f" | format(mdm_snapshot.source_consistency_pct or 0) }}%</td></tr>
+            </tbody>
+        </table>
+        {% if mdm_snapshot.ai_narrative %}
+        <div style="margin-top: 16px; padding: 12px; background: #F0F5FA; border-left: 3px solid #6B92AD;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px;">AI Platform Insights</h3>
+            <p style="margin: 0 0 4px 0; font-size: 10px; color: #6B92AD;">AI-generated summary — review recommended.</p>
+            <p style="margin: 0;">{{ mdm_snapshot.ai_narrative }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Golden Record Summary (Phase I)
+         ═══════════════════════════════════════════════════════════════ -->
+    {% if golden_summary %}
+    <div class="report-section">
+        <h2 class="section-title">Golden Record Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Status</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in golden_summary %}
+                <tr>
+                    <td>{{ row.domain }}</td>
+                    <td>{{ row.status }}</td>
+                    <td>{{ row.record_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ═══════════════════════════════════════════════════════════════
          SAP Field Glossary Appendix (Phase K)
          ═══════════════════════════════════════════════════════════════ -->
     {% if glossary_terms and glossary_terms|length >= 5 %}

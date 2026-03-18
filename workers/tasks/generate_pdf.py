@@ -139,6 +139,37 @@ def generate_pdf(self, version_id: str, tenant_id: str):
                 for r in glossary_result.fetchall()
             ]
 
+            # MDM Health Score (Phase N) — omit section if table is empty or no rows
+            mdm_snapshot = None
+            try:
+                mdm_result = session.execute(text("""
+                    SELECT mdm_health_score, golden_record_coverage_pct,
+                           avg_match_confidence, steward_sla_compliance_pct,
+                           source_consistency_pct, ai_projected_score, ai_narrative
+                    FROM mdm_metrics
+                    WHERE tenant_id = :tid
+                    ORDER BY snapshot_date DESC LIMIT 1
+                """), {"tid": tenant_id})
+                row = mdm_result.fetchone()
+                if row:
+                    mdm_snapshot = dict(row._mapping)
+            except Exception as e:
+                logger.warning(f"MDM metrics query failed for PDF: {e}")
+
+            # Golden Record Summary (Phase I) — omit section if table is empty
+            golden_summary = []
+            try:
+                gr_result = session.execute(text("""
+                    SELECT domain, status, COUNT(*) as record_count
+                    FROM master_records
+                    WHERE tenant_id = :tid
+                    GROUP BY domain, status
+                    ORDER BY domain, status
+                """), {"tid": tenant_id})
+                golden_summary = [dict(r._mapping) for r in gr_result.fetchall()]
+            except Exception as e:
+                logger.warning(f"Golden records query failed for PDF: {e}")
+
         # Step 2: Render HTML template with Jinja2
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
         template = env.get_template("executive_report.html")
@@ -151,6 +182,8 @@ def generate_pdf(self, version_id: str, tenant_id: str):
             contracts=contracts._asdict() if contracts else {},
             dqs_trend=[{"recorded_at": str(r[0]), "dqs_score": float(r[1]) if r[1] else 0, "module_id": r[2]} for r in dqs_trend] if dqs_trend else [],
             glossary_terms=glossary_terms if glossary_terms else [],
+            mdm_snapshot=mdm_snapshot,
+            golden_summary=golden_summary,
         )
 
         # Step 3: Convert to PDF using WeasyPrint
