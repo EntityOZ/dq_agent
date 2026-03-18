@@ -18,12 +18,13 @@ def get_llm():
             model=os.getenv("OLLAMA_MODEL", "llama3.2:3b-instruct-q4_K_M"),
             temperature=0.1,
             num_predict=8192,
+            format="json",
         )
 
     if provider == "ollama_cloud":
         # Ollama Cloud API — use dev key for local dev and CI
         return ChatOpenAI(
-            base_url="https://api.ollama.com/v1",
+            base_url=os.getenv("OLLAMA_BASE_URL", "https://ollama.com/api/v1"),
             api_key=os.getenv("OLLAMA_API_KEY"),
             model=os.getenv("OLLAMA_MODEL", "llama3.1:70b"),
             temperature=0.1,

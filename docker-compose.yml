@@ -1,6 +1,8 @@
 services:
   api:
     image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment: &api-env
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://llm:11434}
@@ -41,9 +43,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   worker:
     image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
     environment: *api-env
     depends_on:
@@ -62,6 +69,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   frontend:
     image: ghcr.io/entityoz/dq_agent/vantax-frontend:latest
@@ -112,25 +122,26 @@ services:
       retries: 5
       start_period: 5s
 
-  llm:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_models:/root/.ollama
- #   networks:
- #     - vantax-net
- #   deploy:
- #     resources:
- #       reservations:
- #         devices:
- #           - driver: nvidia
- #             count: 1
- #             capabilities: [gpu]
- #   healthcheck:
- #     test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
- #     interval: 30s
- #     timeout: 10s
- #     retries: 3
- #     start_period: 60s
+  # llm service disabled — using host Ollama via host.docker.internal
+  # llm:
+  #   image: ollama/ollama:latest
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   networks:
+  #     - vantax-net
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
 
   minio:
     image: minio/minio:latest
@@ -155,7 +166,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  ollama_models:
+  # ollama_models:  # disabled — using host Ollama
   minio_data:
 
 networks:
