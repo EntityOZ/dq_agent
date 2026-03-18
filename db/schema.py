@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy import Float
 
 
 class Base(DeclarativeBase):
@@ -531,5 +532,151 @@ class Notification(Base):
 
     __table_args__ = (
         Index("ix_notifications_tenant_user_read_created", "tenant_id", "user_id", "is_read", "created_at"),
+    )
+
+
+# ── Phase H: MDM Sync Engine & AI Foundation ────────────────────────────────
+
+
+class SAPSystem(Base):
+    __tablename__ = "sap_systems"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    host = Column(Text, nullable=False)
+    client = Column(Text, nullable=False)
+    sysnr = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    environment = Column(Text, nullable=False, server_default="DEV")
+    is_active = Column(Boolean, nullable=False, server_default="true")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    credentials = relationship("SystemCredential", back_populates="system", cascade="all, delete-orphan")
+    sync_profiles = relationship("SyncProfile", back_populates="system", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_sap_systems_tenant", "tenant_id"),
+    )
+
+
+class SystemCredential(Base):
+    __tablename__ = "system_credentials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    system_id = Column(UUID(as_uuid=True), ForeignKey("sap_systems.id", ondelete="CASCADE"), nullable=False)
+    encrypted_password = Column(Text, nullable=False)
+    key_version = Column(Integer, nullable=False, server_default="1")
+
+    system = relationship("SAPSystem", back_populates="credentials")
+
+    __table_args__ = (
+        Index("ix_system_credentials_system", "system_id", unique=True),
+    )
+
+
+class SyncProfile(Base):
+    __tablename__ = "sync_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    system_id = Column(UUID(as_uuid=True), ForeignKey("sap_systems.id", ondelete="CASCADE"), nullable=False)
+    domain = Column(Text, nullable=False)
+    tables = Column(ARRAY(Text), nullable=False, server_default="{}")
+    schedule_cron = Column(Text, nullable=True)
+    active = Column(Boolean, nullable=False, server_default="true")
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    next_run_at = Column(DateTime(timezone=True), nullable=True)
+    ai_anomaly_baseline = Column(JSONB, nullable=True)
+
+    system = relationship("SAPSystem", back_populates="sync_profiles")
+    runs = relationship("SyncRun", back_populates="profile", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_sync_profiles_tenant", "tenant_id"),
+        Index("ix_sync_profiles_system", "system_id"),
+    )
+
+
+class SyncRun(Base):
+    __tablename__ = "sync_runs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    profile_id = Column(UUID(as_uuid=True), ForeignKey("sync_profiles.id", ondelete="CASCADE"), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    rows_extracted = Column(Integer, nullable=False, server_default="0")
+    findings_delta = Column(Integer, nullable=False, server_default="0")
+    golden_records_updated = Column(Integer, nullable=False, server_default="0")
+    status = Column(Text, nullable=False, server_default="running")
+    error_detail = Column(Text, nullable=True)
+    ai_quality_score = Column(Float, nullable=True)
+    anomaly_flags = Column(JSONB, nullable=True)
+
+    profile = relationship("SyncProfile", back_populates="runs")
+
+    __table_args__ = (
+        Index("ix_sync_runs_tenant", "tenant_id"),
+        Index("ix_sync_runs_profile", "profile_id"),
+        Index("ix_sync_runs_tenant_status", "tenant_id", "status"),
+    )
+
+
+class AIFeedbackLog(Base):
+    __tablename__ = "ai_feedback_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    queue_item_id = Column(UUID(as_uuid=True), nullable=False)
+    steward_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    ai_recommendation = Column(Text, nullable=False)
+    steward_decision = Column(Text, nullable=False)
+    correction_reason = Column(Text, nullable=True)
+    domain = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_ai_feedback_log_tenant", "tenant_id"),
+    )
+
+
+class AIProposedRule(Base):
+    __tablename__ = "ai_proposed_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    domain = Column(Text, nullable=False)
+    proposed_rule = Column(JSONB, nullable=False)
+    rationale = Column(Text, nullable=False)
+    supporting_correction_count = Column(Integer, nullable=False, server_default="0")
+    status = Column(Text, nullable=False, server_default="pending")
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    __table_args__ = (
+        Index("ix_ai_proposed_rules_tenant", "tenant_id"),
+        Index("ix_ai_proposed_rules_tenant_status", "tenant_id", "status"),
+    )
+
+
+class LLMAuditLog(Base):
+    __tablename__ = "llm_audit_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    service_name = Column(Text, nullable=False)
+    called_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    model_version = Column(Text, nullable=False)
+    prompt_hash = Column(Text, nullable=False)
+    token_count = Column(Integer, nullable=False, server_default="0")
+    latency_ms = Column(Integer, nullable=False, server_default="0")
+    success = Column(Boolean, nullable=False, server_default="true")
+
+    __table_args__ = (
+        Index("ix_llm_audit_log_tenant", "tenant_id"),
+        Index("ix_llm_audit_log_tenant_service", "tenant_id", "service_name"),
     )
 
