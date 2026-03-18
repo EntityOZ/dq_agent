@@ -350,6 +350,7 @@ def run_sync(self, profile_id: str, tenant_id: str):
                         'warning', 'completeness', :affected, :total, :rate,
                         CAST(:details AS jsonb)
                     )
+                    ON CONFLICT (version_id, check_id, tenant_id) DO NOTHING
                 """),
                 {
                     "vid": version_id,

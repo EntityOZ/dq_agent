@@ -93,6 +93,7 @@ def run_exception_scan(self, version_id: str, tenant_id: str):
                             CAST(:affected_records AS jsonb), :escalation_tier,
                             :sla_deadline::timestamptz, now()
                         )
+                        ON CONFLICT (id) DO NOTHING
                     """),
                     {
                         "id": exc["id"],
