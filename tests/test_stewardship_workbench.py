@@ -374,11 +374,11 @@ def test_frontend_types_defined():
 
 
 def test_frontend_nav_has_stewardship():
-    """Dashboard layout includes Stewardship nav item."""
+    """Dashboard layout includes Stewardship nav item under Steward group."""
     path = Path("frontend/app/(dashboard)/layout.tsx")
     content = path.read_text(encoding="utf-8")
     assert "/stewardship" in content
-    assert "Stewardship" in content
+    assert "Steward" in content  # group label
     assert "ClipboardList" in content
 
 

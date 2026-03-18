@@ -33,7 +33,6 @@ import {
   FileText,
   Settings,
   ShieldCheck,
-  Sparkles,
   GitMerge,
   ShieldAlert,
   BarChart3,
@@ -43,14 +42,13 @@ import {
   RefreshCw,
   BookOpen,
   ClipboardList,
+  Database,
+  Network,
+  Eraser,
+  BrainCircuit,
+  type LucideIcon,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
@@ -190,24 +188,65 @@ function NotificationBell() {
   );
 }
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/upload", label: "Upload", icon: Upload },
-  { href: "/findings", label: "Findings", icon: AlertTriangle },
-  { href: "/versions", label: "Versions", icon: GitCompareArrows },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/cleaning", label: "Cleaning", icon: Sparkles },
-  { href: "/dedup", label: "Dedup", icon: GitMerge },
-  { href: "/exceptions", label: "Exceptions", icon: ShieldAlert },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/nlp", label: "Ask AI", icon: MessageSquareText },
-  { href: "/contracts", label: "Contracts", icon: FileCheck2 },
-  { href: "/glossary", label: "Glossary", icon: BookOpen },
-  { href: "/stewardship", label: "Stewardship", icon: ClipboardList },
-  { href: "/systems", label: "Systems", icon: Server },
-  { href: "/sync", label: "Sync", icon: RefreshCw },
-  { href: "/settings", label: "Settings", icon: Settings },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  permission?: string;
+}
+
+interface NavGroup {
+  group: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    group: "Connect",
+    items: [
+      { href: "/systems", label: "Systems", icon: Server },
+      { href: "/sync", label: "Sync Monitor", icon: RefreshCw },
+      { href: "/upload", label: "Import", icon: Upload },
+    ],
+  },
+  {
+    group: "Govern",
+    items: [
+      { href: "/golden-records", label: "Golden Records", icon: Database },
+      { href: "/glossary", label: "Glossary", icon: BookOpen },
+      { href: "/contracts", label: "Contracts", icon: FileCheck2 },
+      { href: "/relationships", label: "Relationships", icon: Network },
+    ],
+  },
+  {
+    group: "Steward",
+    items: [
+      { href: "/stewardship", label: "Workbench", icon: ClipboardList },
+      { href: "/ai/rules", label: "AI Rules", icon: BrainCircuit, permission: "review_ai_rules" },
+      { href: "/exceptions", label: "Exceptions", icon: ShieldAlert },
+      { href: "/cleaning", label: "Cleaning", icon: Eraser },
+      { href: "/dedup", label: "Dedup", icon: GitMerge },
+    ],
+  },
+  {
+    group: "Analyse",
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/findings", label: "Findings", icon: AlertTriangle },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/nlp", label: "Ask AI", icon: MessageSquareText },
+    ],
+  },
+  {
+    group: "Report",
+    items: [
+      { href: "/reports", label: "Reports", icon: FileText },
+      { href: "/versions", label: "Versions", icon: GitCompareArrows },
+    ],
+  },
 ];
+
+const ROLES_WITH_AI_RULES = ["admin", "steward", "ai_reviewer"];
 
 export default function DashboardLayout({
   children,
@@ -234,54 +273,84 @@ export default function DashboardLayout({
     ? new Date(health.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : "";
 
+  // Simulated user role — in production this comes from auth context
+  const userRole = (typeof window !== "undefined" && localStorage.getItem("vx_demo_role")) || "admin";
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F0F5FA]">
-      {/* Sidebar — icon only, 56px, deep navy */}
-      <aside className="relative z-50 flex w-14 shrink-0 flex-col items-center border-r border-white/10 bg-[#0F2137] py-3">
+      {/* Sidebar — grouped, labelled, 200px, deep navy */}
+      <aside className="relative z-50 flex w-[200px] shrink-0 flex-col border-r border-white/10 bg-[#0F2137]">
         {/* Logo */}
-        <div className="mb-4 flex h-8 w-8 items-center justify-center">
+        <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-white/10 px-4">
           <ShieldCheck className="h-5 w-5 text-[#0695A8]" />
+          <span className="font-display text-sm font-bold text-white">Vantax</span>
+          <span className="font-display text-sm font-bold text-[#0695A8]">MDM</span>
         </div>
 
-        {/* Nav icons */}
-        <TooltipProvider delay={0}>
-          <nav className="flex flex-1 flex-col items-center gap-1">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-              const active =
-                href === "/" ? pathname === "/" : pathname.startsWith(href);
+        {/* Nav groups */}
+        <ScrollArea className="flex-1 px-2 py-3">
+          <nav className="flex flex-col gap-4">
+            {NAV_GROUPS.map(({ group, items }) => {
+              const visibleItems = items.filter((item) => {
+                if (item.permission === "review_ai_rules") {
+                  return ROLES_WITH_AI_RULES.includes(userRole);
+                }
+                return true;
+              });
+              if (visibleItems.length === 0) return null;
+
               return (
-                <Tooltip key={href}>
-                  <TooltipTrigger
-                    render={
-                      <Link
-                        href={href}
-                        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                          active
-                            ? "bg-white/10 text-white border-l-2 border-l-[#0695A8]"
-                            : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
-                        }`}
-                      />
-                    }
-                  >
-                    <Icon className="h-[18px] w-[18px]" />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="right"
-                    sideOffset={12}
-                    className="z-[9999] bg-[var(--vx-sidebar-bg,#0F2137)] text-white border border-[var(--vx-border,#D6E4F0)] shadow-lg text-sm font-medium"
-                  >
-                    {label}
-                  </TooltipContent>
-                </Tooltip>
+                <div key={group}>
+                  <span className="mb-1 block px-2 text-[10px] font-semibold uppercase tracking-wider text-[#6B92AD]">
+                    {group}
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    {visibleItems.map(({ href, label, icon: Icon }) => {
+                      const active =
+                        href === "/" ? pathname === "/" : pathname.startsWith(href);
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] transition-colors ${
+                            active
+                              ? "bg-white/10 text-white font-medium border-l-2 border-l-[#0695A8]"
+                              : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
-          </nav>
-        </TooltipProvider>
 
-        {/* Bottom — V monogram + licence dot */}
-        <div className="flex flex-col items-center gap-2">
+            {/* Settings — standalone at bottom of nav */}
+            <div>
+              <Link
+                href="/settings"
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] transition-colors ${
+                  pathname.startsWith("/settings")
+                    ? "bg-white/10 text-white font-medium border-l-2 border-l-[#0695A8]"
+                    : "text-[#A8C5D8] hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                Settings
+              </Link>
+            </div>
+          </nav>
+        </ScrollArea>
+
+        {/* Bottom — licence dot */}
+        <div className="flex items-center gap-2 border-t border-white/10 px-4 py-3">
           <div className={`h-2 w-2 rounded-full ${licenceDotColor} ${licencePulse}`} />
-          <span className="font-display text-sm font-bold text-[#0695A8]">V</span>
+          <span className="text-[11px] text-[#6B92AD]">
+            {licence?.valid === true ? "Licensed" : licence?.valid === false ? "Unlicensed" : "Checking..."}
+          </span>
         </div>
       </aside>
 
