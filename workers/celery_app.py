@@ -33,6 +33,8 @@ import workers.tasks.run_cleaning  # noqa: F401
 import workers.tasks.run_exception_scan  # noqa: F401
 import workers.tasks.run_sync  # noqa: F401
 import workers.tasks.rule_proposal_task  # noqa: F401
+import workers.tasks.ai_triage  # noqa: F401
+import workers.tasks.populate_stewardship_queue  # noqa: F401
 import workers.scheduler  # noqa: F401, E402 — registers beat schedule
 
 
