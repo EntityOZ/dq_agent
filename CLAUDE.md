@@ -7,7 +7,7 @@ complete briefing. Read it fully at the start of every session before touching a
 
 ## What you are building
 
-Vantax analyses SAP data quality across 29 modules and 254 predefined validation checks. It
+Vantax analyses SAP data quality across 29 modules and 254+ predefined validation checks. It
 runs entirely inside the customer's own environment — on-premises or in their cloud VPC. SAP
 data, findings, and reports never leave their boundary. You are the engineer responsible for
 making this work correctly, reliably, and safely.
@@ -15,6 +15,11 @@ making this work correctly, reliably, and safely.
 The product ships as a Docker Compose stack (and optionally a Kubernetes Helm chart). A separate
 Cloudflare control plane handles licencing, billing, and the marketing site — but contains
 zero SAP data.
+
+Beyond data quality checks, Vantax now includes a full **Master Data Management (MDM)** platform:
+golden records with AI survivorship, match & merge engine, business glossary, stewardship
+workbench, data cleaning engine, exception management, analytics, NLP query interface, data
+contracts, SAP sync engine, and a governance dashboard.
 
 ---
 
@@ -30,18 +35,19 @@ zero SAP data.
 
 **Zone 2 — Customer container stack (their infra, all SAP data)**
 - FastAPI + LangGraph — API server and agent orchestration
-- Celery + Redis — background job workers (check execution, PDF generation)
-- Postgres — tenants, versions, findings, module config, DQS scores
+- Celery + Redis — background job workers (check execution, PDF generation, cleaning, sync, AI tasks)
+- Postgres — tenants, versions, findings, golden records, match scores, glossary, stewardship, contracts, MDM metrics
 - Ollama — local LLM server (Llama 3.1 70B default, swappable)
-- MinIO — S3-compatible local file store (CSV uploads, PDF reports)
-- Next.js dashboard — served locally, no Vercel
+- MinIO — S3-compatible local file store (CSV uploads, PDF reports, staging parquet)
+- Next.js dashboard — served locally, no Vercel (27 page routes)
 - WeasyPrint + Jinja2 — PDF generation inside Celery workers
 
 ### The only outbound calls from the customer stack
 1. Licence ping to `licence.dqagent.vantax.co.za` — key + machine fingerprint only, no data payload
 2. Image pull from GHCR — only when customer explicitly runs `update.sh`
 
-Everything else is internal. The LLM never sees raw SAP data — only aggregated findings JSON.
+Everything else is internal. The LLM never sees raw SAP data — only aggregated findings JSON
+and structured summaries for AI-assisted features (survivorship, triage, enrichment).
 
 ---
 
@@ -54,13 +60,15 @@ vantax/
 ├── docker-compose.dev.yml           ← dev overrides (Ollama Cloud mode)
 ├── .env.example                     ← all config vars documented
 ├── .env                             ← secrets (gitignored, never commit)
+├── Dockerfile / Dockerfile.api      ← container images
+├── alembic.ini                      ← database migration config
 │
 ├── api/                             ← FastAPI application
 │   ├── main.py                      ← app entrypoint, router registration
 │   ├── config.py                    ← settings from env vars
 │   ├── deps.py                      ← shared FastAPI dependencies
 │   ├── middleware/
-│   │   ├── tenant.py                ← extract tenant_id from JWT, set Postgres context
+│   │   ├── tenant.py                ← extract tenant_id from JWT, set Postgres RLS context
 │   │   └── licence.py               ← validate module entitlements per request
 │   ├── routes/
 │   │   ├── upload.py                ← POST /api/v1/upload (CSV/Excel ingestion)
@@ -68,12 +76,55 @@ vantax/
 │   │   ├── versions.py              ← GET /api/v1/versions, /compare
 │   │   ├── findings.py              ← GET /api/v1/findings (drill-down)
 │   │   ├── reports.py               ← GET /api/v1/reports (PDF download)
-│   │   └── health.py                ← GET /health (used by Docker healthcheck)
+│   │   ├── health.py                ← GET /health (used by Docker healthcheck)
+│   │   ├── cleaning.py              ← cleaning queue (standardisation, enrichment, dedup)
+│   │   ├── exceptions.py            ← exception/issue management (Kanban, SLA tiers)
+│   │   ├── analytics.py             ← predictive, prescriptive, impact, operational analytics
+│   │   ├── contracts.py             ← data contract compliance (schema, quality, freshness)
+│   │   ├── nlp.py                   ← NLP query interface ("Ask Vantax")
+│   │   ├── master_records.py        ← golden record CRUD, promotion, conflict resolution
+│   │   ├── match_rules.py           ← match rule configuration (field weights, thresholds)
+│   │   ├── glossary.py              ← business glossary (SAP field definitions)
+│   │   ├── relationships.py         ← cross-domain SAP relationships
+│   │   ├── stewardship.py           ← stewardship queue (AI triage, SLA tracking)
+│   │   ├── mdm_metrics.py           ← MDM health dashboard metrics
+│   │   ├── systems.py               ← SAP system config (RFC hostname, credentials)
+│   │   ├── connect.py               ← RFC connection test, table metadata fetch
+│   │   ├── writeback.py             ← write corrections back to SAP
+│   │   ├── ai_feedback.py           ← steward corrections for AI training
+│   │   ├── settings.py              ← tenant settings (DQS weights, thresholds)
+│   │   ├── users.py                 ← user management (Clerk integration, RBAC)
+│   │   └── notifications.py         ← notification centre events
 │   └── services/
 │       ├── scoring.py               ← DQS formula and dimension calculations
-│       └── column_mapper.py         ← normalise uploaded column names per module
+│       ├── column_mapper.py         ← normalise uploaded column names per module
+│       ├── storage.py               ← MinIO bucket management
+│       ├── standardisers.py         ← SA-specific standardisers (phone, postal, company)
+│       ├── cleaning_engine.py       ← dedup detection, standardisation, merge preview
+│       ├── exception_engine.py      ← rule evaluation, auto-detection, SLA, escalation
+│       ├── analytics_engine.py      ← predictive, prescriptive, impact, operational
+│       ├── nlp_service.py           ← intent classification, data retrieval, answer synthesis
+│       ├── lineage_service.py       ← data lineage mapping (table→field dependencies)
+│       ├── export_engine.py         ← export cleaned data as CSV/Parquet
+│       ├── golden_record_engine.py  ← survivorship logic (deterministic + AI fallback)
+│       ├── survivorship.py          ← deterministic rules (most_recent, trusted_source, majority_vote)
+│       ├── ai_survivorship.py       ← LLM-assisted field winner selection
+│       ├── match_engine.py          ← record pair matching (blocking, scoring)
+│       ├── ai_semantic_matcher.py   ← LLM semantic similarity for match scoring
+│       ├── relationship_discovery.py ← cross-domain SAP relationships
+│       ├── ai_impact_scorer.py      ← LLM-scored impact of relationships/changes
+│       ├── ai_glossary_enricher.py  ← LLM expansion of glossary definitions
+│       ├── mdm_scoring.py           ← MDM health score calculation
+│       ├── credential_store.py      ← encrypted password storage for SAP systems
+│       ├── rbac.py                  ← role-based access control (analyst, steward, admin)
+│       ├── notifications.py         ← Resend email + Teams webhook dispatch
+│       └── utils/
+│           ├── llm_logger.py        ← LLM call audit logging
+│           └── pii_fields.py        ← PII field masking for logs/reports
 │
 ├── agents/                          ← LangGraph agent definitions
+│   ├── state.py                     ← AgentState dataclass (message/state schema)
+│   ├── prompts.py                   ← centralised system prompts for all sub-agents
 │   ├── orchestrator.py              ← main LangGraph graph — routes to sub-agents
 │   ├── analyst.py                   ← root cause reasoning sub-agent
 │   ├── remediation.py               ← SAP-specific fix suggestion sub-agent
@@ -85,15 +136,26 @@ vantax/
 │
 ├── workers/                         ← Celery tasks
 │   ├── celery_app.py                ← Celery app config, broker = Redis
-│   ├── tasks/
-│   │   ├── run_checks.py            ← execute check suite against a dataset
-│   │   ├── generate_pdf.py          ← render Jinja2 → WeasyPrint → MinIO
-│   │   └── send_notifications.py    ← email (Resend) + Teams webhook
-│   └── scheduler.py                 ← cron job definitions (daily/weekly digest)
+│   ├── scheduler.py                 ← 5-trigger cron jobs (daily, weekly, on_release, on_sync, on_exception)
+│   └── tasks/
+│       ├── run_checks.py            ← execute check suite against a dataset
+│       ├── run_agents.py            ← invoke LangGraph orchestrator
+│       ├── generate_pdf.py          ← render Jinja2 → WeasyPrint → MinIO
+│       ├── send_notifications.py    ← email (Resend) + Teams webhook
+│       ├── run_cleaning.py          ← execute cleaning rules (dedup, standardisation)
+│       ├── run_exception_scan.py    ← rule-based exception detection and triage
+│       ├── run_sync.py              ← SAP PyRFC sync (extract, match, survivorship, write back)
+│       ├── ai_sync_quality.py       ← AI scoring of sync batch quality
+│       ├── ai_health_narrative.py   ← LLM narrative for MDM health dashboard
+│       ├── ai_triage.py             ← AI-assisted exception/cleaning triage
+│       ├── populate_stewardship_queue.py ← queue population from findings/cleaning/exceptions
+│       ├── snapshot_mdm_metrics.py  ← daily MDM metric snapshot
+│       └── rule_proposal_task.py    ← AI learning: propose new rules from steward corrections
 │
 ├── checks/                          ← deterministic check engine
 │   ├── runner.py                    ← loads YAML rules, dispatches to check classes
 │   ├── base.py                      ← CheckResult dataclass, base Check class
+│   ├── fix_generator.py             ← deterministic fix suggestions from check failures
 │   ├── types/                       ← check class implementations
 │   │   ├── null_check.py
 │   │   ├── domain_value_check.py
@@ -101,51 +163,110 @@ vantax/
 │   │   ├── cross_field_check.py
 │   │   ├── referential_check.py
 │   │   └── freshness_check.py
-│   └── rules/                       ← 254 YAML rule definitions
-│       ├── successfactors/
-│       │   ├── employee_central.yaml
-│       │   ├── compensation.yaml
-│       │   ├── payroll_integration.yaml
-│       │   └── ...                  ← 6 more SF modules
-│       ├── ecc/
+│   └── rules/                       ← 254+ YAML rule definitions across 29 modules
+│       ├── ecc/                     ← 12 ECC modules (~80 rules)
 │       │   ├── business_partner.yaml
 │       │   ├── material_master.yaml
 │       │   ├── fi_gl.yaml
-│       │   └── ...                  ← 8 more ECC modules
-│       └── warehouse/
+│       │   ├── accounts_payable.yaml
+│       │   ├── accounts_receivable.yaml
+│       │   ├── asset_accounting.yaml
+│       │   ├── mm_purchasing.yaml
+│       │   ├── plant_maintenance.yaml
+│       │   ├── production_planning.yaml
+│       │   ├── sd_customer_master.yaml
+│       │   ├── sd_sales_orders.yaml
+│       │   └── column_map.yaml
+│       ├── successfactors/          ← 10 SF modules (~50 rules)
+│       │   ├── employee_central.yaml
+│       │   ├── compensation.yaml
+│       │   ├── benefits.yaml
+│       │   ├── payroll_integration.yaml
+│       │   ├── performance_goals.yaml
+│       │   ├── succession_planning.yaml
+│       │   ├── recruiting_onboarding.yaml
+│       │   ├── learning_management.yaml
+│       │   ├── time_attendance.yaml
+│       │   └── column_map.yaml
+│       └── warehouse/               ← 11 WM modules (~55 rules)
 │           ├── ewms_stock.yaml
-│           └── ...                  ← 8 more warehouse modules
+│           ├── ewms_transfer_orders.yaml
+│           ├── batch_management.yaml
+│           ├── mdg_master_data.yaml
+│           ├── grc_compliance.yaml
+│           ├── fleet_management.yaml
+│           ├── transport_management.yaml
+│           ├── wm_interface.yaml
+│           ├── cross_system_integration.yaml
+│           └── column_map.yaml
 │
 ├── db/
-│   ├── schema.py                    ← Drizzle-style schema definitions (SQLAlchemy)
-│   ├── migrations/                  ← Alembic migration files
-│   └── queries/                     ← typed query functions per domain
-│       ├── tenants.py
-│       ├── versions.py
-│       └── findings.py
+│   ├── schema.py                    ← SQLAlchemy ORM schema (40+ tables)
+│   ├── migrations/                  ← 22 Alembic migration files
+│   │   └── versions/
+│   │       ├── 001_initial_schema.py
+│   │       ├── ...
+│   │       └── 022_stewardship_queue_unique.py
+│   ├── queries/                     ← typed query functions per domain
+│   │   ├── tenants.py
+│   │   ├── versions.py
+│   │   ├── findings.py
+│   │   └── reports.py
+│   └── populate_glossary.py         ← seed data for SAP business glossary
 │
 ├── templates/                       ← Jinja2 report templates
-│   ├── executive_report.html
-│   ├── detailed_findings.html
+│   ├── executive_report.html        ← PDF template (DQS, heatmap, findings, MDM, golden records)
 │   └── assets/
 │       └── report.css
 │
-├── frontend/                        ← Next.js 15 dashboard (served locally)
+├── frontend/                        ← Next.js 15 dashboard (served locally, 27 page routes)
 │   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                 ← executive dashboard
-│   │   ├── modules/                 ← module heatmap views
-│   │   ├── findings/                ← drill-down to individual checks
-│   │   ├── versions/                ← comparison and trend views
-│   │   └── reports/                 ← PDF download and scheduling
-│   └── ...
+│   │   ├── layout.tsx               ← root layout
+│   │   ├── (dashboard)/
+│   │   │   ├── page.tsx             ← executive DQS dashboard
+│   │   │   ├── upload/              ← CSV/Excel upload
+│   │   │   ├── versions/            ← analysis history & trends
+│   │   │   ├── findings/            ← drill-down by module/severity
+│   │   │   ├── reports/             ← PDF download & scheduling
+│   │   │   ├── golden-records/      ← golden record inventory & detail
+│   │   │   ├── stewardship/         ← stewardship workbench & SLA metrics
+│   │   │   ├── glossary/            ← business glossary & term detail
+│   │   │   ├── dedup/               ← deduplication candidates
+│   │   │   ├── match-rules/         ← match rule configuration
+│   │   │   ├── cleaning/            ← cleaning queue
+│   │   │   ├── exceptions/          ← exception Kanban board
+│   │   │   ├── analytics/           ← predictive, prescriptive, impact, operational
+│   │   │   ├── contracts/           ← data contract compliance
+│   │   │   ├── notifications/       ← notification centre
+│   │   │   ├── settings/            ← tenant settings
+│   │   │   ├── systems/             ← SAP system connections
+│   │   │   ├── sync/                ← MDM sync profiles & runs
+│   │   │   ├── nlp/                 ← "Ask Vantax" NLP interface
+│   │   │   ├── ai/rules/            ← AI-proposed validation rules
+│   │   │   ├── relationships/       ← cross-domain SAP relationships
+│   │   │   └── users/               ← user management & RBAC
+│   │   ├── sign-in/                 ← Clerk authentication
+│   │   ├── sign-up/                 ← Clerk registration
+│   │   └── licence-error/           ← licence validation failure
+│   ├── lib/api/                     ← 18 typed fetch wrapper modules
+│   └── components/                  ← shadcn/ui + Recharts components
 │
 ├── cloudflare/                      ← Cloudflare control plane (separate deploy)
 │   ├── licence-worker/
 │   │   ├── src/index.ts             ← Workers licence validation logic
-│   │   └── wrangler.toml
+│   │   ├── src/index.test.ts        ← test suite
+│   │   ├── wrangler.toml
+│   │   └── vitest.config.ts
 │   └── portal/                      ← Vantax portal (Next.js on Pages)
-│       └── ...
+│       ├── app/
+│       │   ├── page.tsx             ← marketing landing
+│       │   ├── dashboard/           ← org overview
+│       │   ├── billing/             ← Stripe module add-ons
+│       │   └── api/webhooks/stripe/ ← Stripe webhook handler
+│       ├── lib/
+│       │   ├── licence.ts           ← licence key generation/validation
+│       │   └── stripe.ts            ← Stripe API client
+│       └── scripts/setup-stripe.ts  ← Stripe product/price setup
 │
 ├── helm/                            ← Kubernetes Helm chart
 │   └── vantax/
@@ -153,10 +274,27 @@ vantax/
 │       ├── values.yaml
 │       └── templates/
 │
-└── scripts/
-    ├── install.sh                   ← first-time setup
-    ├── update.sh                    ← pull new image, run migrations
-    └── healthcheck.sh               ← validate all services running
+├── tests/                           ← test suite (28 files)
+│   ├── agents/                      ← orchestrator, analyst, remediation, report, readiness
+│   ├── checks/                      ← runner, base, check types, all module rules
+│   ├── services/                    ← scoring
+│   ├── fixtures/                    ← synthetic SAP data generators
+│   ├── test_full_pipeline.py        ← end-to-end integration test
+│   ├── test_pyrfc_connector.py
+│   ├── test_cleaning_engine.py
+│   ├── test_export_engine.py
+│   ├── test_standardisers.py
+│   ├── test_stewardship_workbench.py
+│   ├── test_licence_gating.py
+│   └── test_phase_o_nav_redesign.py
+│
+├── scripts/
+│   ├── install.sh                   ← first-time setup
+│   ├── update.sh                    ← pull new image, run migrations
+│   └── healthcheck.sh               ← validate all services running
+│
+├── docs/                            ← documentation
+└── release/                         ← version releases
 ```
 
 ---
@@ -168,8 +306,8 @@ function, not an LLM. The check engine runs against data using pure logic. The L
 receives aggregated findings JSON and reasons about what they mean.
 
 **The LLM never sees raw SAP data.** Raw table data stays in Postgres and MinIO.
-The orchestrator passes only structured finding summaries to the LLM. If you ever find yourself
-passing raw row data to an LLM call, stop and restructure.
+The orchestrator passes only structured finding summaries to the LLM. AI-assisted features
+(survivorship, triage, enrichment) receive only aggregated/anonymised context — never raw rows.
 
 **Tenant isolation is non-negotiable.** Every database query must include a `tenant_id` filter.
 Postgres Row Level Security enforces this at the DB layer — but application code must also
@@ -181,52 +319,96 @@ it goes into a YAML file and a check class. Not into a system prompt.
 **One failing check must not block other checks.** The runner catches exceptions per check and
 records a failed result. An entire module analysis must complete even if individual checks error.
 
+**AI is always the fallback, never the primary.** Deterministic rules run first. AI-assisted
+features (survivorship, match scoring, triage) only engage when deterministic logic cannot
+resolve the decision. Every AI recommendation is logged in `llm_audit_log`.
+
 ---
 
-## Database schema — know the key tables
+## Database schema — key tables
+
+The schema has grown to 40+ tables across 22 migrations. Key table groups:
+
+### Core analysis
 
 ```sql
--- Multi-tenancy root
-tenants (
-  id uuid PK,
-  name text,
-  licensed_modules text[],         -- e.g. ['business_partner', 'material_master']
-  dqs_weights jsonb,               -- overrides default DAMA DMBOK weights
-  alert_thresholds jsonb,
-  stripe_customer_id text,
-  created_at timestamptz
-)
+tenants (id, name, licensed_modules[], dqs_weights, alert_thresholds, stripe_customer_id)
+analysis_versions (id, tenant_id, run_at, label, dqs_summary, metadata, status)
+findings (id, version_id, tenant_id, module, check_id, severity, dimension,
+          affected_count, total_count, pass_rate, details, remediation_text)
+reports (id, tenant_id, version_id, report_json, pdf_path, generated_at)
+```
 
--- Every analysis run is a snapshot
-analysis_versions (
-  id uuid PK,
-  tenant_id uuid FK → tenants,
-  run_at timestamptz,
-  label text,                      -- user annotation e.g. "post-cleanup"
-  dqs_summary jsonb,               -- {module: {dimension: score}} per module
-  metadata jsonb,                  -- file name, row count, modules run
-  status text                      -- pending | running | complete | failed
-)
+### Cleaning & deduplication
 
--- Individual check results
-findings (
-  id uuid PK,
-  version_id uuid FK → analysis_versions,
-  tenant_id uuid FK → tenants,
-  module text,                     -- e.g. 'business_partner'
-  check_id text,                   -- e.g. 'BP001'
-  severity text,                   -- critical | high | medium | low
-  dimension text,                  -- completeness | accuracy | consistency | ...
-  affected_count int,
-  total_count int,
-  pass_rate numeric,
-  details jsonb,                   -- sample failing records, check-specific context
-  remediation_text text,           -- LLM-generated SAP-specific fix guidance
-  created_at timestamptz
-)
+```sql
+cleaning_rules (id, tenant_id, object_type, category, rule_definition)
+cleaning_queue (id, tenant_id, record_key, status, survivor_key, merge_preview)
+cleaning_audit (id, tenant_id, action, actor_id, data_before, data_after)
+dedup_candidates (id, tenant_id, match_score, match_method, status)
+```
 
--- RLS policy on every data table
-CREATE POLICY tenant_isolation ON findings
+### Exception management
+
+```sql
+exceptions (id, tenant_id, type, severity, title, estimated_impact_zar,
+            sla_deadline, assigned_to, status)
+exception_rules (id, tenant_id, condition, auto_assign_to, is_active)
+exception_billing (id, tenant_id, tier1-4 counts/amounts, stripe_invoice_id)
+```
+
+### Analytics & contracts
+
+```sql
+dqs_history (id, tenant_id, module_id, dimension scores, recorded_at)
+impact_records (id, tenant_id, category, annual_risk_zar, mitigated_zar)
+cost_avoidance (id, tenant_id, subscription_cost, risk_mitigated, cumulative_roi_multiple)
+contracts (id, tenant_id, schema_contract, quality_contract, freshness_contract, volume_contract)
+contract_compliance_history (id, tenant_id, actual vs contract values, violations)
+```
+
+### Master Data Management
+
+```sql
+master_records (id, tenant_id, domain, sap_object_key, golden_fields,
+                source_contributions, overall_confidence, status)
+master_record_history (id, change_type, previous_fields, new_fields, ai_was_involved)
+survivorship_rules (id, tenant_id, domain, field, rule_type, trusted_sources[], weight, ai_inferred)
+match_rules (id, tenant_id, domain, field, match_type, weight, threshold, active)
+match_scores (id, tenant_id, candidate_a_key, candidate_b_key, total_score,
+              field_scores, ai_semantic_score, auto_action)
+glossary_terms (id, tenant_id, sap_table, sap_field, technical_name, business_name,
+                business_definition, data_steward_id, mandatory_for_s4hana)
+stewardship_queue (id, tenant_id, item_type, source_id, domain, priority,
+                   assigned_to, status, sla_hours, ai_recommendation, ai_confidence)
+```
+
+### SAP integration & governance
+
+```sql
+sap_systems (id, tenant_id, host, client, sysnr, environment, is_active)
+sync_profiles (id, tenant_id, domain, tables[], schedule_cron, ai_anomaly_baseline)
+sync_runs (id, tenant_id, rows_extracted, findings_delta, golden_records_updated,
+           ai_quality_score, anomaly_flags)
+relationship_types (id, from_table, to_table, relationship_type)
+record_relationships (id, tenant_id, from_domain, to_domain, ai_confidence, impact_score)
+mdm_metrics (id, tenant_id, snapshot_date, domain, golden_record_count,
+             golden_record_coverage_pct, mdm_health_score, ai_narrative)
+```
+
+### RBAC & audit
+
+```sql
+users (id, tenant_id, clerk_user_id, email, role, permissions)
+notifications (id, tenant_id, type, title, body, is_read)
+ai_feedback_log (id, tenant_id, queue_item_id, ai_recommendation, steward_decision)
+ai_proposed_rules (id, tenant_id, proposed_rule, rationale, status)
+llm_audit_log (id, service_name, model_version, prompt_hash, token_count, latency_ms)
+```
+
+RLS policy on every data table:
+```sql
+CREATE POLICY tenant_isolation ON <table>
   USING (tenant_id = current_setting('app.tenant_id')::uuid);
 ```
 
@@ -238,7 +420,7 @@ must do it explicitly at the start of each task.
 
 ## DQS scoring formula
 
-This is the DAMA DMBOK composite score. Implement it exactly as specified.
+This is the DAMA DMBOK composite score. Implemented in `api/services/scoring.py`.
 
 ```
 DQS = (Completeness × 0.25) + (Accuracy × 0.25) + (Consistency × 0.20)
@@ -251,7 +433,7 @@ DQS = (Completeness × 0.25) + (Accuracy × 0.25) + (Consistency × 0.20)
 - Weights are configurable per tenant — read from `tenants.dqs_weights`, fall back to defaults
 - Scores are stored in `analysis_versions.dqs_summary` as a nested JSON object
 
-Implement this in `api/services/scoring.py`. It must be pure Python with no LLM involvement.
+Pure Python with no LLM involvement.
 
 ---
 
@@ -269,7 +451,6 @@ def get_llm():
     provider = os.getenv("LLM_PROVIDER", "ollama")
 
     if provider == "ollama":
-        # Fully local — default for production customer deployments
         return ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL", "http://llm:11434"),
             model=os.getenv("OLLAMA_MODEL", "llama3.1:70b"),
@@ -277,7 +458,6 @@ def get_llm():
         )
 
     if provider == "ollama_cloud":
-        # Ollama Cloud API — use dev key for local dev and CI
         return ChatOpenAI(
             base_url="https://api.ollama.com/v1",
             api_key=os.getenv("OLLAMA_API_KEY"),
@@ -286,7 +466,6 @@ def get_llm():
         )
 
     if provider == "anthropic":
-        # For customers who have approved external API usage
         return ChatAnthropic(
             model="claude-sonnet-4-6",
             api_key=os.getenv("ANTHROPIC_API_KEY"),
@@ -302,7 +481,7 @@ Import `get_llm()` wherever an LLM instance is needed. Never hardcode a provider
 
 ## Check engine — YAML rule format
 
-Every check is defined in YAML. The runner loads these dynamically. A check YAML entry looks like:
+Every check is defined in YAML. The runner loads these dynamically.
 
 ```yaml
 # checks/rules/ecc/business_partner.yaml
@@ -323,27 +502,21 @@ rules:
     severity: critical
     dimension: validity
     message: "BP number must be 10-digit numeric for S/4HANA conversion"
-
-  - id: BP003
-    field: ADR6.SMTP_ADDR
-    check_class: domain_value_check
-    allowed_values: null
-    format: email
-    severity: warning
-    dimension: completeness
-    message: "Email required for customer-facing BP in target state"
 ```
 
 The runner in `checks/runner.py` loads the YAML for the requested modules, instantiates the
 appropriate check class, runs it against the dataframe, and returns a list of `CheckResult`
 objects. Exceptions per check are caught and logged — they do not propagate.
 
+Six check types: `null_check`, `domain_value_check`, `regex_check`, `cross_field_check`,
+`referential_check`, `freshness_check`.
+
 ---
 
 ## LangGraph agent flow
 
 The orchestrator graph runs after the check engine completes. It receives a findings JSON
-payload and routes through sub-agents. Build the graph in `agents/orchestrator.py`.
+payload and routes through sub-agents.
 
 ```
 findings_json
@@ -364,15 +537,35 @@ findings_json
 report_json → stored in Postgres → triggers PDF generation Celery task
 ```
 
-Each sub-agent gets only what it needs. The analyst gets findings summaries. The remediation
-agent gets the analyst's root cause output plus the original findings. The report agent gets
-all prior outputs. Pass context forward explicitly — do not re-query the database inside agents.
+Each sub-agent gets only what it needs. Pass context forward explicitly — do not re-query
+the database inside agents. State schema defined in `agents/state.py`, prompts centralised
+in `agents/prompts.py`.
+
+---
+
+## AI-assisted features — where the LLM is used
+
+Beyond the core agent flow, the LLM powers several MDM features. In every case, deterministic
+logic runs first; the LLM is a fallback or enrichment layer:
+
+| Feature | Service | When LLM engages |
+|---|---|---|
+| Survivorship | `ai_survivorship.py` | When deterministic rules cannot resolve a field conflict |
+| Semantic matching | `ai_semantic_matcher.py` | Pair-wise similarity scoring for fuzzy match candidates |
+| Impact scoring | `ai_impact_scorer.py` | Scoring business impact of relationships/changes |
+| Glossary enrichment | `ai_glossary_enricher.py` | Auto-filling definition, why_it_matters, sap_impact |
+| Exception triage | `ai_triage.py` (worker) | Priority assignment and recommended action |
+| Health narrative | `ai_health_narrative.py` (worker) | Daily MDM health summary in natural language |
+| Sync quality | `ai_sync_quality.py` (worker) | Anomaly detection on sync batch data |
+| Rule proposals | `rule_proposal_task.py` (worker) | Learning new rules from steward correction patterns |
+
+Every LLM call is logged in `llm_audit_log` with prompt hash, token count, and latency.
 
 ---
 
 ## Ingestion pipeline — CSV/Excel upload
 
-This is the primary data path. Build it in `api/routes/upload.py`.
+Primary data path, built in `api/routes/upload.py`:
 
 1. Accept multipart file upload (CSV or Excel)
 2. Validate file size (max 100MB) and MIME type
@@ -411,7 +604,6 @@ export default {
       machineFingerprint: string;
     };
 
-    // KV key: licence:{key} → JSON {modules, expiresAt, tenantId, active}
     const record = await env.LICENCE_KV.get(`licence:${licenceKey}`, "json") as {
       modules: string[];
       expiresAt: string;
@@ -427,7 +619,6 @@ export default {
       return Response.json({ valid: false, reason: "expired" }, { status: 403 });
     }
 
-    // Log the ping — timestamp and fingerprint only, no SAP data
     await env.LICENCE_KV.put(
       `ping:${licenceKey}`,
       JSON.stringify({ lastSeen: new Date().toISOString(), machineFingerprint }),
@@ -444,80 +635,26 @@ export default {
 };
 ```
 
-The customer container calls this on startup and every 24 hours. If the call fails (network
-error or invalid key), the container logs a warning and continues — do not hard-fail on licence
-check errors to avoid taking down a customer's environment over a transient network issue.
-After 48 hours of consecutive failures, start refusing new analysis jobs but keep the dashboard
-and existing data accessible.
+The customer container calls this on startup and every 24 hours. If the call fails,
+the container logs a warning and continues. After 48 hours of consecutive failures,
+refuse new analysis jobs but keep the dashboard and existing data accessible.
 
 ---
 
 ## Docker Compose — key services
 
 ```yaml
-# docker-compose.yml (structure — fill in full config)
 services:
-  api:
-    image: ghcr.io/nxt-biz/vantax-api:latest
-    environment:
-      - LLM_PROVIDER=ollama
-      - OLLAMA_BASE_URL=http://llm:11434
-      - DATABASE_URL=postgresql://vantax:${DB_PASSWORD}@db:5432/vantax
-      - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=minio:9000
-      - LICENCE_KEY=${LICENCE_KEY}
-      - LICENCE_SERVER_URL=https://licence.dqagent.vantax.co.za
-    depends_on: [db, redis, minio, llm]
-    ports: ["8000:8000"]
-
-  worker:
-    image: ghcr.io/nxt-biz/vantax-api:latest   # same image, different command
-    command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
-    environment: *api-env                        # inherit from api service
-    depends_on: [db, redis, minio, llm]
-
-  frontend:
-    image: ghcr.io/nxt-biz/vantax-frontend:latest
-    ports: ["3000:3000"]
-    environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000
-
-  db:
-    image: postgres:16-alpine
-    volumes: [postgres_data:/var/lib/postgresql/data]
-    environment:
-      - POSTGRES_DB=vantax
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-
-  redis:
-    image: redis:7-alpine
-    volumes: [redis_data:/data]
-
-  llm:
-    image: ollama/ollama:latest
-    volumes: [ollama_models:/root/.ollama]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    volumes: [minio_data:/data]
-    environment:
-      - MINIO_ROOT_USER=vantax
-      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
-
-volumes:
-  postgres_data:
-  redis_data:
-  ollama_models:
-  minio_data:
+  api:        # FastAPI (port 8000)
+  worker:     # Celery (same image, different command, concurrency=4)
+  frontend:   # Next.js (port 3000)
+  db:         # PostgreSQL 16 (async + sync connections)
+  redis:      # Job broker (port 6379)
+  minio:      # S3-compatible storage (port 9000 API, 9001 console)
+  # llm:      # Ollama — disabled in compose, uses host.docker.internal
 ```
+
+Dev mode (`docker-compose.dev.yml`) uses Ollama Cloud API — no local GPU required.
 
 ---
 
@@ -526,13 +663,14 @@ volumes:
 ```bash
 # LLM — choose one mode
 LLM_PROVIDER=ollama                          # ollama | ollama_cloud | anthropic
-OLLAMA_BASE_URL=http://llm:11434             # internal Docker service address
+OLLAMA_BASE_URL=http://llm:11434
 OLLAMA_MODEL=llama3.1:70b
-OLLAMA_API_KEY=                              # only needed for ollama_cloud
-ANTHROPIC_API_KEY=                           # only needed for anthropic
+OLLAMA_API_KEY=                              # only for ollama_cloud
+ANTHROPIC_API_KEY=                           # only for anthropic
 
 # Database
-DATABASE_URL=postgresql://vantax:password@db:5432/vantax
+DATABASE_URL=postgresql+asyncpg://vantax:password@db:5432/vantax
+DATABASE_URL_SYNC=postgresql://vantax:password@db:5432/vantax
 
 # Redis
 REDIS_URL=redis://redis:6379/0
@@ -547,10 +685,11 @@ MINIO_BUCKET_REPORTS=vantax-reports
 # Licence
 LICENCE_KEY=                                 # issued by Vantax portal
 LICENCE_SERVER_URL=https://licence.dqagent.vantax.co.za
+LICENCE_FILE=                                # alternative: offline licence (air-gapped)
 
 # Notifications
 RESEND_API_KEY=                              # or configure SMTP_HOST for air-gapped
-TEAMS_WEBHOOK_URL=                           # optional — per tenant config
+TEAMS_WEBHOOK_URL=                           # optional
 
 # Auth
 CLERK_SECRET_KEY=                            # or set AUTH_MODE=local for air-gapped
@@ -561,53 +700,58 @@ SENTRY_DSN=                                  # optional
 
 ---
 
-## SAP module priority order — build in this sequence
+## SAP module coverage — all 29 modules implemented
 
-Build Phase 2 (check engine) starting with the three highest-value modules. Do not skip ahead.
-
-| Priority | Module | Reason |
+| Category | Modules | Rules |
 |---|---|---|
-| 1 | Business Partner (ECC) | Most critical for S/4HANA migration — BP001-BP020 rules |
-| 2 | Material Master (ECC) | Highest volume, most migration-blocking issues |
-| 3 | GL Accounts (FI) | Required for base package commercial offering |
-| 4 | Employee Central (SF) | Highest SuccessFactors demand |
-| 5 | AP/AR (FI) | Completes the core finance picture |
-| 6–29 | Remaining modules | In order of customer demand — track via Vantax portal |
+| ECC | business_partner, material_master, fi_gl, accounts_payable, accounts_receivable, asset_accounting, mm_purchasing, plant_maintenance, production_planning, sd_customer_master, sd_sales_orders (12) | ~80 |
+| SuccessFactors | employee_central, compensation, benefits, payroll_integration, performance_goals, succession_planning, recruiting_onboarding, learning_management, time_attendance (10) | ~50 |
+| Warehouse | ewms_stock, ewms_transfer_orders, batch_management, mdg_master_data, grc_compliance, fleet_management, transport_management, wm_interface, cross_system_integration (11) | ~55 |
+
+All modules include enriched rule files with column mappings.
 
 ---
 
-## Build phases — work in this order
+## Build phases — completed and current
 
-**Phase 1 — Foundation (3 weeks)**
-Stand up the full Docker Compose stack locally. FastAPI skeleton with health endpoint.
-Postgres schema with RLS policies and Alembic migrations. Celery + Redis wired up.
-MinIO buckets created on startup. Ollama pulling the model. All services healthy.
-Do not write check logic yet. Prove the stack works end to end first.
+### Completed phases
 
-**Phase 2 — Check engine (5 weeks)**
-CSV upload pipeline. Column mapping YAML schema. Three core module rule files (BP,
-Material Master, GL). All check class types implemented. Runner loading YAML and
-dispatching correctly. DQS scoring service. Findings stored to Postgres. No LLM yet.
-By end of Phase 2 you should be able to upload a CSV, run checks, and see findings in the DB.
+| Phase | Description | Status |
+|---|---|---|
+| 1–5 | Foundation, check engine, agents, dashboard, Cloudflare | Done |
+| 6a | SuccessFactors modules (9 modules, 57 rules) | Done |
+| 6b | Remaining ECC modules (8 modules, 74 rules) | Done |
+| 6c | Warehouse, fleet, integration modules (9 modules, 65 rules) | Done |
+| 6d | PyRFC live connector, K8s hardening, air-gap mode, write-back | Done |
+| A | Cleaning engine, dedup, SA standardisers, workbench UI | Done |
+| B | Exception management, SAP monitors, Kanban UI | Done |
+| C | Predictive, prescriptive, impact, operational analytics | Done |
+| D | NLP query interface, data lineage, data contracts | Done |
+| E | SAP export formats, full 5-trigger scheduler | Done |
+| F | RBAC roles, notification centre, user management | Done |
+| G | Exception billing, feature flags, portal enhancements | Done |
+| H | SAP sync engine, AI foundation, RBAC extended | Done |
+| I | Golden record store and AI survivorship | Done |
+| J | Match and merge engine with AI semantic scoring | Done |
+| K | Business glossary with AI enrichment | Done |
+| L | Stewardship workbench with AI triage | Done |
+| M | SAP domain relationship graph with AI impact scoring | Done |
+| N | MDM governance dashboard and AI health narrative | Done |
+| O | Sync-first navigation redesign (final UI phase) | Done |
 
-**Phase 3 — LangGraph agents (4 weeks)**
-Swappable LLM provider. Orchestrator graph wired through all four sub-agents. Remediation
-text stored against findings. Readiness scoring per SAP object. Report JSON assembled.
-WeasyPrint PDF template for the executive report. PDF stored to MinIO.
+### Integration branches (connecting features end-to-end)
 
-**Phase 4 — Dashboard (4 weeks)**
-Next.js frontend. Executive DQS dashboard with trend sparklines. Module heatmap.
-Findings drill-down. Version comparison view. PDF download. Clerk auth with org-level tenancy.
-Notification settings (email, Teams webhook).
+| Branch | Description | Status |
+|---|---|---|
+| P1 | NLP MDM intents, cleaning→golden link, scheduler AI scoring | Done |
+| P2 | Exceptions→stewardship, analytics MDM, contracts golden, licence gating | Done |
+| P3 | PDF report MDM Health and Golden Record sections | Done |
 
-**Phase 5 — Cloudflare control plane (2 weeks)**
-Workers licence server + KV store. Wrangler deployment. Vantax portal on Pages.
-Stripe integration with webhook module gating. GHCR image publishing via GitHub Actions.
-Install, update, and healthcheck scripts. Customer deployment bundle packaged.
+### Security review
 
-**Phase 6 — Module expansion (ongoing)**
-Remaining 26 SAP modules in priority order. PyRFC live connector. Kubernetes Helm chart.
-Air-gapped deployment mode (offline licence, local SMTP relay).
+| Branch | Description | Status |
+|---|---|---|
+| review/full-code-review | Full security and quality audit — 19 findings across 4 severity levels | Done |
 
 ---
 
@@ -619,25 +763,61 @@ Air-gapped deployment mode (offline licence, local SMTP relay).
 - All database access through the query functions in `db/queries/` — no raw SQL in routes
   or agents.
 - Celery tasks must be idempotent. A task run twice with the same inputs must produce the same
-  result without creating duplicate records.
+  result without creating duplicate records. All INSERT statements must include ON CONFLICT
+  clauses using the table's natural key.
 - Every check class must inherit from `checks/base.py:BaseCheck` and return a `CheckResult`.
   Exceptions inside a check are caught by the runner — never let them propagate.
 - Frontend: Next.js 15 App Router, TypeScript strict mode, Tailwind v4, shadcn/ui components.
   No `any` types. All API calls through typed fetch wrappers in `frontend/lib/api/`.
-- Commit messages: `phase-N: short description` — e.g. `phase-2: add BP null check rule`.
+- Commit messages: `phase-N: short description` — e.g. `phase-a: cleaning engine`.
+  Integration branches: `integration/pN: short description`.
+
+### Security standards
+
+- **No stack traces to callers.** The global exception handler in `api/main.py` catches all
+  unhandled exceptions and returns a generic 500. Never use `detail=str(e)` from internal
+  exceptions — log server-side, return a safe message to the caller.
+- **RFC WHERE clause validation.** Any user-supplied WHERE clause for RFC_READ_TABLE must pass
+  through `validate_rfc_where()` in `api/routes/connect.py`. Only simple field comparisons
+  are permitted. ABAP keywords (SELECT, EXEC, CALL, FUNCTION, SUBMIT) are blocked.
+- **Upload security.** File uploads are read in chunks (8 KB) with early abort at 100 MB to
+  prevent OOM. Magic bytes are validated before parsing. Formula injection characters
+  (=, +, -, @) are sanitised in string cells before storage.
+- **NLP filter sanitisation.** All filter values extracted from LLM output in the NLP service
+  must pass through `sanitise_nlp_filters()` which validates against known-safe allowlists
+  before any value reaches a SQL condition.
+- **SQL column whitelists.** Dynamic UPDATE statements must iterate over an explicit
+  `ALLOWED_UPDATE_FIELDS` dict mapping body field names to SQL column names. Never use
+  `getattr(body, user_input)` to build column names.
+- **Rate limiting via Redis.** Rate limits must use Redis INCR + EXPIRE, not in-memory dicts.
+  If Redis is unreachable, degrade gracefully (allow the request, log warning).
+- **Sentry scrubber.** If SENTRY_DSN is configured, Sentry is initialised with a `before_send`
+  hook that strips SAP data fields, DataFrames, prompts, and passwords from all events.
+- **Production hardening.** When AUTH_MODE is not `local`, /docs, /openapi.json, and /redoc
+  are disabled. Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+  are added to all responses. CORS is restricted to specific methods and headers.
+- **Sensitive data in logs.** File paths and SAP table names must use DEBUG level, not INFO.
+  Operation completion summaries (version ID, row counts) may use INFO.
 
 ---
 
-## What success looks like at the end of Phase 5
+## What success looks like
 
 A customer can:
 1. Run `./scripts/install.sh` on their server and have the full stack running within 30 minutes
-2. Upload a CSV export from SAP transaction SE16
+2. Upload a CSV export from SAP transaction SE16 or connect live via PyRFC
 3. See a DQS score per module within 10 minutes of upload
 4. Read LLM-generated remediation guidance specific to SAP — not generic advice
-5. Download a branded PDF executive report
-6. Configure a daily email digest of findings
-7. The Vantax portal shows their licence status and allows module add-ons via Stripe
+5. Download a branded PDF executive report (with MDM health and golden record sections)
+6. Manage golden records with AI-assisted survivorship and conflict resolution
+7. Run match & merge with AI semantic scoring for fuzzy dedup
+8. Use the NLP "Ask Vantax" interface to query findings in natural language
+9. Monitor data contracts for schema, quality, freshness, and volume compliance
+10. Track stewardship SLAs and exception resolution on Kanban boards
+11. View MDM governance metrics with AI-generated health narratives
+12. Configure daily/weekly email digests and Teams webhook notifications
+13. Manage users with RBAC (admin, steward, analyst, viewer roles)
+14. The Vantax portal shows their licence status and allows module add-ons via Stripe
 
 At no point does any SAP data leave their server.
 
