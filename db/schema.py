@@ -662,6 +662,73 @@ class AIProposedRule(Base):
     )
 
 
+# ── Phase I: Golden Records ──────────────────────────────────────────────────
+
+
+class MasterRecord(Base):
+    __tablename__ = "master_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    domain = Column(Text, nullable=False)
+    sap_object_key = Column(Text, nullable=False)
+    golden_fields = Column(JSONB, nullable=False, server_default="{}")
+    source_contributions = Column(JSONB, nullable=False, server_default="{}")
+    overall_confidence = Column(Float, nullable=False, server_default="0.0")
+    status = Column(Text, nullable=False, server_default="candidate")
+    promoted_at = Column(DateTime(timezone=True), nullable=True)
+    promoted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    history = relationship("MasterRecordHistory", back_populates="master_record", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_master_records_tenant_domain_key", "tenant_id", "domain", "sap_object_key", unique=True),
+        Index("ix_master_records_tenant_status", "tenant_id", "status"),
+    )
+
+
+class MasterRecordHistory(Base):
+    __tablename__ = "master_record_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    master_record_id = Column(UUID(as_uuid=True), ForeignKey("master_records.id", ondelete="CASCADE"), nullable=False)
+    changed_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    changed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    change_type = Column(Text, nullable=False)
+    previous_fields = Column(JSONB, nullable=True)
+    new_fields = Column(JSONB, nullable=True)
+    ai_was_involved = Column(Boolean, nullable=False, server_default="false")
+    ai_recommendation_accepted = Column(Boolean, nullable=True)
+
+    master_record = relationship("MasterRecord", back_populates="history")
+
+    __table_args__ = (
+        Index("ix_master_record_history_tenant", "tenant_id"),
+        Index("ix_master_record_history_record", "master_record_id"),
+    )
+
+
+class SurvivorshipRule(Base):
+    __tablename__ = "survivorship_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    domain = Column(Text, nullable=False)
+    field = Column(Text, nullable=False)
+    rule_type = Column(Text, nullable=False, server_default="most_recent")
+    trusted_sources = Column(ARRAY(Text), nullable=True)
+    weight = Column(Integer, nullable=False, server_default="50")
+    active = Column(Boolean, nullable=False, server_default="true")
+    ai_inferred = Column(Boolean, nullable=False, server_default="false")
+
+    __table_args__ = (
+        Index("ix_survivorship_rules_tenant_domain", "tenant_id", "domain"),
+    )
+
+
 class LLMAuditLog(Base):
     __tablename__ = "llm_audit_log"
 

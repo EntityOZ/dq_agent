@@ -21,6 +21,7 @@ from api.routes.contracts import router as contracts_router
 from api.routes.notifications import router as notifications_router
 from api.routes.users import router as users_router
 from api.routes.systems import router as systems_router
+from api.routes.master_records import router as master_records_router
 
 logger = logging.getLogger("vantax")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -113,3 +114,4 @@ app.include_router(contracts_router)
 app.include_router(notifications_router)
 app.include_router(users_router)
 app.include_router(systems_router)
+app.include_router(master_records_router)
