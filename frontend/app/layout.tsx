@@ -1,26 +1,18 @@
 import type { Metadata } from "next";
-import { DM_Sans, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
-
-const ibmPlexSans = IBM_Plex_Sans({
+const geist = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const geistMono = Geist_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -37,7 +29,8 @@ export default function RootLayout({
     <AuthProvider>
       <html lang="en">
         <body
-          className={`${dmSans.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} font-sans antialiased`}
+          className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}
+          style={{ ["--font-display" as string]: "var(--font-sans)" }}
         >
           <Providers>
             {children}
