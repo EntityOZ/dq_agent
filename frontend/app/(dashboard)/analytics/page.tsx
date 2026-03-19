@@ -137,10 +137,10 @@ function formatZAR(value: number): string {
 }
 
 const TREND_CONFIG = {
-  improving: { color: "#0D9488", icon: TrendingUp, label: "Improving" },
-  declining: { color: "#F59E0B", icon: TrendingDown, label: "Declining" },
+  improving: { color: "#16A34A", icon: TrendingUp, label: "Improving" },
+  declining: { color: "#D97706", icon: TrendingDown, label: "Declining" },
   critical: { color: "#DC2626", icon: TrendingDown, label: "Critical" },
-  stable: { color: "#6B92AD", icon: Minus, label: "Stable" },
+  stable: { color: "rgba(255,255,255,0.20)", icon: Minus, label: "Stable" },
 } as const;
 
 const SIGNAL_CONFIG = {
@@ -153,10 +153,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   duplicate_payment: "#DC2626",
   warranty_miss: "#EA580C",
   compliance_penalty: "#D97706",
-  blocked_invoice: "#CA8A04",
-  failed_posting: "#65A30D",
-  inventory_write_off: "#0D9488",
-  labour_displacement: "#0284C7",
+  blocked_invoice: "#D97706",
+  failed_posting: "#16A34A",
+  inventory_write_off: "#16A34A",
+  labour_displacement: "#3B82F6",
   contract_violation: "#7C3AED",
 };
 
@@ -189,9 +189,9 @@ function PredictiveTab() {
     <div className="space-y-6">
       {/* Early Warnings */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">Early Warnings</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Early Warnings</h3>
         {warnings.length === 0 ? (
-          <p className="text-sm text-[#6B92AD]">No warnings — all modules healthy</p>
+          <p className="text-sm text-muted-foreground">No warnings — all modules healthy</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {warnings.map((w) => {
@@ -208,7 +208,7 @@ function PredictiveTab() {
                     </span>
                   </div>
                   <p className={`text-xs ${cfg.text} mb-1`}>{w.message}</p>
-                  <p className="text-xs text-[#6B92AD]">{w.recommended_action}</p>
+                  <p className="text-xs text-muted-foreground">{w.recommended_action}</p>
                 </div>
               );
             })}
@@ -218,9 +218,9 @@ function PredictiveTab() {
 
       {/* Forecast Charts */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">DQS Forecasts</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">DQS Forecasts</h3>
         {forecasts.length === 0 ? (
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             Not enough data points for forecasting (need at least 3 per module)
           </p>
         ) : (
@@ -236,10 +236,10 @@ function PredictiveTab() {
               ];
 
               return (
-                <Card key={fc.module_id} className="border-[#D6E4F0]">
+                <Card key={fc.module_id} className="border-black/[0.08]">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-semibold text-[#0F2137]">
+                      <CardTitle className="text-sm font-semibold text-foreground">
                         {fc.module_id.replace(/_/g, " ")}
                       </CardTitle>
                       <div className="flex items-center gap-1.5">
@@ -256,10 +256,10 @@ function PredictiveTab() {
                       </div>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-[#0F2137]">
+                      <span className="text-2xl font-bold text-foreground">
                         {fc.current_score.toFixed(1)}
                       </span>
-                      <span className="text-xs text-[#6B92AD]">
+                      <span className="text-xs text-muted-foreground">
                         Confidence: {fc.confidence}%
                       </span>
                     </div>
@@ -288,16 +288,16 @@ function PredictiveTab() {
                               />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E8EFF5" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                           <XAxis
                             dataKey="label"
-                            tick={{ fontSize: 11, fill: "#6B92AD" }}
+                            tick={{ fontSize: 11, fill: "rgba(255,255,255,0.40)" }}
                             axisLine={false}
                             tickLine={false}
                           />
                           <YAxis
                             domain={[0, 100]}
-                            tick={{ fontSize: 11, fill: "#6B92AD" }}
+                            tick={{ fontSize: 11, fill: "rgba(255,255,255,0.40)" }}
                             axisLine={false}
                             tickLine={false}
                             width={30}
@@ -306,7 +306,7 @@ function PredictiveTab() {
                             contentStyle={{
                               fontSize: 12,
                               borderRadius: 8,
-                              border: "1px solid #D6E4F0",
+                              border: "1px solid rgba(255,255,255,0.08)",
                             }}
                           />
                           <Area
@@ -322,7 +322,7 @@ function PredictiveTab() {
                     {fc.contributing_factors.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {fc.contributing_factors.map((f, i) => (
-                          <p key={i} className="text-xs text-[#6B92AD]">
+                          <p key={i} className="text-xs text-muted-foreground">
                             {f}
                           </p>
                         ))}
@@ -366,13 +366,13 @@ function PrescriptiveTab() {
     <div className="space-y-6">
       {/* Next Best Actions */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Next Best Actions
         </h3>
         {actions.length === 0 ? (
-          <p className="text-sm text-[#6B92AD]">No actionable items found</p>
+          <p className="text-sm text-muted-foreground">No actionable items found</p>
         ) : (
-          <Card className="border-[#D6E4F0]">
+          <Card className="border-black/[0.08]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -389,7 +389,7 @@ function PrescriptiveTab() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={`text-[12px] ${typeBadge(a.type)}`}
+                        className={`text-xs ${typeBadge(a.type)}`}
                       >
                         {a.type}
                       </Badge>
@@ -405,15 +405,15 @@ function PrescriptiveTab() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="h-1.5 w-16 rounded-full bg-[#E8EFF5]">
+                        <div className="h-1.5 w-16 rounded-full bg-white/[0.65]">
                           <div
-                            className="h-1.5 rounded-full bg-[#0695A8]"
+                            className="h-1.5 rounded-full bg-primary"
                             style={{
                               width: `${Math.min(100, (a.roi_per_hour / 80) * 100)}%`,
                             }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-[#0F2137] w-8 text-right">
+                        <span className="text-xs font-medium text-foreground w-8 text-right">
                           {a.roi_per_hour}
                         </span>
                       </div>
@@ -428,27 +428,27 @@ function PrescriptiveTab() {
 
       {/* Sprint Planner */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Sprint Planner
         </h3>
         {sprints.length === 0 ? (
-          <p className="text-sm text-[#6B92AD]">No sprints generated</p>
+          <p className="text-sm text-muted-foreground">No sprints generated</p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {sprints.map((s) => (
-              <Card key={s.sprint_number} className="border-[#D6E4F0]">
+              <Card key={s.sprint_number} className="border-black/[0.08]">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold text-[#0F2137]">
+                    <CardTitle className="text-sm font-semibold text-foreground">
                       {s.name}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-[#0695A8]/10 text-[#0695A8] text-[12px]">
+                    <Badge variant="outline" className="bg-primary/10 text-primary text-xs">
                       +{s.projected_dqs_improvement.toFixed(1)}% DQS
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-3 flex gap-4 text-xs text-[#6B92AD]">
+                  <div className="mb-3 flex gap-4 text-xs text-muted-foreground">
                     <span>{s.total_effort_hours}h effort</span>
                     <span>{formatZAR(s.total_impact_zar)} impact</span>
                     <span>{s.actions.length} actions</span>
@@ -457,14 +457,14 @@ function PrescriptiveTab() {
                     {s.actions.slice(0, 5).map((a, i) => (
                       <div
                         key={i}
-                        className="flex items-center gap-2 text-xs text-[#0F2137]"
+                        className="flex items-center gap-2 text-xs text-foreground"
                       >
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#0695A8]" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                         <span className="truncate">{a.title}</span>
                       </div>
                     ))}
                     {s.actions.length > 5 && (
-                      <p className="text-xs text-[#6B92AD] pl-3.5">
+                      <p className="text-xs text-muted-foreground pl-3.5">
                         +{s.actions.length - 5} more actions
                       </p>
                     )}
@@ -519,7 +519,7 @@ function ImpactTreemap({
       .attr("width", (d: any) => Math.max(0, d.x1 - d.x0))
       .attr("height", (d: any) => Math.max(0, d.y1 - d.y0))
       .attr("rx", 4)
-      .attr("fill", (d: any) => CATEGORY_COLORS[d.data.category] || "#6B92AD")
+      .attr("fill", (d: any) => CATEGORY_COLORS[d.data.category] || "rgba(255,255,255,0.20)")
       .attr("opacity", 0.85);
 
     nodes
@@ -568,48 +568,48 @@ function ImpactTab() {
     <div className="space-y-6">
       {/* ROI Summary */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Subscription</p>
-            <p className="text-xl font-bold text-[#0F2137]">
+            <p className="text-xs text-muted-foreground mb-1">Subscription</p>
+            <p className="text-xl font-bold text-foreground">
               {formatZAR(roi.subscription_annual)}
             </p>
-            <p className="text-[12px] text-[#6B92AD]">annual</p>
+            <p className="text-xs text-muted-foreground">annual</p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Risk Mitigated</p>
+            <p className="text-xs text-muted-foreground mb-1">Risk Mitigated</p>
             <p className="text-xl font-bold text-emerald-600">
               {formatZAR(roi.risk_mitigated)}
             </p>
-            <p className="text-[12px] text-[#6B92AD]">annual</p>
+            <p className="text-xs text-muted-foreground">annual</p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">ROI Multiple</p>
-            <p className="text-xl font-bold text-[#0695A8]">
+            <p className="text-xs text-muted-foreground mb-1">ROI Multiple</p>
+            <p className="text-xl font-bold text-primary">
               {roi.roi_multiple}x
             </p>
-            <p className="text-[12px] text-[#6B92AD]">return on investment</p>
+            <p className="text-xs text-muted-foreground">return on investment</p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Payback</p>
-            <p className="text-xl font-bold text-[#0F2137]">
+            <p className="text-xs text-muted-foreground mb-1">Payback</p>
+            <p className="text-xl font-bold text-foreground">
               {roi.payback_months} mo
             </p>
-            <p className="text-[12px] text-[#6B92AD]">to break even</p>
+            <p className="text-xs text-muted-foreground">to break even</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Treemap */}
-      <Card className="border-[#D6E4F0]">
+      <Card className="border-black/[0.08]">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#0F2137]">
+          <CardTitle className="text-sm font-semibold text-foreground">
             Impact Treemap — Annual Risk (ZAR)
           </CardTitle>
         </CardHeader>
@@ -619,9 +619,9 @@ function ImpactTab() {
       </Card>
 
       {/* Breakdown Table */}
-      <Card className="border-[#D6E4F0]">
+      <Card className="border-black/[0.08]">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#0F2137]">
+          <CardTitle className="text-sm font-semibold text-foreground">
             Impact Breakdown
           </CardTitle>
         </CardHeader>
@@ -643,7 +643,7 @@ function ImpactTab() {
                       className="h-3 w-3 rounded-sm"
                       style={{
                         backgroundColor:
-                          CATEGORY_COLORS[imp.category] || "#6B92AD",
+                          CATEGORY_COLORS[imp.category] || "rgba(255,255,255,0.20)",
                       }}
                     />
                     <span className="text-sm">
@@ -725,7 +725,7 @@ function OperationalTab() {
     <div className="space-y-6">
       {/* KPI Grid */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Key Performance Indicators
         </h3>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -738,16 +738,16 @@ function OperationalTab() {
                 : (value ?? "—");
 
             return (
-              <Card key={meta.key} className="border-[#D6E4F0]">
+              <Card key={meta.key} className="border-black/[0.08]">
                 <CardContent className="flex items-start gap-3 pt-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0695A8]/10">
-                    <Icon className="h-4 w-4 text-[#0695A8]" />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs text-[#6B92AD] truncate">
+                    <p className="text-xs text-muted-foreground truncate">
                       {meta.label}
                     </p>
-                    <p className="text-lg font-bold text-[#0F2137] truncate">
+                    <p className="text-lg font-bold text-foreground truncate">
                       {display}
                     </p>
                   </div>
@@ -760,11 +760,11 @@ function OperationalTab() {
 
       {/* Bottlenecks */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Bottleneck Analysis
         </h3>
         {bottlenecks.length === 0 ? (
-          <Card className="border-[#D6E4F0]">
+          <Card className="border-black/[0.08]">
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-emerald-600">
                 <CheckCircle2 className="h-4 w-4" />
@@ -780,17 +780,17 @@ function OperationalTab() {
               <Card key={b.stage} className="border-amber-200 bg-amber-50/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className="bg-amber-100 text-amber-700 text-[12px]">
+                    <Badge variant="outline" className="bg-amber-100 text-amber-700 text-xs">
                       {b.stage}
                     </Badge>
-                    <span className="text-xs text-[#6B92AD]">
+                    <span className="text-xs text-muted-foreground">
                       {b.avg_age_hours}h avg
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-[#0F2137] mb-1">
+                  <p className="text-2xl font-bold text-foreground mb-1">
                     {b.count}
                   </p>
-                  <p className="text-xs text-[#6B92AD]">{b.recommendation}</p>
+                  <p className="text-xs text-muted-foreground">{b.recommendation}</p>
                 </CardContent>
               </Card>
             ))}
@@ -799,30 +799,30 @@ function OperationalTab() {
       </div>
 
       {/* Capacity Planning */}
-      <Card className="border-[#D6E4F0]">
+      <Card className="border-black/[0.08]">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#0F2137]">
+          <CardTitle className="text-sm font-semibold text-foreground">
             Capacity Planning
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 sm:grid-cols-3 mb-4">
             <div>
-              <p className="text-xs text-[#6B92AD] mb-1">Needed</p>
-              <p className="text-2xl font-bold text-[#0F2137]">
+              <p className="text-xs text-muted-foreground mb-1">Needed</p>
+              <p className="text-2xl font-bold text-foreground">
                 {capacity.needed}
               </p>
-              <p className="text-[12px] text-[#6B92AD]">stewards</p>
+              <p className="text-xs text-muted-foreground">stewards</p>
             </div>
             <div>
-              <p className="text-xs text-[#6B92AD] mb-1">Current</p>
-              <p className="text-2xl font-bold text-[#0695A8]">
+              <p className="text-xs text-muted-foreground mb-1">Current</p>
+              <p className="text-2xl font-bold text-primary">
                 {capacity.current}
               </p>
-              <p className="text-[12px] text-[#6B92AD]">stewards</p>
+              <p className="text-xs text-muted-foreground">stewards</p>
             </div>
             <div>
-              <p className="text-xs text-[#6B92AD] mb-1">Surplus / Deficit</p>
+              <p className="text-xs text-muted-foreground mb-1">Surplus / Deficit</p>
               <p
                 className={`text-2xl font-bold ${
                   capacity.surplus_deficit >= 0
@@ -833,10 +833,10 @@ function OperationalTab() {
                 {capacity.surplus_deficit > 0 ? "+" : ""}
                 {capacity.surplus_deficit}
               </p>
-              <p className="text-[12px] text-[#6B92AD]">stewards</p>
+              <p className="text-xs text-muted-foreground">stewards</p>
             </div>
           </div>
-          <p className="text-sm text-[#6B92AD]">{capacity.recommendation}</p>
+          <p className="text-sm text-muted-foreground">{capacity.recommendation}</p>
         </CardContent>
       </Card>
     </div>
@@ -875,7 +875,7 @@ function MDMHealthTab() {
 
   if (!rows.length) {
     return (
-      <p className="text-sm text-[#6B92AD]">
+      <p className="text-sm text-muted-foreground">
         MDM Health data will appear after the first sync cycle completes.
       </p>
     );
@@ -894,38 +894,38 @@ function MDMHealthTab() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Health Score</p>
-            <p className="text-2xl font-bold text-[#0F2137]">
+            <p className="text-xs text-muted-foreground mb-1">Health Score</p>
+            <p className="text-2xl font-bold text-foreground">
               {latest.mdm_health_score?.toFixed(1) ?? "—"}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Golden Coverage</p>
-            <p className="text-2xl font-bold text-[#0695A8]">
+            <p className="text-xs text-muted-foreground mb-1">Golden Coverage</p>
+            <p className="text-2xl font-bold text-primary">
               {latest.golden_record_coverage_pct != null
                 ? `${latest.golden_record_coverage_pct.toFixed(1)}%`
                 : "—"}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Match Confidence</p>
-            <p className="text-2xl font-bold text-[#0F2137]">
+            <p className="text-xs text-muted-foreground mb-1">Match Confidence</p>
+            <p className="text-2xl font-bold text-foreground">
               {latest.avg_match_confidence != null
                 ? `${latest.avg_match_confidence.toFixed(1)}%`
                 : "—"}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
-            <p className="text-xs text-[#6B92AD] mb-1">Backlog</p>
-            <p className="text-2xl font-bold text-[#0F2137]">
+            <p className="text-xs text-muted-foreground mb-1">Backlog</p>
+            <p className="text-2xl font-bold text-foreground">
               {latest.backlog_count ?? "—"}
             </p>
           </CardContent>
@@ -933,9 +933,9 @@ function MDMHealthTab() {
       </div>
 
       {/* Area Chart */}
-      <Card className="border-[#D6E4F0]">
+      <Card className="border-black/[0.08]">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#0F2137]">
+          <CardTitle className="text-sm font-semibold text-foreground">
             MDM Health Score Over Time
           </CardTitle>
         </CardHeader>
@@ -949,16 +949,16 @@ function MDMHealthTab() {
                     <stop offset="95%" stopColor="#0695A8" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8EFF5" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 11, fill: "#6B92AD" }}
+                  tick={{ fontSize: 11, fill: "rgba(255,255,255,0.40)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: "#6B92AD" }}
+                  tick={{ fontSize: 11, fill: "rgba(255,255,255,0.40)" }}
                   axisLine={false}
                   tickLine={false}
                   width={30}
@@ -967,7 +967,7 @@ function MDMHealthTab() {
                   contentStyle={{
                     fontSize: 12,
                     borderRadius: 8,
-                    border: "1px solid #D6E4F0",
+                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 />
                 <Area
@@ -986,16 +986,16 @@ function MDMHealthTab() {
 
       {/* AI Insights panel — only render if ai_narrative exists */}
       {latest.ai_narrative && (
-        <Card className="border-[#D6E4F0]">
+        <Card className="border-black/[0.08]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[#0F2137]">
+            <CardTitle className="text-sm font-semibold text-foreground">
               AI Insights
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-[#6B92AD]">{latest.ai_narrative}</p>
+            <p className="text-sm text-muted-foreground">{latest.ai_narrative}</p>
             {latest.ai_projected_score != null && (
-              <p className="mt-2 text-xs text-[#0F2137]">
+              <p className="mt-2 text-xs text-foreground">
                 Projected score: <strong>{latest.ai_projected_score.toFixed(1)}</strong>
               </p>
             )}
@@ -1028,8 +1028,8 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#0F2137]">Analytics</h1>
-        <p className="text-sm text-[#6B92AD]">
+        <h1 className="text-xl font-bold text-foreground">Analytics</h1>
+        <p className="text-sm text-muted-foreground">
           Predictive, prescriptive, impact, and operational analytics
         </p>
       </div>

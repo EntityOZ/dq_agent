@@ -25,10 +25,10 @@ function QualityBadge({ score }: { score: number | null }) {
   if (score === null) return null;
   const color =
     score >= 0.8
-      ? "bg-[#059669]/10 text-[#059669] border-[#059669]/20"
+      ? "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20"
       : score >= 0.6
-        ? "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20"
-        : "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20";
+        ? "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20"
+        : "bg-destructive/10 text-destructive border-destructive/20";
 
   return (
     <Badge variant="outline" className={color}>
@@ -41,17 +41,17 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; colo
   completed: {
     icon: <CheckCircle className="h-4 w-4" />,
     label: "Completed",
-    color: "text-[#059669]",
+    color: "text-[#16A34A]",
   },
   failed: {
     icon: <XCircle className="h-4 w-4" />,
     label: "Failed",
-    color: "text-[#DC2626]",
+    color: "text-destructive",
   },
   running: {
     icon: <Loader2 className="h-4 w-4 animate-spin" />,
     label: "Running",
-    color: "text-[#0695A8]",
+    color: "text-primary",
   },
 };
 
@@ -60,16 +60,16 @@ function SyncRunRow({ run }: { run: SyncRun }) {
   const config = STATUS_CONFIG[run.status] ?? STATUS_CONFIG.running;
 
   return (
-    <div className="border-b border-[#F0F5FA] last:border-0">
+    <div className="border-b border-black/[0.06] last:border-0">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#F0F5FA]/50 transition-colors"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.03] transition-colors"
       >
         {expanded ? (
-          <ChevronDown className="h-4 w-4 text-[#6B92AD] shrink-0" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-[#6B92AD] shrink-0" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         )}
 
         <span className={`flex items-center gap-1.5 ${config.color}`}>
@@ -77,32 +77,32 @@ function SyncRunRow({ run }: { run: SyncRun }) {
           <span className="text-sm font-medium">{config.label}</span>
         </span>
 
-        <span className="text-xs text-[#6B92AD]">
+        <span className="text-xs text-muted-foreground">
           {relativeTime(run.started_at)}
         </span>
 
-        <span className="ml-auto flex items-center gap-3 text-xs text-[#6B92AD]">
+        <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
           <span>{run.rows_extracted.toLocaleString()} rows</span>
           <QualityBadge score={run.ai_quality_score} />
         </span>
       </button>
 
       {expanded && (
-        <div className="bg-[#F0F5FA]/30 px-4 py-3 pl-11 space-y-2">
+        <div className="bg-white/[0.60] px-4 py-3 pl-11 space-y-2">
           <div className="grid grid-cols-3 gap-4 text-xs">
             <div>
-              <span className="text-[#6B92AD]">Rows extracted</span>
-              <p className="font-mono font-medium text-[#0F2137]">
+              <span className="text-muted-foreground">Rows extracted</span>
+              <p className="font-mono font-medium text-foreground">
                 {run.rows_extracted.toLocaleString()}
               </p>
             </div>
             <div>
-              <span className="text-[#6B92AD]">Findings delta</span>
-              <p className="font-mono font-medium text-[#0F2137]">{run.findings_delta}</p>
+              <span className="text-muted-foreground">Findings delta</span>
+              <p className="font-mono font-medium text-foreground">{run.findings_delta}</p>
             </div>
             <div>
-              <span className="text-[#6B92AD]">Duration</span>
-              <p className="font-mono font-medium text-[#0F2137]">
+              <span className="text-muted-foreground">Duration</span>
+              <p className="font-mono font-medium text-foreground">
                 {run.completed_at
                   ? `${Math.round(
                       (new Date(run.completed_at).getTime() -
@@ -115,23 +115,23 @@ function SyncRunRow({ run }: { run: SyncRun }) {
           </div>
 
           {run.error_detail && (
-            <div className="rounded-md bg-[#DC2626]/5 px-3 py-2 text-xs text-[#DC2626]">
+            <div className="rounded-md bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {run.error_detail}
             </div>
           )}
 
           {run.anomaly_flags && run.anomaly_flags.length > 0 && (
             <div className="space-y-1">
-              <span className="text-xs font-medium text-[#6B92AD]">Anomaly Flags</span>
+              <span className="text-xs font-medium text-muted-foreground">Anomaly Flags</span>
               {run.anomaly_flags.map((flag, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 rounded-md bg-white px-3 py-1.5 text-xs"
+                  className="flex items-start gap-2 rounded-md bg-white/[0.70] px-3 py-1.5 text-xs"
                 >
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[#D97706]" />
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[#EA580C]" />
                   <div>
-                    <span className="font-medium text-[#0F2137]">{flag.type}</span>
-                    <span className="text-[#6B92AD]"> — {flag.detail}</span>
+                    <span className="font-medium text-foreground">{flag.type}</span>
+                    <span className="text-muted-foreground"> — {flag.detail}</span>
                   </div>
                 </div>
               ))}
@@ -189,8 +189,8 @@ export default function SyncMonitorPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-xl font-bold text-[#0F2137]">Sync Monitor</h1>
-        <p className="text-sm text-[#6B92AD]">
+        <h1 className="font-display text-xl font-bold text-foreground">Sync Monitor</h1>
+        <p className="text-sm text-muted-foreground">
           Timeline of all sync runs across all SAP systems
         </p>
       </div>
@@ -198,17 +198,17 @@ export default function SyncMonitorPage() {
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Runs", value: stats.total, icon: Activity, color: "#0695A8" },
-          { label: "Completed", value: stats.completed, icon: CheckCircle, color: "#059669" },
+          { label: "Total Runs", value: stats.total, icon: Activity, color: "#00D4AA" },
+          { label: "Completed", value: stats.completed, icon: CheckCircle, color: "#16A34A" },
           { label: "Failed", value: stats.failed, icon: XCircle, color: "#DC2626" },
-          { label: "Running", value: stats.running, icon: Loader2, color: "#D97706" },
+          { label: "Running", value: stats.running, icon: Loader2, color: "#EA580C" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border-[#D6E4F0] bg-white">
+          <Card key={label} className="border-black/[0.08] bg-white/[0.70]">
             <CardContent className="flex items-center gap-3 p-4">
               <Icon className="h-5 w-5" style={{ color }} />
               <div>
-                <p className="text-xs text-[#6B92AD]">{label}</p>
-                <p className="text-lg font-bold text-[#0F2137]">{value}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="text-lg font-bold text-foreground">{value}</p>
               </div>
             </CardContent>
           </Card>
@@ -220,7 +220,7 @@ export default function SyncMonitorPage() {
         <select
           value={filterSystem}
           onChange={(e) => setFilterSystem(e.target.value)}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
         >
           <option value="all">All Systems</option>
           {systems?.map((s: SAPSystem) => (
@@ -232,7 +232,7 @@ export default function SyncMonitorPage() {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
         >
           <option value="all">All Status</option>
           <option value="completed">Completed</option>
@@ -242,25 +242,25 @@ export default function SyncMonitorPage() {
       </div>
 
       {/* Timeline */}
-      <Card className="border-[#D6E4F0] bg-white">
+      <Card className="border-black/[0.08] bg-white/[0.70]">
         <CardContent className="p-0">
           {runsQueries.isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#0695A8]" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : filteredRuns.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Clock className="h-12 w-12 text-[#D6E4F0]" />
-              <h3 className="mt-4 font-semibold text-[#0F2137]">No sync runs yet</h3>
-              <p className="mt-1 text-sm text-[#6B92AD]">
+              <Clock className="h-12 w-12 text-white/[0.08]" />
+              <h3 className="mt-4 font-semibold text-foreground">No sync runs yet</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Sync runs will appear here once your first sync completes
               </p>
             </div>
           ) : (
             filteredRuns.map((run: SyncRun & { system_name: string }) => (
               <div key={run.id}>
-                <div className="flex items-center gap-2 border-b border-[#F0F5FA] bg-[#F0F5FA]/50 px-4 py-1.5">
-                  <span className="text-xs font-medium text-[#0F2137]">
+                <div className="flex items-center gap-2 border-b border-black/[0.06] bg-white/[0.60] px-4 py-1.5">
+                  <span className="text-xs font-medium text-foreground">
                     {run.system_name}
                   </span>
                 </div>

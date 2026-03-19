@@ -22,18 +22,18 @@ import {
 import { toast } from "sonner";
 
 function scoreColor(score: number): string {
-  if (score >= 85) return "bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]";
-  if (score >= 60) return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
-  return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
+  if (score >= 85) return "bg-[#16A34A]/15 text-[#16A34A] border border-[#16A34A]/30";
+  if (score >= 60) return "bg-[#D97706]/15 text-[#D97706] border border-[#D97706]/30";
+  return "bg-[#DC2626]/15 text-[#DC2626] border border-[#DC2626]/30";
 }
 
 function methodTag(method: string): string {
   switch (method) {
-    case "exact": return "bg-[#D1FAE5] text-[#059669]";
-    case "fuzzy": return "bg-[#DBEAFE] text-[#1D6ECC]";
-    case "phonetic": return "bg-[#F3E8FF] text-[#7C3AED]";
-    case "token_overlap": return "bg-[#FEF3C7] text-[#D97706]";
-    default: return "bg-[#F0F5FA] text-[#6B92AD]";
+    case "exact": return "bg-[#16A34A]/15 text-[#16A34A]";
+    case "fuzzy": return "bg-[#2563EB]/15 text-[#2563EB]";
+    case "phonetic": return "bg-[#7C3AED]/15 text-[#7C3AED]";
+    case "token_overlap": return "bg-[#D97706]/15 text-[#D97706]";
+    default: return "bg-white/[0.60] text-muted-foreground";
   }
 }
 
@@ -154,7 +154,7 @@ export default function DedupPage() {
                   {candidates.map((c) => (
                     <tr
                       key={c.id}
-                      className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF] cursor-pointer"
+                      className="border-b border-black/[0.04] hover:bg-black/[0.03] cursor-pointer"
                       onClick={() => setSelectedCandidate(c)}
                     >
                       <td className="px-4 py-3">
@@ -202,7 +202,7 @@ export default function DedupPage() {
         <DialogContent className="max-w-[900px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <GitMerge className="h-5 w-5 text-[#0695A8]" />
+              <GitMerge className="h-5 w-5 text-primary" />
               Merge Preview
             </DialogTitle>
           </DialogHeader>
@@ -245,7 +245,7 @@ export default function DedupPage() {
                             <button
                               className={`rounded px-2 py-1 text-left text-xs transition-colors ${
                                 currentSurvivor === v.a
-                                  ? "bg-[#0695A8]/10 ring-1 ring-[#0695A8]"
+                                  ? "bg-primary/10 ring-1 ring-primary"
                                   : "hover:bg-accent"
                               }`}
                               onClick={() => setFieldOverrides((prev) => ({ ...prev, [field]: v.a }))}
@@ -257,7 +257,7 @@ export default function DedupPage() {
                             <button
                               className={`rounded px-2 py-1 text-left text-xs transition-colors ${
                                 currentSurvivor === v.b
-                                  ? "bg-[#0695A8]/10 ring-1 ring-[#0695A8]"
+                                  ? "bg-primary/10 ring-1 ring-primary"
                                   : "hover:bg-accent"
                               }`}
                               onClick={() => setFieldOverrides((prev) => ({ ...prev, [field]: v.b }))}
@@ -265,7 +265,7 @@ export default function DedupPage() {
                               {v.b || "—"}
                             </button>
                           </td>
-                          <td className="py-2 font-medium text-[#0695A8] text-xs">
+                          <td className="py-2 font-medium text-primary text-xs">
                             {currentSurvivor || "—"}
                           </td>
                         </tr>
@@ -283,7 +283,7 @@ export default function DedupPage() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#0695A8] hover:bg-[#0695A8]/90 text-white"
+                  className="bg-primary hover:bg-primary/90 text-white"
                   onClick={() => mergeMut.mutate()}
                   disabled={mergeMut.isPending}
                 >

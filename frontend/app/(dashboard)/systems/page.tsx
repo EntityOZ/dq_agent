@@ -36,15 +36,15 @@ import { relativeTime, formatModuleName } from "@/lib/format";
 import type { SAPSystem, SyncProfile } from "@/types/api";
 
 const ENV_COLORS: Record<string, string> = {
-  PRD: "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20",
-  QAS: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
-  DEV: "bg-[#059669]/10 text-[#059669] border-[#059669]/20",
+  PRD: "bg-destructive/10 text-destructive border-destructive/20",
+  QAS: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
+  DEV: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
 };
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
-  completed: <CheckCircle className="h-4 w-4 text-[#059669]" />,
-  failed: <XCircle className="h-4 w-4 text-[#DC2626]" />,
-  running: <Loader2 className="h-4 w-4 text-[#0695A8] animate-spin" />,
+  completed: <CheckCircle className="h-4 w-4 text-[#16A34A]" />,
+  failed: <XCircle className="h-4 w-4 text-destructive" />,
+  running: <Loader2 className="h-4 w-4 text-primary animate-spin" />,
 };
 
 function AddSystemDialog({ onSuccess }: { onSuccess: () => void }) {
@@ -83,13 +83,13 @@ function AddSystemDialog({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button className="gap-2 bg-[#0695A8] hover:bg-[#057A8A] text-white" />}
+        render={<Button className="gap-2 bg-primary hover:bg-primary/80 text-white" />}
       >
         <Plus className="h-4 w-4" /> Add System
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#0F2137]">Register SAP System</DialogTitle>
+          <DialogTitle className="text-foreground">Register SAP System</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -100,23 +100,23 @@ function AddSystemDialog({ onSuccess }: { onSuccess: () => void }) {
         >
           {fields.map((f) => (
             <label key={f.key} className="block">
-              <span className="text-xs font-medium text-[#6B92AD]">{f.label}</span>
+              <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
               <input
                 type={f.type}
                 required={f.key !== "description"}
                 value={form[f.key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                 placeholder={f.placeholder}
-                className="mt-1 block w-full rounded-md border border-[#D6E4F0] bg-white px-3 py-2 text-sm text-[#0F2137] placeholder:text-[#A8C5D8] focus:border-[#0695A8] focus:outline-none focus:ring-1 focus:ring-[#0695A8]"
+                className="mt-1 block w-full rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </label>
           ))}
           <label className="block">
-            <span className="text-xs font-medium text-[#6B92AD]">Environment</span>
+            <span className="text-xs font-medium text-muted-foreground">Environment</span>
             <select
               value={form.environment}
               onChange={(e) => setForm({ ...form, environment: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-[#D6E4F0] bg-white px-3 py-2 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none focus:ring-1 focus:ring-[#0695A8]"
+              className="mt-1 block w-full rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="PRD">Production</option>
               <option value="QAS">Quality</option>
@@ -131,7 +131,7 @@ function AddSystemDialog({ onSuccess }: { onSuccess: () => void }) {
           <Button
             type="submit"
             disabled={mutation.isPending}
-            className="w-full bg-[#0695A8] hover:bg-[#057A8A] text-white"
+            className="w-full bg-primary hover:bg-primary/80 text-white"
           >
             {mutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -181,16 +181,16 @@ function SystemCard({ system }: { system: SAPSystem }) {
   const domainChips = profiles?.map((p: SyncProfile) => p.domain) ?? [];
 
   return (
-    <Card className="border-[#D6E4F0] bg-white">
+    <Card className="border-black/[0.08] bg-white/[0.70]">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0F2137]/5">
-              <Server className="h-5 w-5 text-[#0695A8]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.65]">
+              <Server className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-[#0F2137]">{system.name}</h3>
-              <p className="text-xs text-[#6B92AD]">
+              <h3 className="font-semibold text-foreground">{system.name}</h3>
+              <p className="text-xs text-muted-foreground">
                 {system.host} &middot; Client {system.client} &middot; SysNr {system.sysnr}
               </p>
             </div>
@@ -201,7 +201,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
         </div>
 
         {system.description && (
-          <p className="mt-2 text-sm text-[#6B92AD]">{system.description}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{system.description}</p>
         )}
 
         {/* Domain coverage chips */}
@@ -210,7 +210,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
             {domainChips.map((d: string) => (
               <span
                 key={d}
-                className="rounded-full bg-[#F0F5FA] px-2.5 py-0.5 text-xs font-medium text-[#0F2137]"
+                className="rounded-full bg-white/[0.60] px-2.5 py-0.5 text-xs font-medium text-foreground"
               >
                 {formatModuleName(d)}
               </span>
@@ -219,7 +219,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
         )}
 
         {/* Sync status */}
-        <div className="mt-3 flex items-center gap-2 text-xs text-[#6B92AD]">
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           {system.last_sync_status && STATUS_ICONS[system.last_sync_status]}
           {system.last_sync_at ? (
             <span>Last sync: {relativeTime(system.last_sync_at)}</span>
@@ -232,8 +232,8 @@ function SystemCard({ system }: { system: SAPSystem }) {
         {testResult && (
           <div className={`mt-2 rounded-md px-3 py-1.5 text-xs ${
             testResult.connected
-              ? "bg-[#059669]/10 text-[#059669]"
-              : "bg-[#DC2626]/10 text-[#DC2626]"
+              ? "bg-[#16A34A]/10 text-[#16A34A]"
+              : "bg-destructive/10 text-destructive"
           }`}>
             {testResult.connected ? "Connected" : testResult.message}
           </div>
@@ -246,7 +246,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
             size="sm"
             onClick={handleTest}
             disabled={testing}
-            className="gap-1 text-xs border-[#D6E4F0] text-[#0F2137]"
+            className="gap-1 text-xs border-black/[0.08] text-foreground"
           >
             {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plug className="h-3 w-3" />}
             Test
@@ -256,7 +256,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
             size="sm"
             onClick={() => syncMutation.mutate()}
             disabled={syncMutation.isPending}
-            className="gap-1 text-xs border-[#D6E4F0] text-[#0F2137]"
+            className="gap-1 text-xs border-black/[0.08] text-foreground"
           >
             {syncMutation.isPending ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -273,7 +273,7 @@ function SystemCard({ system }: { system: SAPSystem }) {
                 deleteMutation.mutate();
               }
             }}
-            className="gap-1 text-xs border-[#DC2626]/20 text-[#DC2626] hover:bg-[#DC2626]/5 ml-auto"
+            className="gap-1 text-xs border-destructive/20 text-destructive hover:bg-destructive/5 ml-auto"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -295,8 +295,8 @@ export default function SystemsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#0F2137]">SAP Systems</h1>
-          <p className="text-sm text-[#6B92AD]">
+          <h1 className="font-display text-xl font-bold text-foreground">SAP Systems</h1>
+          <p className="text-sm text-muted-foreground">
             Register and manage SAP system connections for automated data sync
           </p>
         </div>
@@ -305,14 +305,14 @@ export default function SystemsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-[#0695A8]" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : !systems || systems.length === 0 ? (
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Server className="h-12 w-12 text-[#D6E4F0]" />
-            <h3 className="mt-4 font-semibold text-[#0F2137]">No SAP systems registered</h3>
-            <p className="mt-1 text-sm text-[#6B92AD]">
+            <Server className="h-12 w-12 text-white/[0.08]" />
+            <h3 className="mt-4 font-semibold text-foreground">No SAP systems registered</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Add your first SAP system to enable automated data sync
             </p>
           </CardContent>

@@ -15,16 +15,16 @@ interface SeverityBarChartProps {
 
 const SEVERITY_COLORS: Record<string, string> = {
   Critical: "#DC2626",
-  High: "#D97706",
-  Medium: "#F59E0B",
-  Low: "#B2E0E6",
+  High: "#EA580C",
+  Medium: "#D97706",
+  Low: "#00D4AA",
 };
 
 const SEVERITY_TEXT_COLORS: Record<string, string> = {
   Critical: "#DC2626",
-  High: "#D97706",
-  Medium: "#B45309",
-  Low: "#0695A8",
+  High: "#EA580C",
+  Medium: "#D97706",
+  Low: "#00D4AA",
 };
 
 export function SeverityBarChart({ counts }: SeverityBarChartProps) {
@@ -40,8 +40,8 @@ export function SeverityBarChart({ counts }: SeverityBarChartProps) {
       <BarChart data={data} margin={{ top: 20, right: 8, bottom: 0, left: -16 }}>
         <XAxis
           dataKey="name"
-          tick={{ fill: "#6B8299", fontSize: 11 }}
-          axisLine={{ stroke: "#D0DBE5" }}
+          tick={{ fill: "#6B7280", fontSize: 11 }}
+          axisLine={{ stroke: "rgba(0,0,0,0.08)" }}
           tickLine={false}
         />
         <YAxis hide />
@@ -59,7 +59,7 @@ export function SeverityBarChart({ counts }: SeverityBarChartProps) {
             position="top"
             style={{ fontSize: 11, fontWeight: 600 }}
             formatter={(value) => (Number(value) > 0 ? String(value) : "")}
-            fill="#3D5068"
+            fill="#4A5568"
           />
         </Bar>
       </BarChart>

@@ -49,20 +49,20 @@ import { toast } from "sonner";
 const PAGE_SIZE = 20;
 
 const STATUS_COLORS: Record<string, string> = {
-  detected: "bg-[#DBEAFE] text-[#1D6ECC] border border-[#93C5FD]",
-  recommended: "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]",
-  in_review: "bg-[#FFF9C4] text-[#B45309] border border-[#FDE68A]",
-  approved: "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]",
-  applied: "bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]",
-  verified: "bg-[#D1FAE5] text-[#047857] border border-[#34D399]",
-  rejected: "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]",
-  rolled_back: "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]",
+  detected: "bg-[#2563EB]/10 text-[#2563EB] border border-[#3B82F6]/20",
+  recommended: "bg-[#D97706]/10 text-[#EA580C] border border-[#D97706]/20",
+  in_review: "bg-[#D97706]/10 text-[#EA580C] border border-[#EA580C]/20",
+  approved: "bg-primary/10 text-primary border border-primary/20",
+  applied: "bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20",
+  verified: "bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/30",
+  rejected: "bg-[#DC2626]/10 text-destructive border border-[#DC2626]/20",
+  rolled_back: "bg-white/[0.60] text-muted-foreground border border-black/[0.08]",
 };
 
 function confidenceColor(c: number): string {
-  if (c >= 85) return "text-[#059669]";
-  if (c >= 60) return "text-[#D97706]";
-  return "text-[#DC2626]";
+  if (c >= 85) return "text-[#16A34A]";
+  if (c >= 60) return "text-[#EA580C]";
+  return "text-destructive";
 }
 
 export default function CleaningPage() {
@@ -161,7 +161,7 @@ export default function CleaningPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-[#1D6ECC]" />
+              <Search className="h-4 w-4 text-[#2563EB]" />
               <span className="text-sm text-muted-foreground">Detected</span>
             </div>
             <p className="mt-1 text-2xl font-bold">{totals?.detected ?? 0}</p>
@@ -170,7 +170,7 @@ export default function CleaningPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#D97706]" />
+              <Clock className="h-4 w-4 text-[#EA580C]" />
               <span className="text-sm text-muted-foreground">Pending Review</span>
             </div>
             <p className="mt-1 text-2xl font-bold">{totals?.recommended ?? 0}</p>
@@ -179,7 +179,7 @@ export default function CleaningPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[#059669]" />
+              <CheckCircle2 className="h-4 w-4 text-[#16A34A]" />
               <span className="text-sm text-muted-foreground">Applied This Week</span>
             </div>
             <p className="mt-1 text-2xl font-bold">{totals?.applied ?? 0}</p>
@@ -188,7 +188,7 @@ export default function CleaningPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#0695A8]" />
+              <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm text-muted-foreground">Auto-approved</span>
             </div>
             <p className="mt-1 text-2xl font-bold">{totals?.auto_approved ?? 0}</p>
@@ -280,7 +280,7 @@ export default function CleaningPage() {
                     return (
                       <tr
                         key={item.id}
-                        className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF] cursor-pointer"
+                        className="border-b border-black/[0.08]/50 hover:bg-black/[0.03] cursor-pointer"
                         onClick={() => setSelectedId(item.id)}
                       >
                         <td className="px-4 py-3 font-mono text-xs">
@@ -368,7 +368,7 @@ export default function CleaningPage() {
                     value={opt.value}
                     checked={exportFormat === opt.value}
                     onChange={() => setExportFormat(opt.value)}
-                    className="accent-[#0695A8]"
+                    className="accent-primary"
                   />
                   <span className="text-sm">{opt.label}</span>
                 </label>
@@ -467,11 +467,11 @@ export default function CleaningPage() {
                             return (
                               <tr key={field} className="border-b border-border/30">
                                 <td className="py-2 pr-2 font-mono text-xs">{field}</td>
-                                <td className={`py-2 pr-2 ${changed ? "text-[#DC2626]" : ""}`}>{oldVal || "—"}</td>
-                                <td className={`py-2 ${changed ? "text-[#059669]" : ""}`}>
+                                <td className={`py-2 pr-2 ${changed ? "text-destructive" : ""}`}>{oldVal || "—"}</td>
+                                <td className={`py-2 ${changed ? "text-[#16A34A]" : ""}`}>
                                   {newVal || "—"}
                                   {changed && (
-                                    <Badge className="ml-2 bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]">
+                                    <Badge className="ml-2 bg-[#D97706]/10 text-[#EA580C] border border-[#D97706]/20">
                                       Modified
                                     </Badge>
                                   )}
@@ -527,8 +527,8 @@ export default function CleaningPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="mt-3 rounded-lg border border-[#0695A8]/30 bg-[#0695A8]/5 p-3">
-                      <p className="mb-2 text-xs font-semibold text-[#0695A8]">Computed Survivor</p>
+                    <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                      <p className="mb-2 text-xs font-semibold text-primary">Computed Survivor</p>
                       {Object.entries(detail.merge_preview).map(([field, vals]) => (
                         <div key={field} className="flex justify-between border-b border-border/20 py-1 text-xs">
                           <span className="font-mono text-muted-foreground">{field}</span>
@@ -549,7 +549,7 @@ export default function CleaningPage() {
                   {(detail.status === "detected" || detail.status === "in_review" || detail.status === "recommended") && (
                     <div className="flex gap-2">
                       <Button
-                        className="bg-[#0695A8] hover:bg-[#0695A8]/90 text-white"
+                        className="bg-primary hover:bg-primary/90 text-white"
                         onClick={() => approveMut.mutate(detail.id)}
                         disabled={approveMut.isPending}
                       >
@@ -589,7 +589,7 @@ export default function CleaningPage() {
                         </div>
                       )}
                       <Button
-                        className="bg-[#059669] hover:bg-[#059669]/90 text-white"
+                        className="bg-[#16A34A] hover:bg-[#16A34A]/90 text-white"
                         onClick={() => applyMut.mutate(detail.id)}
                         disabled={applyMut.isPending}
                       >

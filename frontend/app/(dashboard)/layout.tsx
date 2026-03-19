@@ -12,13 +12,13 @@ const ClerkUserButton = dynamic(
   () => import("@clerk/nextjs").then((mod) => mod.UserButton),
   {
     ssr: false,
-    loading: () => <User className="h-5 w-5 text-[#6B8299]" />,
+    loading: () => <User className="h-5 w-5 text-muted-foreground" />,
   }
 );
 
 function LocalUserButton() {
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0695A8] text-xs font-semibold text-white">
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
       DU
     </div>
   );
@@ -156,25 +156,25 @@ function NotificationBell() {
             type="button"
             title="Notifications"
             aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[#6B8299] transition-all hover:bg-[#EAF0F6] hover:text-[#1B2A4A]"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-black/[0.04] hover:text-foreground"
           />
         }
       >
         <Bell className="h-[18px] w-[18px]" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[11px] font-bold text-white ring-2 ring-white">
+          <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-white ring-2 ring-[#F7F8FA]">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 overflow-hidden rounded-2xl border-[#D0DBE5] p-0 shadow-xl" sideOffset={8}>
-        <div className="flex items-center justify-between border-b border-[#EAF0F6] px-4 py-3">
-          <span className="font-display text-sm font-semibold text-[#1B2A4A]">Notifications</span>
+      <PopoverContent align="end" className="w-80 overflow-hidden rounded-2xl p-0 shadow-xl" sideOffset={8}>
+        <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
+          <span className="font-display text-sm font-semibold text-foreground">Notifications</span>
           {unreadCount > 0 && (
             <button
               type="button"
               onClick={() => markAllMutation.mutate()}
-              className="text-xs font-medium text-[#0695A8] hover:text-[#057A8A] transition-colors"
+              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
               Mark all read
             </button>
@@ -182,7 +182,7 @@ function NotificationBell() {
         </div>
         <div className="max-h-80 overflow-y-auto">
           {(!recent?.items || recent.items.length === 0) ? (
-            <div className="px-4 py-8 text-center text-sm text-[#6B8299]">
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No notifications yet
             </div>
           ) : (
@@ -191,33 +191,33 @@ function NotificationBell() {
                 key={notif.id}
                 type="button"
                 onClick={() => handleClick(notif)}
-                className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F3F7FB] ${
+                className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.03] ${
                   notif.is_read ? "opacity-50" : ""
                 }`}
               >
                 <span className="mt-0.5 text-sm">{NOTIF_TYPE_ICONS[notif.type] || "📋"}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-[#1B2A4A]">{notif.title}</p>
-                  <p className="truncate text-xs text-[#6B8299] mt-0.5">
+                  <p className="truncate text-sm font-medium text-foreground">{notif.title}</p>
+                  <p className="truncate text-xs text-muted-foreground mt-0.5">
                     {notif.body.length > 60 ? notif.body.slice(0, 60) + "…" : notif.body}
                   </p>
-                  <p className="mt-1 text-[12px] text-[#6B8299]">{relativeTime(notif.created_at)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{relativeTime(notif.created_at)}</p>
                 </div>
                 {!notif.is_read && (
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#0695A8]" />
+                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
                 )}
               </button>
             ))
           )}
         </div>
-        <div className="border-t border-[#EAF0F6] px-4 py-2.5">
+        <div className="border-t border-black/[0.06] px-4 py-2.5">
           <button
             type="button"
             onClick={() => {
               setOpen(false);
               router.push("/notifications");
             }}
-            className="w-full text-center text-xs font-medium text-[#0695A8] hover:text-[#057A8A] transition-colors"
+            className="w-full text-center text-xs font-medium text-primary hover:text-primary/80 transition-colors"
           >
             View all notifications
           </button>
@@ -319,15 +319,15 @@ function SidebarNav({
         return (
           <div key={group}>
             {!collapsed && (
-              <span data-sidebar-label className="mb-1.5 block px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#6B8299]">
+              <span data-sidebar-label className="mb-1.5 block px-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {group}
               </span>
             )}
             {collapsed && (
-              <div className="mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />
+              <div className="mb-1 mx-auto w-6 border-t border-black/[0.06]" />
             )}
             {!collapsed && (
-              <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />
+              <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-black/[0.06]" />
             )}
             <div className="flex flex-col gap-0.5">
               {visibleItems.map(({ href, label, icon: Icon }) => {
@@ -345,13 +345,13 @@ function SidebarNav({
                         : "mx-1 px-3 py-2"
                     } ${
                       active
-                        ? "bg-[#0695A8] text-white shadow-md shadow-[#0695A8]/20"
-                        : "text-[#3D5068] hover:bg-[#EAF0F6] hover:text-[#1B2A4A]"
+                        ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(0,212,170,0.10)]"
+                        : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
                     }`}
                   >
                     <Icon data-sidebar-icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
                     {!collapsed && (
-                      <span data-sidebar-label className="text-[16px] font-medium truncate">{label}</span>
+                      <span data-sidebar-label className="text-base font-medium truncate">{label}</span>
                     )}
                   </Link>
                 );
@@ -363,8 +363,8 @@ function SidebarNav({
 
       {/* Settings — standalone */}
       <div>
-        {collapsed && <div className="mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />}
-        {!collapsed && <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-[#D0DBE5]" />}
+        {collapsed && <div className="mb-1 mx-auto w-6 border-t border-black/[0.06]" />}
+        {!collapsed && <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-black/[0.06]" />}
         <Link
           href="/settings"
           data-sidebar-link
@@ -376,12 +376,12 @@ function SidebarNav({
               : "mx-1 px-3 py-2"
           } ${
             pathname.startsWith("/settings")
-              ? "bg-[#0695A8] text-white shadow-md shadow-[#0695A8]/20"
-              : "text-[#3D5068] hover:bg-[#EAF0F6] hover:text-[#1B2A4A]"
+              ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(0,212,170,0.10)]"
+              : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
           }`}
         >
           <Settings data-sidebar-icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
-          {!collapsed && <span data-sidebar-label className="text-[16px] font-medium">Settings</span>}
+          {!collapsed && <span data-sidebar-label className="text-base font-medium">Settings</span>}
         </Link>
       </div>
     </nav>
@@ -435,21 +435,21 @@ export default function DashboardLayout({
   const licence = health?.licence;
   const licenceDotColor =
     licence?.valid === true
-      ? "bg-[#10B981]"
+      ? "bg-[#16A34A]"
       : licence?.valid === false
-        ? "bg-[#DC2626]"
-        : "bg-[#6B8299]";
+        ? "bg-destructive"
+        : "bg-muted-foreground";
   const licencePulse = licence?.valid === true ? "animate-[vx-pulse-dot_2s_ease-in-out_infinite]" : "";
 
   const userRole = (typeof window !== "undefined" && localStorage.getItem("vx_demo_role")) || "admin";
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#EAF0F6]">
+    <div className="flex h-screen overflow-hidden vx-mesh-bg">
       {/* ── Mobile backdrop ── */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-md lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -458,22 +458,22 @@ export default function DashboardLayout({
       {/* ── Sidebar ── */}
       <aside
         data-sidebar
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-[#D0DBE5] transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[rgba(255,255,255,0.75)] backdrop-blur-xl border-r border-black/[0.06] transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } ${
           collapsed ? "lg:w-[72px]" : "lg:w-[260px]"
         } w-[280px]`}
       >
         {/* Logo */}
-        <div data-sidebar-header className={`flex h-16 shrink-0 items-center border-b border-[#D0DBE5] ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
+        <div data-sidebar-header className={`flex h-16 shrink-0 items-center border-b border-black/[0.06] ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0695A8] shadow-lg shadow-[#0695A8]/25">
-              <ShieldCheck className="h-4.5 w-4.5 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-[0_0_16px_rgba(0,212,170,0.25)]">
+              <ShieldCheck className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
             {!collapsed && (
               <div data-sidebar-label className="flex items-baseline gap-1">
-                <span className="font-display text-[17px] font-bold text-[#1B2A4A]">Vantax</span>
-                <span className="font-display text-[17px] font-bold text-[#0695A8]">MDM</span>
+                <span className="font-display text-[17px] font-bold text-foreground">Vantax</span>
+                <span className="font-display text-[17px] font-bold text-primary">MDM</span>
               </div>
             )}
           </Link>
@@ -482,7 +482,7 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6B8299] hover:bg-[#EAF0F6] hover:text-[#1B2A4A] transition-colors lg:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-black/[0.04] hover:text-foreground transition-colors lg:hidden"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
@@ -490,7 +490,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Nav */}
-        <ScrollArea className="flex-1 py-4 px-2 vx-sidebar-scroll">
+        <ScrollArea className="flex-1 min-h-0 overflow-hidden py-4 px-2 vx-sidebar-scroll">
           <SidebarNav
             collapsed={collapsed}
             pathname={pathname}
@@ -500,11 +500,11 @@ export default function DashboardLayout({
         </ScrollArea>
 
         {/* Footer — licence + collapse toggle */}
-        <div data-sidebar-footer className={`flex items-center border-t border-[#D0DBE5] ${collapsed ? "flex-col gap-3 px-2 py-3" : "justify-between px-5 py-3"}`}>
+        <div data-sidebar-footer className={`flex items-center border-t border-black/[0.06] ${collapsed ? "flex-col gap-3 px-2 py-3" : "justify-between px-5 py-3"}`}>
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${licenceDotColor} ${licencePulse}`} />
             {!collapsed && (
-              <span data-sidebar-label className="text-[13px] text-[#6B8299]">
+              <span data-sidebar-label className="text-[13px] text-muted-foreground">
                 {licence?.valid === true ? "Licensed" : licence?.valid === false ? "Unlicensed" : "Checking…"}
               </span>
             )}
@@ -512,7 +512,7 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={toggleCollapse}
-            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-[#6B8299] hover:bg-[#EAF0F6] hover:text-[#1B2A4A] transition-colors"
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-black/[0.04] hover:text-foreground transition-colors"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -524,37 +524,37 @@ export default function DashboardLayout({
       {/* ── Main area ── */}
       <div className="relative z-0 flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#D0DBE5] bg-white px-4 sm:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-black/[0.06] bg-[rgba(255,255,255,0.70)] backdrop-blur-xl px-4 sm:px-6">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#6B8299] hover:bg-[#EAF0F6] hover:text-[#1B2A4A] transition-colors lg:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-black/[0.04] hover:text-foreground transition-colors lg:hidden"
               aria-label="Open navigation"
             >
               <Menu className="h-5 w-5" />
             </button>
 
             {/* Search input */}
-            <div className="hidden sm:flex items-center gap-2 rounded-xl bg-[#EAF0F6] px-3 py-2 flex-1 max-w-md focus-within:ring-1 focus-within:ring-[#0695A8] focus-within:border-[#0695A8] transition-all">
-              <Search className="h-4 w-4 text-[#6B8299] shrink-0" />
+            <div className="hidden sm:flex items-center gap-2 rounded-xl bg-white/[0.60] border border-black/[0.08] px-3 py-2 flex-1 max-w-md focus-within:ring-1 focus-within:ring-primary focus-within:border-primary/40 transition-all">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
                 placeholder="Search modules, findings, records..."
-                className="w-full bg-transparent text-sm text-[#1B2A4A] placeholder-[#6B8299] outline-none"
+                className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {/* Page title badge */}
-            <span className="hidden md:inline-block text-sm font-medium text-[#6B8299] truncate max-w-[160px]">
+            <span className="hidden md:inline-block text-sm font-medium text-muted-foreground truncate max-w-[160px]">
               {pageTitle}
             </span>
 
-            {/* Export button — orange CTA */}
-            <Link href="/reports" className="hidden sm:flex items-center gap-1.5 rounded-xl bg-[#E8913A] px-4 py-2 text-sm font-medium text-white hover:bg-[#D4822E] transition-colors">
+            {/* Export button */}
+            <Link href="/reports" className="hidden sm:flex items-center gap-1.5 rounded-xl bg-[#EA580C] px-4 py-2 text-sm font-medium text-white hover:bg-[#C24B08] transition-colors shadow-[0_0_12px_rgba(255,140,66,0.20)]">
               <Download className="h-4 w-4" />
               Export
             </Link>

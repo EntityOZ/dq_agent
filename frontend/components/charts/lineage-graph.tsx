@@ -5,10 +5,10 @@ import * as d3 from "d3";
 import type { LineageGraph, LineageNode } from "@/types/api";
 
 const NODE_COLOURS: Record<string, string> = {
-  record: "#0695A8",
-  finding: "#0F2137",
+  record: "#00D4AA",
+  finding: "#6366F1",
   exception: "#DC2626",
-  cleaning: "#D97706",
+  cleaning: "#EA580C",
   dedup: "#7C3AED",
   relationship: "#2563EB",
 };
@@ -91,7 +91,7 @@ export default function LineageGraphComponent({
         // Relationship edges get a distinct colour
         const targetId = typeof d.target === "string" ? d.target : (d.target as SimNode).id;
         const targetNode = graph.nodes.find((n) => n.id === targetId);
-        return targetNode?.type === "relationship" ? "#2563EB" : "#D6E4F0";
+        return targetNode?.type === "relationship" ? "#2563EB" : "rgba(0,0,0,0.12)";
       })
       .attr("stroke-width", (d) => {
         // Edge weight = impact_score (thicker = higher impact)
@@ -114,7 +114,7 @@ export default function LineageGraphComponent({
       .join("text")
       .text((d) => d.label)
       .attr("font-size", 9)
-      .attr("fill", "#6B92AD")
+      .attr("fill", "#6B7280")
       .attr("text-anchor", "middle");
 
     const dragBehavior = d3.drag<SVGCircleElement, SimNode>()
@@ -139,8 +139,8 @@ export default function LineageGraphComponent({
       .data(nodes)
       .join("circle")
       .attr("r", NODE_RADIUS)
-      .attr("fill", (d) => NODE_COLOURS[d.type] || "#6B92AD")
-      .attr("stroke", "#fff")
+      .attr("fill", (d) => NODE_COLOURS[d.type] || "#6B7280")
+      .attr("stroke", "rgba(0,0,0,0.12)")
       .attr("stroke-width", 2)
       .attr("cursor", "pointer")
       .on("mouseover", (event, d) => {
@@ -157,7 +157,7 @@ export default function LineageGraphComponent({
       .join("text")
       .text((d) => d.label.length > 20 ? d.label.slice(0, 20) + "..." : d.label)
       .attr("font-size", 10)
-      .attr("fill", "#0F2137")
+      .attr("fill", "#1A1F36")
       .attr("text-anchor", "middle")
       .attr("dy", NODE_RADIUS + 14);
 
@@ -192,7 +192,7 @@ export default function LineageGraphComponent({
 
   if (graph.nodes.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-[#6B92AD]">
+      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
         No lineage data found for this record.
       </div>
     );
@@ -204,7 +204,7 @@ export default function LineageGraphComponent({
         ref={svgRef}
         width={width}
         height={height}
-        className="rounded-lg border border-[#D6E4F0] bg-white"
+        className="rounded-lg border border-black/[0.08] bg-white/[0.60]"
       />
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
         {Object.entries(NODE_COLOURS).map(([type, colour]) => (
@@ -213,23 +213,23 @@ export default function LineageGraphComponent({
               className="h-3 w-3 rounded-full"
               style={{ backgroundColor: colour }}
             />
-            <span className="text-[#6B92AD] capitalize">{type}</span>
+            <span className="text-muted-foreground capitalize">{type}</span>
           </div>
         ))}
       </div>
       {tooltip && (
         <div
-          className="pointer-events-none absolute z-50 rounded-lg border border-[#D6E4F0] bg-white px-3 py-2 shadow-lg"
+          className="pointer-events-none absolute z-50 rounded-lg bg-[rgba(255,255,255,0.92)] backdrop-blur-xl border border-black/[0.10] px-3 py-2 shadow-lg"
           style={{ left: tooltip.x + 10, top: tooltip.y - 10 }}
         >
-          <p className="text-xs font-semibold capitalize text-[#0F2137]">
+          <p className="text-xs font-semibold capitalize text-foreground">
             {tooltip.node.type}
           </p>
-          <p className="text-xs text-[#6B92AD]">{tooltip.node.label}</p>
+          <p className="text-xs text-muted-foreground">{tooltip.node.label}</p>
           {Object.entries(tooltip.node.data)
             .slice(0, 4)
             .map(([k, v]) => (
-              <p key={k} className="text-[10px] text-[#4A6B84]">
+              <p key={k} className="text-[10px] text-secondary-foreground">
                 {k}: {String(v ?? "-")}
               </p>
             ))}

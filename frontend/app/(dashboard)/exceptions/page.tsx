@@ -88,26 +88,26 @@ const KANBAN_COLUMNS: { status: ExceptionStatus; label: string }[] = [
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20",
-  high: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
-  medium: "bg-[#CA8A04]/10 text-[#CA8A04] border-[#CA8A04]/20",
-  low: "bg-[#0695A8]/10 text-[#0695A8] border-[#0695A8]/20",
+  high: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
+  medium: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
+  low: "bg-primary/10 text-primary border-primary/20",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   sap_transaction: "bg-[#7C3AED]/10 text-[#7C3AED] border-[#7C3AED]/20",
-  dq_rule: "bg-[#1D6ECC]/10 text-[#1D6ECC] border-[#1D6ECC]/20",
-  custom_business: "bg-[#059669]/10 text-[#059669] border-[#059669]/20",
-  anomaly: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
+  dq_rule: "bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20",
+  custom_business: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
+  anomaly: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
   contract_violation: "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-[#DC2626]/10 text-[#DC2626]",
-  investigating: "bg-[#D97706]/10 text-[#D97706]",
-  pending_approval: "bg-[#CA8A04]/10 text-[#CA8A04]",
-  resolved: "bg-[#059669]/10 text-[#059669]",
-  verified: "bg-[#0695A8]/10 text-[#0695A8]",
-  closed: "bg-[#6B92AD]/10 text-[#6B92AD]",
+  investigating: "bg-[#EA580C]/10 text-[#EA580C]",
+  pending_approval: "bg-[#D97706]/10 text-[#D97706]",
+  resolved: "bg-[#16A34A]/10 text-[#16A34A]",
+  verified: "bg-primary/10 text-primary",
+  closed: "bg-white/[0.65] text-muted-foreground",
 };
 
 function formatType(t: string): string {
@@ -183,33 +183,33 @@ function ExceptionCard({
 
   return (
     <div
-      className="group cursor-pointer rounded-lg border border-[#D6E4F0] bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
+      className="group cursor-pointer rounded-lg border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl p-3 shadow-[0_4px_24px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-md"
       onClick={onClick}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <div
-          className="mt-0.5 cursor-grab text-[#6B92AD] opacity-0 transition-opacity group-hover:opacity-100"
+          className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
           {...dragListeners}
         >
           <GripVertical className="h-3.5 w-3.5" />
         </div>
-        <h4 className="flex-1 text-sm font-medium text-[#0F2137] line-clamp-2 leading-tight">
+        <h4 className="flex-1 text-sm font-medium text-foreground line-clamp-2 leading-tight">
           {exception.title}
         </h4>
         <span
-          className={`inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[12px] font-semibold uppercase ${SEVERITY_COLORS[exception.severity] || ""}`}
+          className={`inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-xs font-semibold uppercase ${SEVERITY_COLORS[exception.severity] || ""}`}
         >
           {exception.severity}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <span
-          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[12px] font-medium ${TYPE_COLORS[exception.type] || ""}`}
+          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium ${TYPE_COLORS[exception.type] || ""}`}
         >
           {formatType(exception.type)}
         </span>
         {exception.assigned_to && (
-          <span className="inline-flex items-center gap-0.5 text-[12px] text-[#6B92AD]">
+          <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
             <User className="h-2.5 w-2.5" />
             Assigned
           </span>
@@ -217,7 +217,7 @@ function ExceptionCard({
       </div>
       {sla.text !== "No SLA" && (
         <div
-          className={`mt-2 flex items-center gap-1 text-[13px] ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-[#6B92AD]"}`}
+          className={`mt-2 flex items-center gap-1 text-[13px] ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-muted-foreground"}`}
         >
           <Clock className="h-3 w-3" />
           {sla.text}
@@ -241,15 +241,15 @@ function KanbanColumn({
   onCardClick: (id: string) => void;
 }) {
   return (
-    <div className="flex min-h-[400px] w-[240px] shrink-0 flex-col rounded-xl border border-[#D6E4F0] bg-[#F7FAFB]">
-      <div className="flex items-center justify-between border-b border-[#D6E4F0] px-3 py-2.5">
+    <div className="flex min-h-[400px] w-[240px] shrink-0 flex-col rounded-xl border border-black/[0.08] bg-white/[0.60]">
+      <div className="flex items-center justify-between border-b border-black/[0.08] px-3 py-2.5">
         <div className="flex items-center gap-2">
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] || ""}`}
           >
             {label}
           </span>
-          <span className="text-xs font-medium text-[#6B92AD]">
+          <span className="text-xs font-medium text-muted-foreground">
             {exceptions.length}
           </span>
         </div>
@@ -267,7 +267,7 @@ function KanbanColumn({
             />
           ))}
           {exceptions.length === 0 && (
-            <p className="py-8 text-center text-xs text-[#6B92AD]">No items</p>
+            <p className="py-8 text-center text-xs text-muted-foreground">No items</p>
           )}
         </div>
       </SortableContext>
@@ -359,7 +359,7 @@ function ExceptionDetail({
     >
       <SheetContent
         side="right"
-        className="w-full max-w-2xl overflow-y-auto border-l border-[#D6E4F0] bg-white p-0"
+        className="w-full max-w-2xl overflow-y-auto border-l border-black/[0.08] bg-white/[0.70] backdrop-blur-xl p-0"
       >
         {isLoading || !exc ? (
           <div className="space-y-4 p-6">
@@ -369,13 +369,13 @@ function ExceptionDetail({
           </div>
         ) : (
           <>
-            <SheetHeader className="border-b border-[#D6E4F0] p-5">
+            <SheetHeader className="border-b border-black/[0.08] p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
-                  <SheetTitle className="text-base font-bold text-[#0F2137]">
+                  <SheetTitle className="text-base font-bold text-foreground">
                     {exc.title}
                   </SheetTitle>
-                  <SheetDescription className="mt-1 text-sm text-[#4A6B84]">
+                  <SheetDescription className="mt-1 text-sm text-secondary-foreground">
                     {exc.description}
                   </SheetDescription>
                 </div>
@@ -398,7 +398,7 @@ function ExceptionDetail({
                 </span>
                 {exc.sla_deadline && (
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${slaCountdown(exc.sla_deadline).urgent ? "bg-[#DC2626]/10 font-semibold text-[#DC2626]" : "bg-[#F0F5FA] text-[#4A6B84]"}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${slaCountdown(exc.sla_deadline).urgent ? "bg-[#DC2626]/10 font-semibold text-[#DC2626]" : "bg-white/[0.60] text-secondary-foreground"}`}
                   >
                     <Clock className="h-3 w-3" />
                     SLA: {slaCountdown(exc.sla_deadline).text}
@@ -408,43 +408,43 @@ function ExceptionDetail({
             </SheetHeader>
 
             {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-3 border-b border-[#D6E4F0] p-5">
+            <div className="grid grid-cols-2 gap-3 border-b border-black/[0.08] p-5">
               <div>
-                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-muted-foreground">
                   Source
                 </span>
-                <p className="text-sm text-[#0F2137]">
+                <p className="text-sm text-foreground">
                   {exc.source_system || "Manual"}
                 </p>
               </div>
               <div>
-                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-muted-foreground">
                   Escalation Tier
                 </span>
-                <p className="text-sm text-[#0F2137]">{exc.escalation_tier}</p>
+                <p className="text-sm text-foreground">{exc.escalation_tier}</p>
               </div>
               <div>
-                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-muted-foreground">
                   Category
                 </span>
-                <p className="text-sm text-[#0F2137]">{exc.category}</p>
+                <p className="text-sm text-foreground">{exc.category}</p>
               </div>
               <div>
-                <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                <span className="text-[13px] font-medium uppercase text-muted-foreground">
                   Created
                 </span>
-                <p className="text-sm text-[#0F2137]">
+                <p className="text-sm text-foreground">
                   {relativeTime(exc.created_at)}
                 </p>
               </div>
               {exc.linked_finding_id && (
                 <div className="col-span-2">
-                  <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                  <span className="text-[13px] font-medium uppercase text-muted-foreground">
                     Linked Finding
                   </span>
                   <a
                     href={`/findings?id=${exc.linked_finding_id}`}
-                    className="flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
                   >
                     View Finding
                     <ArrowUpRight className="h-3 w-3" />
@@ -453,12 +453,12 @@ function ExceptionDetail({
               )}
               {exc.linked_cleaning_id && (
                 <div className="col-span-2">
-                  <span className="text-[13px] font-medium uppercase text-[#6B92AD]">
+                  <span className="text-[13px] font-medium uppercase text-muted-foreground">
                     Linked Cleaning Item
                   </span>
                   <a
                     href={`/cleaning?id=${exc.linked_cleaning_id}`}
-                    className="flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
                   >
                     View Cleaning
                     <ArrowUpRight className="h-3 w-3" />
@@ -469,9 +469,9 @@ function ExceptionDetail({
 
             {/* Actions */}
             {exc.status !== "resolved" && exc.status !== "closed" && (
-              <div className="flex flex-wrap gap-2 border-b border-[#D6E4F0] p-5">
+              <div className="flex flex-wrap gap-2 border-b border-black/[0.08] p-5">
                 <button
-                  className="rounded-lg bg-[#0695A8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#057A8A]"
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/80"
                   onClick={() =>
                     assignMut.mutate({
                       user_id: "00000000-0000-0000-0000-000000000001",
@@ -482,7 +482,7 @@ function ExceptionDetail({
                   Assign
                 </button>
                 <button
-                  className="rounded-lg bg-[#D97706] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#B45309]"
+                  className="rounded-lg bg-[#EA580C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#EA580C]/80"
                   onClick={() =>
                     escalateMut.mutate({ reason: "Requires immediate attention" })
                   }
@@ -490,7 +490,7 @@ function ExceptionDetail({
                   Escalate
                 </button>
                 <button
-                  className="rounded-lg bg-[#059669] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#047857]"
+                  className="rounded-lg bg-[#16A34A] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#16A34A]/80"
                   onClick={() => setResolveForm(!resolveForm)}
                 >
                   Resolve
@@ -500,14 +500,14 @@ function ExceptionDetail({
 
             {/* Resolve Form */}
             {resolveForm && (
-              <div className="space-y-3 border-b border-[#D6E4F0] p-5">
-                <h4 className="text-sm font-semibold text-[#0F2137]">
+              <div className="space-y-3 border-b border-black/[0.08] p-5">
+                <h4 className="text-sm font-semibold text-foreground">
                   Resolve Exception
                 </h4>
                 <select
                   value={resolutionType}
                   onChange={(e) => setResolutionType(e.target.value)}
-                  className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
                 >
                   <option value="auto_resolved">Auto-resolved (Tier 1)</option>
                   <option value="steward">Steward-resolved (Tier 2)</option>
@@ -517,7 +517,7 @@ function ExceptionDetail({
                 <select
                   value={rootCause}
                   onChange={(e) => setRootCause(e.target.value)}
-                  className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
                 >
                   <option value="">Select root cause...</option>
                   <option value="data_entry_error">Data Entry Error</option>
@@ -531,11 +531,11 @@ function ExceptionDetail({
                   placeholder="Resolution notes..."
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
                   rows={3}
                 />
                 <button
-                  className="rounded-lg bg-[#059669] px-4 py-2 text-xs font-medium text-white hover:bg-[#047857] disabled:opacity-50"
+                  className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-medium text-white hover:bg-[#16A34A]/80 disabled:opacity-50"
                   disabled={!rootCause || !resolutionNotes || resolveMut.isPending}
                   onClick={() => resolveMut.mutate()}
                 >
@@ -546,7 +546,7 @@ function ExceptionDetail({
 
             {/* Comment Thread */}
             <div className="p-5">
-              <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-[#0F2137]">
+              <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <MessageSquare className="h-4 w-4" />
                 Comments ({exc.comments?.length || 0})
               </h4>
@@ -554,17 +554,17 @@ function ExceptionDetail({
                 {exc.comments?.map((c: ExceptionComment) => (
                   <div
                     key={c.id}
-                    className="rounded-lg bg-[#F0F5FA] px-3 py-2"
+                    className="rounded-lg bg-white/[0.60] px-3 py-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-[#0695A8]">
+                      <span className="text-xs font-medium text-primary">
                         {c.user_name}
                       </span>
-                      <span className="text-[12px] text-[#6B92AD]">
+                      <span className="text-xs text-muted-foreground">
                         {relativeTime(c.created_at)}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-[#0F2137]">{c.text}</p>
+                    <p className="mt-1 text-sm text-foreground">{c.text}</p>
                   </div>
                 ))}
               </div>
@@ -579,10 +579,10 @@ function ExceptionDetail({
                       commentMut.mutate();
                     }
                   }}
-                  className="flex-1 rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="flex-1 rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
                 />
                 <button
-                  className="rounded-lg bg-[#0695A8] px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                  className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
                   disabled={!commentText.trim() || commentMut.isPending}
                   onClick={() => commentMut.mutate()}
                 >
@@ -637,12 +637,12 @@ function NewRuleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-lg rounded-xl border border-[#D6E4F0] bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-[#D6E4F0] px-5 py-4">
-          <h3 className="text-base font-bold text-[#0F2137]">
+      <div className="w-full max-w-lg rounded-xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)]">
+        <div className="flex items-center justify-between border-b border-black/[0.08] px-5 py-4">
+          <h3 className="text-base font-bold text-foreground">
             New Exception Rule
           </h3>
-          <button onClick={onClose} className="text-[#6B92AD] hover:text-[#0F2137]">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -651,20 +651,20 @@ function NewRuleModal({
             placeholder="Rule name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
           />
           <textarea
             placeholder="Description"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             rows={2}
           />
           <div className="grid grid-cols-2 gap-3">
             <select
               value={form.rule_type}
               onChange={(e) => setForm({ ...form, rule_type: e.target.value })}
-              className="rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+              className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             >
               <option value="field_condition">Field Condition</option>
               <option value="threshold">Threshold</option>
@@ -678,7 +678,7 @@ function NewRuleModal({
               onChange={(e) =>
                 setForm({ ...form, object_type: e.target.value })
               }
-              className="rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+              className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             >
               <option value="business_partner">Business Partner</option>
               <option value="material_master">Material Master</option>
@@ -692,12 +692,12 @@ function NewRuleModal({
             placeholder="Condition (e.g. BU_TYPE IS NULL)"
             value={form.condition}
             onChange={(e) => setForm({ ...form, condition: e.target.value })}
-            className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm font-mono"
+            className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm font-mono"
           />
           <select
             value={form.severity}
             onChange={(e) => setForm({ ...form, severity: e.target.value })}
-            className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
           >
             <option value="critical">Critical</option>
             <option value="high">High</option>
@@ -705,7 +705,7 @@ function NewRuleModal({
             <option value="low">Low</option>
           </select>
           <button
-            className="w-full rounded-lg bg-[#0695A8] py-2 text-sm font-medium text-white hover:bg-[#057A8A] disabled:opacity-50"
+            className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white hover:bg-primary/80 disabled:opacity-50"
             disabled={!form.name || !form.condition || createMut.isPending}
             onClick={() => createMut.mutate()}
           >
@@ -875,8 +875,8 @@ export default function ExceptionsPage() {
       label: "Investigating",
       value: byStatus.investigating.length,
       icon: Search,
-      color: "text-[#D97706]",
-      bg: "bg-[#D97706]/5",
+      color: "text-[#EA580C]",
+      bg: "bg-[#EA580C]/5",
     },
     {
       label: "Overdue SLA",
@@ -889,8 +889,8 @@ export default function ExceptionsPage() {
       label: "Resolved This Week",
       value: metrics?.resolved_count ?? 0,
       icon: CheckCircle2,
-      color: "text-[#059669]",
-      bg: "bg-[#059669]/5",
+      color: "text-[#16A34A]",
+      bg: "bg-[#16A34A]/5",
     },
   ];
 
@@ -899,10 +899,10 @@ export default function ExceptionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[#0F2137]">
+          <h1 className="text-xl font-bold text-foreground">
             Exception Management
           </h1>
-          <p className="text-sm text-[#4A6B84]">
+          <p className="text-sm text-secondary-foreground">
             SAP transaction monitors, custom rules, SLA escalation
           </p>
         </div>
@@ -913,15 +913,15 @@ export default function ExceptionsPage() {
         {kpiCards.map((kpi) => (
           <Card
             key={kpi.label}
-            className={`border-[#D6E4F0] ${kpi.bg}`}
+            className={`border-black/[0.08] ${kpi.bg}`}
           >
             <CardContent className="flex items-center gap-3 p-4">
               <kpi.icon className={`h-8 w-8 ${kpi.color}`} />
               <div>
-                <p className="text-2xl font-bold text-[#0F2137]">
+                <p className="text-2xl font-bold text-foreground">
                   {kpi.value}
                 </p>
-                <p className="text-xs text-[#6B92AD]">{kpi.label}</p>
+                <p className="text-xs text-muted-foreground">{kpi.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -981,7 +981,7 @@ export default function ExceptionsPage() {
             <select
               value={filterType}
               onChange={(e) => { setFilterType(e.target.value); setListPage(1); }}
-              className="rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+              className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             >
               <option value="">All Types</option>
               <option value="sap_transaction">SAP Transaction</option>
@@ -993,7 +993,7 @@ export default function ExceptionsPage() {
             <select
               value={filterStatus}
               onChange={(e) => { setFilterStatus(e.target.value); setListPage(1); }}
-              className="rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+              className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             >
               <option value="">All Statuses</option>
               {KANBAN_COLUMNS.map((c) => (
@@ -1005,7 +1005,7 @@ export default function ExceptionsPage() {
             <select
               value={filterSeverity}
               onChange={(e) => { setFilterSeverity(e.target.value); setListPage(1); }}
-              className="rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm"
+              className="rounded-lg border border-black/[0.08] px-3 py-2 text-sm"
             >
               <option value="">All Severities</option>
               <option value="critical">Critical</option>
@@ -1015,7 +1015,7 @@ export default function ExceptionsPage() {
             </select>
           </div>
 
-          <div className="rounded-xl border border-[#D6E4F0] bg-white">
+          <div className="rounded-xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1033,10 +1033,10 @@ export default function ExceptionsPage() {
                   return (
                     <TableRow
                       key={exc.id}
-                      className="cursor-pointer hover:bg-[#F0F5FA]"
+                      className="cursor-pointer hover:bg-black/[0.03]"
                       onClick={() => openDetail(exc.id)}
                     >
-                      <TableCell className="max-w-[300px] truncate font-medium text-[#0F2137]">
+                      <TableCell className="max-w-[300px] truncate font-medium text-foreground">
                         {exc.title}
                       </TableCell>
                       <TableCell>
@@ -1062,12 +1062,12 @@ export default function ExceptionsPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`text-xs ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-[#6B92AD]"}`}
+                          className={`text-xs ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-muted-foreground"}`}
                         >
                           {sla.text}
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs text-[#6B92AD]">
+                      <TableCell className="text-xs text-muted-foreground">
                         {relativeTime(exc.created_at)}
                       </TableCell>
                     </TableRow>
@@ -1075,7 +1075,7 @@ export default function ExceptionsPage() {
                 })}
                 {exceptions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-sm text-[#6B92AD]">
+                    <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
                       No exceptions found
                     </TableCell>
                   </TableRow>
@@ -1088,15 +1088,15 @@ export default function ExceptionsPage() {
           {(exceptionsData?.total || 0) > 200 && (
             <div className="mt-4 flex items-center justify-center gap-3">
               <button
-                className="rounded-lg border border-[#D6E4F0] px-3 py-1.5 text-sm disabled:opacity-50"
+                className="rounded-lg border border-black/[0.08] px-3 py-1.5 text-sm disabled:opacity-50"
                 disabled={listPage <= 1}
                 onClick={() => setListPage((p) => p - 1)}
               >
                 Previous
               </button>
-              <span className="text-sm text-[#6B92AD]">Page {listPage}</span>
+              <span className="text-sm text-muted-foreground">Page {listPage}</span>
               <button
-                className="rounded-lg border border-[#D6E4F0] px-3 py-1.5 text-sm disabled:opacity-50"
+                className="rounded-lg border border-black/[0.08] px-3 py-1.5 text-sm disabled:opacity-50"
                 disabled={exceptions.length < 200}
                 onClick={() => setListPage((p) => p + 1)}
               >
@@ -1113,9 +1113,9 @@ export default function ExceptionsPage() {
           ) : (
             <div className="space-y-4">
               {Object.entries(sapMonitor.by_category).map(([cat, excs]) => (
-                <Card key={cat} className="border-[#D6E4F0]">
+                <Card key={cat} className="border-black/[0.08]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold capitalize text-[#0F2137]">
+                    <CardTitle className="text-sm font-semibold capitalize text-foreground">
                       {cat} ({(excs as Exception[]).length})
                     </CardTitle>
                   </CardHeader>
@@ -1136,10 +1136,10 @@ export default function ExceptionsPage() {
                           return (
                             <TableRow
                               key={exc.id}
-                              className="cursor-pointer hover:bg-[#F0F5FA]"
+                              className="cursor-pointer hover:bg-black/[0.03]"
                               onClick={() => openDetail(exc.id)}
                             >
-                              <TableCell className="font-medium text-[#0F2137]">
+                              <TableCell className="font-medium text-foreground">
                                 {exc.title}
                               </TableCell>
                               <TableCell>
@@ -1149,12 +1149,12 @@ export default function ExceptionsPage() {
                                   {exc.severity}
                                 </span>
                               </TableCell>
-                              <TableCell className="text-xs text-[#6B92AD]">
+                              <TableCell className="text-xs text-muted-foreground">
                                 {exc.source_system}
                               </TableCell>
                               <TableCell>
                                 <span
-                                  className={`text-xs ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-[#6B92AD]"}`}
+                                  className={`text-xs ${sla.urgent ? "font-semibold text-[#DC2626]" : "text-muted-foreground"}`}
                                 >
                                   {sla.text}
                                 </span>
@@ -1175,7 +1175,7 @@ export default function ExceptionsPage() {
                 </Card>
               ))}
               {Object.keys(sapMonitor.by_category).length === 0 && (
-                <p className="py-12 text-center text-sm text-[#6B92AD]">
+                <p className="py-12 text-center text-sm text-muted-foreground">
                   No SAP transaction exceptions in the last 24 hours
                 </p>
               )}
@@ -1186,11 +1186,11 @@ export default function ExceptionsPage() {
         {/* ── Custom Rules ── */}
         <TabsContent value="rules">
           <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-[#4A6B84]">
+            <p className="text-sm text-secondary-foreground">
               {rulesData?.rules.length ?? 0} rules configured
             </p>
             <button
-              className="flex items-center gap-1.5 rounded-lg bg-[#0695A8] px-3 py-2 text-sm font-medium text-white hover:bg-[#057A8A]"
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/80"
               onClick={() => setNewRuleOpen(true)}
             >
               <Plus className="h-4 w-4" />
@@ -1198,7 +1198,7 @@ export default function ExceptionsPage() {
             </button>
           </div>
 
-          <div className="rounded-xl border border-[#D6E4F0] bg-white">
+          <div className="rounded-xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1213,13 +1213,13 @@ export default function ExceptionsPage() {
               <TableBody>
                 {rulesData?.rules.map((rule: ExceptionRule) => (
                   <TableRow key={rule.id}>
-                    <TableCell className="font-medium text-[#0F2137]">
+                    <TableCell className="font-medium text-foreground">
                       {rule.name}
                     </TableCell>
-                    <TableCell className="text-xs text-[#4A6B84]">
+                    <TableCell className="text-xs text-secondary-foreground">
                       {rule.rule_type.replace(/_/g, " ")}
                     </TableCell>
-                    <TableCell className="text-xs text-[#4A6B84]">
+                    <TableCell className="text-xs text-secondary-foreground">
                       {rule.object_type.replace(/_/g, " ")}
                     </TableCell>
                     <TableCell>
@@ -1229,7 +1229,7 @@ export default function ExceptionsPage() {
                         {rule.severity}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate font-mono text-xs text-[#6B92AD]">
+                    <TableCell className="max-w-[200px] truncate font-mono text-xs text-muted-foreground">
                       {rule.condition}
                     </TableCell>
                     <TableCell>
@@ -1240,7 +1240,7 @@ export default function ExceptionsPage() {
                             is_active: !rule.is_active,
                           })
                         }
-                        className={`transition-colors ${rule.is_active ? "text-[#059669]" : "text-[#6B92AD]"}`}
+                        className={`transition-colors ${rule.is_active ? "text-[#16A34A]" : "text-muted-foreground"}`}
                       >
                         {rule.is_active ? (
                           <ToggleRight className="h-6 w-6" />
@@ -1253,7 +1253,7 @@ export default function ExceptionsPage() {
                 ))}
                 {(!rulesData || rulesData.rules.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-sm text-[#6B92AD]">
+                    <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
                       No custom rules configured
                     </TableCell>
                   </TableRow>

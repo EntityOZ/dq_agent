@@ -39,7 +39,7 @@ contracts, SAP sync engine, and a governance dashboard.
 - Postgres — tenants, versions, findings, golden records, match scores, glossary, stewardship, contracts, MDM metrics
 - Ollama — local LLM server (Llama 3.1 70B default, swappable)
 - MinIO — S3-compatible local file store (CSV uploads, PDF reports, staging parquet)
-- Next.js dashboard — served locally, no Vercel (27 page routes)
+- Next.js dashboard — served locally, no Vercel (27 page routes), light glassmorphism UI
 - WeasyPrint + Jinja2 — PDF generation inside Celery workers
 
 ### The only outbound calls from the customer stack
@@ -249,7 +249,9 @@ vantax/
 │   │   ├── sign-up/                 ← Clerk registration
 │   │   └── licence-error/           ← licence validation failure
 │   ├── lib/api/                     ← 18 typed fetch wrapper modules
-│   └── components/                  ← shadcn/ui + Recharts components
+│   ├── lib/format.ts               ← score/severity/passRate color utilities (light palette)
+│   ├── components/ui/              ← shadcn/ui components (light glass-themed)
+│   └── components/charts/          ← Recharts components (light-bg deepened palette)
 │
 ├── cloudflare/                      ← Cloudflare control plane (separate deploy)
 │   ├── licence-worker/
@@ -739,6 +741,13 @@ All modules include enriched rule files with column mappings.
 | N | MDM governance dashboard and AI health narrative | Done |
 | O | Sync-first navigation redesign (final UI phase) | Done |
 
+### UI redesign
+
+| Branch | Description | Status |
+|---|---|---|
+| ui/new-design | Light glassmorphism redesign — Geist font, glass cards, mesh bg, deepened palette (~48 files) | Done |
+| fixed-UI-Issues | Light glass token flip, font consistency (text-[12px]→text-xs), sidebar scroll fix, color deepening for light bg | Done |
+
 ### Integration branches (connecting features end-to-end)
 
 | Branch | Description | Status |
@@ -769,8 +778,64 @@ All modules include enriched rule files with column mappings.
   Exceptions inside a check are caught by the runner — never let them propagate.
 - Frontend: Next.js 15 App Router, TypeScript strict mode, Tailwind v4, shadcn/ui components.
   No `any` types. All API calls through typed fetch wrappers in `frontend/lib/api/`.
+- Frontend typography: **Geist** (sans) and **Geist Mono** (code) via `next/font/google`.
+  `--font-display` is aliased to `--font-sans` (both Geist). No other fonts.
+- Frontend theme: **Light glassmorphism** — see "Design system" section below.
+  Never introduce dark-mode hex colors (#0F1117 as bg, #E8ECF4 as text, etc.).
+  Use CSS custom property tokens (`--primary`, `--foreground`, etc.) or Tailwind semantic
+  classes (`text-foreground`, `bg-primary`, `border-black/[0.08]`).
 - Commit messages: `phase-N: short description` — e.g. `phase-a: cleaning engine`.
   Integration branches: `integration/pN: short description`.
+
+### Frontend design system — light glassmorphism
+
+The UI uses a light glassmorphism aesthetic (Linear/Stripe/Vercel-quality). All design tokens
+are defined in `frontend/app/globals.css` under `:root`. Key design decisions:
+
+**Base palette:**
+- Background: `#F7F8FA` with subtle gradient mesh orbs (teal, indigo, warm orange)
+- Cards: `rgba(255,255,255,0.70)` with `backdrop-filter: blur(16px)`, border `rgba(0,0,0,0.08)`
+- Primary accent: `#00D4AA` (vibrant teal-green with glow effects)
+- Foreground text: `#1A1F36`, muted: `#6B7280`, secondary: `#4A5568`
+- Destructive: `#EF4444`
+
+**Glass tokens (custom properties):**
+```css
+--glass-bg: rgba(255,255,255,0.70);
+--glass-bg-hover: rgba(255,255,255,0.85);
+--glass-border: rgba(0,0,0,0.08);
+--glass-border-hover: rgba(0,0,0,0.14);
+--glass-blur: 16px;
+```
+
+**Chart palette (deepened for light bg):**
+- Chart-1: `#00D4AA` (primary teal-green)
+- Chart-2: `#FF8C42` (warm orange)
+- Chart-3: `#16A34A` (deeper green)
+- Chart-4: `#6366F1` (deeper indigo)
+- Chart-5: `#EF4444` (deeper red)
+
+**Severity colors:** Critical `#DC2626`, High `#EA580C`, Medium `#D97706`, Low `#00D4AA`
+
+**Glass utility classes** (defined in globals.css):
+- `.vx-card` — standard glass card (blur, border, shadow, hover effect)
+- `.vx-glass` — generic glass surface
+- `.vx-glass-elevated` — popover/dialog glass (brighter, more blur)
+- `.vx-glow` — primary glow shadow
+- `.vx-glass-pill` — active nav pill (primary tint)
+- `.vx-glass-shimmer` — hover shimmer animation
+- `.vx-mesh-bg` — gradient mesh background (applied to dashboard root)
+
+**Mobile performance:** `backdrop-filter` is disabled below 768px via media query.
+Solid white fallback backgrounds are used instead.
+
+**When adding new pages or components:**
+1. Use semantic Tailwind classes (`bg-card`, `text-foreground`, `border-border`) over hardcoded hex
+2. For surfaces: `bg-white/[0.70]` with `border border-black/[0.08]`
+3. For hover states: `hover:bg-black/[0.03]` or `hover:bg-black/[0.04]`
+4. For overlays/dialogs: use `.vx-glass-elevated` pattern or `bg-[rgba(255,255,255,0.92)] backdrop-blur-2xl`
+5. Chart tooltips: glass elevated style on light bg, readable
+6. Never use dark backgrounds (#0F1117, rgba(20,22,30,*)), or the old teal (#0695A8)
 
 ### Security standards
 

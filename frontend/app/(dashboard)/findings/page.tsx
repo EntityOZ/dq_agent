@@ -125,15 +125,15 @@ function CopyButton({ text }: { text: string }) {
 function authorityClasses(authority: string): string {
   switch (authority) {
     case "sap_hard_constraint":
-      return "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]";
+      return "bg-[#DC2626]/10 text-[#DC2626] border border-[#DC2626]/20";
     case "s4hana_migration":
-      return "bg-[#CCEFF1] text-[#0695A8] border border-[#99D9E0]";
+      return "bg-primary/10 text-primary border border-primary/20";
     case "best_practice":
-      return "bg-[#DBEAFE] text-[#1D6ECC] border border-[#93C5FD]";
+      return "bg-[#2563EB]/10 text-[#2563EB] border border-[#2563EB]/20";
     case "customer_configured":
-      return "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]";
+      return "bg-[#EA580C]/10 text-[#EA580C] border border-[#EA580C]/20";
     default:
-      return "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]";
+      return "bg-white/[0.60] text-muted-foreground border border-black/[0.08]";
   }
 }
 
@@ -328,7 +328,7 @@ function FindingsContent() {
                 }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   dimensionFilter === d
-                    ? "bg-[#0695A8] text-white"
+                    ? "bg-primary text-white"
                     : "bg-accent text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -387,7 +387,7 @@ function FindingsContent() {
                   {findingsData?.findings.map((f) => (
                     <tr
                       key={f.id}
-                      className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF]"
+                      className="border-b border-black/[0.06] hover:bg-black/[0.03]"
                     >
                       <td className="px-4 py-3">
                         <Badge className={severityColor(f.severity)}>
@@ -403,7 +403,7 @@ function FindingsContent() {
                           <Tooltip>
                             <TooltipTrigger
                               render={
-                                <div className="text-xs text-[#0695A8] truncate max-w-[180px] cursor-default" />
+                                <div className="text-xs text-primary truncate max-w-[180px] cursor-default" />
                               }
                             >
                               {f.business_name}
@@ -417,7 +417,7 @@ function FindingsContent() {
                           <a
                             href={`/glossary/${f.glossary_term_id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-[12px] text-[#1D6ECC] hover:underline"
+                            className="text-xs text-[#2563EB] hover:underline"
                           >
                             View in Glossary
                           </a>
@@ -516,10 +516,10 @@ function FindingsContent() {
           }
         }}
       >
-        <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[90vw] max-w-[800px] h-[70vh] overflow-y-auto p-6 rounded-xl shadow-2xl border border-[var(--vx-border,#D6E4F0)] bg-white">
+        <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[90vw] max-w-[800px] h-[70vh] overflow-y-auto p-6 rounded-xl shadow-2xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Network className="h-5 w-5 text-[#0695A8]" />
+              <Network className="h-5 w-5 text-primary" />
               Data Lineage — {lineageFinding?.check_id}
             </DialogTitle>
           </DialogHeader>
@@ -543,11 +543,11 @@ function FindingsContent() {
         }}
       >
         <DialogContent
-          className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0 rounded-xl shadow-2xl border border-[var(--vx-border,#D6E4F0)] bg-white"
+          className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0 rounded-xl shadow-2xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl"
         >
           {selectedFinding && (
             <>
-              <DialogHeader className="px-8 pt-6 pb-4 border-b border-[var(--vx-border,#D6E4F0)] sticky top-0 bg-white z-10">
+              <DialogHeader className="px-8 pt-6 pb-4 border-b border-black/[0.08] sticky top-0 bg-white/[0.70] backdrop-blur-xl z-10">
                 <div className="flex items-center gap-3">
                   <Badge className={severityColor(selectedFinding.severity)}>
                     {selectedFinding.severity}
@@ -812,7 +812,7 @@ function FindingDetail({
                       >
                         <td
                           style={cellStyle}
-                          className="font-mono text-xs text-[var(--vx-text-tertiary,#6B92AD)]"
+                          className="font-mono text-xs text-muted-foreground"
                         >
                           {fix?.record_id ??
                             (idField
@@ -821,7 +821,7 @@ function FindingDetail({
                         </td>
                         <td
                           style={cellStyle}
-                          className="font-mono text-xs text-[var(--vx-text-tertiary,#6B92AD)]"
+                          className="font-mono text-xs text-muted-foreground"
                         >
                           {checkField ?? "—"}
                         </td>
@@ -839,13 +839,13 @@ function FindingDetail({
                             fontSize: "13px",
                             lineHeight: "1.5",
                           }}
-                          className="text-[var(--vx-text-primary,#0F2137)]"
+                          className="text-foreground"
                         >
                           <div className="space-y-1">
                             {instruction ? (
                               <p>{instruction}</p>
                             ) : (
-                              <span className="text-xs italic text-[var(--vx-text-tertiary,#6B92AD)]">
+                              <span className="text-xs italic text-muted-foreground">
                                 Check fix_map configuration for this
                                 rule
                               </span>
@@ -915,7 +915,7 @@ function FindingDetail({
       </Card>
 
       {/* ─── PANEL 3: Remediation guidance ─── */}
-      <Card className="border-[#0695A8]/30 bg-[#0695A8]/5">
+      <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Remediation guidance</CardTitle>
         </CardHeader>
@@ -926,19 +926,19 @@ function FindingDetail({
             <div className="space-y-4">
               {/* Effort estimate card */}
               {reportCtx.effort_estimate && (
-                <div className="bg-[#F0F5FA] rounded-lg p-4 border border-[var(--vx-border,#D6E4F0)]">
+                <div className="bg-white/[0.60] rounded-lg p-4 border border-black/[0.08]">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--vx-text-tertiary,#6B92AD)]">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Estimated effort
                     </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--vx-teal-dim,#CCEFF1)] text-[var(--vx-teal-bright,#0695A8)] font-medium">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                       {reportCtx.effort_estimate.fix_complexity} complexity
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-[var(--vx-teal-bright,#0695A8)]">
+                  <p className="text-2xl font-bold text-primary">
                     {reportCtx.effort_estimate.estimated_person_hours}h
                   </p>
-                  <p className="text-xs text-[var(--vx-text-secondary,#4A6B84)] mt-1">
+                  <p className="text-xs text-secondary-foreground mt-1">
                     {reportCtx.effort_estimate.estimation_basis}
                   </p>
                 </div>
@@ -946,11 +946,11 @@ function FindingDetail({
 
               {/* Fix sequence position */}
               {reportCtx.fix_sequence && (
-                <div className="border-l-[3px] border-[var(--vx-blue-bright,#1D6ECC)] pl-4 py-2">
-                  <p className="text-xs font-semibold text-[var(--vx-text-tertiary,#6B92AD)] mb-1">
+                <div className="border-l-[3px] border-[#2563EB] pl-4 py-2">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">
                     Fix priority #{reportCtx.fix_sequence.sequence}
                   </p>
-                  <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)]">
+                  <p className="text-sm text-secondary-foreground">
                     {reportCtx.fix_sequence.reason}
                   </p>
                 </div>
@@ -997,23 +997,23 @@ function FindingDetail({
             </div>
           ) : finding.remediation_text ? (
             /* Fallback: show legacy remediation_text from Phase 3 */
-            <div className="bg-[#F0F5FA] rounded-lg p-4 border border-[var(--vx-border,#D6E4F0)]">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vx-text-tertiary,#6B92AD)] mb-2">
+            <div className="bg-white/[0.60] rounded-lg p-4 border border-black/[0.08]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                 Remediation guidance
               </p>
-              <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)] leading-relaxed whitespace-pre-line">
+              <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-line">
                 {finding.remediation_text}
               </p>
             </div>
           ) : (
             /* No data at all */
             <div className="text-center py-8 space-y-3">
-              <p className="text-sm text-[var(--vx-text-secondary,#4A6B84)]">
+              <p className="text-sm text-secondary-foreground">
                 Remediation guidance is generated during analysis. This
                 finding is from a previous run that pre-dates the AI
                 remediation feature.
               </p>
-              <p className="text-xs text-[var(--vx-text-tertiary,#6B92AD)]">
+              <p className="text-xs text-muted-foreground">
                 Run a new analysis to generate effort estimates, fix
                 sequencing, and cross-finding pattern analysis.
               </p>

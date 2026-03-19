@@ -46,10 +46,10 @@ import {
 } from "recharts";
 
 const STATUS_COLOURS: Record<string, string> = {
-  draft: "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]",
-  pending_approval: "bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]",
-  active: "bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]",
-  expired: "bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]",
+  draft: "bg-white/[0.60] text-muted-foreground border border-black/[0.08]",
+  pending_approval: "bg-[#D97706]/10 text-[#EA580C] border border-[#D97706]/20",
+  active: "bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20",
+  expired: "bg-[#DC2626]/10 text-destructive border border-[#DC2626]/20",
 };
 
 const DIMENSIONS = [
@@ -76,7 +76,7 @@ function ContractTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#D6E4F0] text-left text-[#6B92AD]">
+              <tr className="border-b border-black/[0.08] text-left text-muted-foreground">
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Producer → Consumer</th>
                 <th className="px-4 py-3">Status</th>
@@ -89,14 +89,14 @@ function ContractTable({
               {contracts.map((c) => (
                 <tr
                   key={c.id}
-                  className="cursor-pointer border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF]"
+                  className="cursor-pointer border-b border-black/[0.08]/50 hover:bg-black/[0.03]"
                   onClick={() => onSelect(c)}
                 >
                   <td className="px-4 py-3 font-medium">{c.name}</td>
                   <td className="px-4 py-3">
-                    <span className="text-[#0F2137]">{c.producer}</span>
-                    <ArrowRight className="mx-1 inline h-3 w-3 text-[#6B92AD]" />
-                    <span className="text-[#0F2137]">{c.consumer}</span>
+                    <span className="text-foreground">{c.producer}</span>
+                    <ArrowRight className="mx-1 inline h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground">{c.consumer}</span>
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={STATUS_COLOURS[c.status] ?? ""}>
@@ -105,16 +105,16 @@ function ContractTable({
                   </td>
                   <td className="px-4 py-3">
                     {c.latest_compliant === true && (
-                      <CheckCircle2 className="h-5 w-5 text-[#059669]" />
+                      <CheckCircle2 className="h-5 w-5 text-[#16A34A]" />
                     )}
                     {c.latest_compliant === false && (
-                      <XCircle className="h-5 w-5 text-[#DC2626]" />
+                      <XCircle className="h-5 w-5 text-destructive" />
                     )}
                     {c.latest_compliant == null && (
-                      <span className="text-xs text-[#6B92AD]">—</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-[#6B92AD]">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
                     {c.last_checked
                       ? new Date(c.last_checked).toLocaleDateString()
                       : "Never"}
@@ -130,7 +130,7 @@ function ContractTable({
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-4 py-12 text-center text-sm text-[#6B92AD]"
+                    className="px-4 py-12 text-center text-sm text-muted-foreground"
                   >
                     No contracts yet. Create your first data contract.
                   </td>
@@ -178,8 +178,8 @@ function ContractDetail({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-[#0F2137]">{contract.name}</h2>
-          <p className="text-sm text-[#6B92AD]">
+          <h2 className="text-lg font-bold text-foreground">{contract.name}</h2>
+          <p className="text-sm text-muted-foreground">
             {contract.producer} → {contract.consumer}
           </p>
         </div>
@@ -189,7 +189,7 @@ function ContractDetail({
       </div>
 
       {contract.description && (
-        <p className="text-sm text-[#4A6B84]">{contract.description}</p>
+        <p className="text-sm text-[#6B7280]">{contract.description}</p>
       )}
 
       {/* Quality thresholds vs actuals */}
@@ -215,19 +215,19 @@ function ContractDetail({
                     key={dim}
                     className={`rounded-lg border p-3 ${
                       passing === true
-                        ? "border-[#6EE7B7] bg-[#D1FAE5]/30"
+                        ? "border-[#16A34A]/20 bg-[#16A34A]/10/30"
                         : passing === false
-                          ? "border-[#FCA5A5] bg-[#FEE2E2]/30"
-                          : "border-[#D6E4F0] bg-[#F0F5FA]"
+                          ? "border-[#DC2626]/20 bg-[#DC2626]/10/30"
+                          : "border-black/[0.08] bg-white/[0.60]"
                     }`}
                   >
-                    <p className="text-xs font-medium capitalize text-[#6B92AD]">
+                    <p className="text-xs font-medium capitalize text-muted-foreground">
                       {dim}
                     </p>
-                    <p className="text-xl font-bold text-[#0F2137]">
+                    <p className="text-xl font-bold text-foreground">
                       {actual != null ? `${Number(actual).toFixed(1)}%` : "—"}
                     </p>
-                    <p className="text-xs text-[#6B92AD]">
+                    <p className="text-xs text-muted-foreground">
                       Threshold: {threshold}%
                     </p>
                   </div>
@@ -259,21 +259,21 @@ function ContractDetail({
                 <Line
                   type="monotone"
                   dataKey="completeness"
-                  stroke="#0695A8"
+                  stroke="#00D4AA"
                   strokeWidth={2}
                   dot={{ r: 2 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="accuracy"
-                  stroke="#1D6ECC"
+                  stroke="#3B82F6"
                   strokeWidth={2}
                   dot={{ r: 2 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="consistency"
-                  stroke="#0F2137"
+                  stroke="#E2E8F0"
                   strokeWidth={2}
                   dot={{ r: 2 }}
                 />
@@ -288,7 +288,7 @@ function ContractDetail({
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="py-8 text-center text-sm text-[#6B92AD]">
+            <p className="py-8 text-center text-sm text-muted-foreground">
               No compliance data yet. Run an analysis to generate compliance
               checks.
             </p>
@@ -332,7 +332,7 @@ function ContractDetail({
                           <TableCell>
                             <Link
                               href={`/golden-records?key=${viol.object_key}`}
-                              className="underline text-[#0695A8]"
+                              className="underline text-primary"
                             >
                               {viol.object_key}
                             </Link>
@@ -351,7 +351,7 @@ function ContractDetail({
             </CardContent>
           </Card>
         ) : (
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             No golden record violations.
           </p>
         );
@@ -364,7 +364,7 @@ function ContractDetail({
             <CardTitle className="text-sm">Schema Contract</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="overflow-x-auto rounded bg-[#F0F5FA] p-3 text-xs text-[#0F2137]">
+            <pre className="overflow-x-auto rounded bg-white/[0.60] p-3 text-xs text-foreground">
               {JSON.stringify(contract.schema_contract, null, 2)}
             </pre>
           </CardContent>
@@ -436,16 +436,16 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
             key={s}
             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
               s === step
-                ? "bg-[#0695A8] text-white"
+                ? "bg-primary text-white"
                 : s < step
-                  ? "bg-[#D1FAE5] text-[#059669]"
-                  : "bg-[#F0F5FA] text-[#6B92AD]"
+                  ? "bg-[#16A34A]/10 text-[#16A34A]"
+                  : "bg-white/[0.60] text-muted-foreground"
             }`}
           >
             {s}
           </div>
         ))}
-        <span className="ml-2 text-sm text-[#6B92AD]">
+        <span className="ml-2 text-sm text-muted-foreground">
           {step === 1 && "Basic info"}
           {step === 2 && "Quality thresholds"}
           {step === 3 && "Review & save"}
@@ -455,19 +455,19 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
       {step === 1 && (
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6B92AD]">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Contract Name *
             </label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm outline-none focus:border-[#0695A8]"
+              className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-primary"
               placeholder="e.g. Business Partner SLA"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6B92AD]">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Description
             </label>
             <textarea
@@ -475,13 +475,13 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
-              className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm outline-none focus:border-[#0695A8]"
+              className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-primary"
               rows={2}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-[#6B92AD]">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Producer *
               </label>
               <input
@@ -490,12 +490,12 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, producer: e.target.value }))
                 }
-                className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm outline-none focus:border-[#0695A8]"
+                className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-primary"
                 placeholder="e.g. SAP ECC"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-[#6B92AD]">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Consumer *
               </label>
               <input
@@ -504,7 +504,7 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, consumer: e.target.value }))
                 }
-                className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm outline-none focus:border-[#0695A8]"
+                className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-primary"
                 placeholder="e.g. S/4HANA Migration"
               />
             </div>
@@ -513,7 +513,7 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
             <Button
               onClick={() => setStep(2)}
               disabled={!form.name || !form.producer || !form.consumer}
-              className="bg-[#0695A8] hover:bg-[#057A8A]"
+              className="bg-primary hover:bg-primary/80"
             >
               Next <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
@@ -523,14 +523,14 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
 
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             Set minimum DQS thresholds per dimension. Leave blank to skip a
             dimension.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {DIMENSIONS.map((dim) => (
               <div key={dim}>
-                <label className="mb-1 block text-xs font-medium capitalize text-[#6B92AD]">
+                <label className="mb-1 block text-xs font-medium capitalize text-muted-foreground">
                   {dim} (%)
                 </label>
                 <input
@@ -539,7 +539,7 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
                   max={100}
                   value={form.quality_contract[dim] ?? ""}
                   onChange={(e) => updateQuality(dim, e.target.value)}
-                  className="w-full rounded-lg border border-[#D6E4F0] px-3 py-2 text-sm outline-none focus:border-[#0695A8]"
+                  className="w-full rounded-lg border border-black/[0.08] px-3 py-2 text-sm outline-none focus:border-primary"
                   placeholder="e.g. 95"
                 />
               </div>
@@ -551,7 +551,7 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
             </Button>
             <Button
               onClick={() => setStep(3)}
-              className="bg-[#0695A8] hover:bg-[#057A8A]"
+              className="bg-primary hover:bg-primary/80"
             >
               Next <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
@@ -564,22 +564,22 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
           <Card>
             <CardContent className="py-4 space-y-2">
               <p>
-                <span className="text-xs text-[#6B92AD]">Name:</span>{" "}
+                <span className="text-xs text-muted-foreground">Name:</span>{" "}
                 <span className="font-medium">{form.name}</span>
               </p>
               <p>
-                <span className="text-xs text-[#6B92AD]">Flow:</span>{" "}
+                <span className="text-xs text-muted-foreground">Flow:</span>{" "}
                 {form.producer} → {form.consumer}
               </p>
               {form.description && (
                 <p>
-                  <span className="text-xs text-[#6B92AD]">Description:</span>{" "}
+                  <span className="text-xs text-muted-foreground">Description:</span>{" "}
                   {form.description}
                 </p>
               )}
               {Object.keys(form.quality_contract).length > 0 && (
                 <div>
-                  <span className="text-xs text-[#6B92AD]">
+                  <span className="text-xs text-muted-foreground">
                     Quality thresholds:
                   </span>
                   <div className="mt-1 flex flex-wrap gap-2">
@@ -600,7 +600,7 @@ function NewContractWizard({ onClose }: { onClose: () => void }) {
             <Button
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
-              className="bg-[#0695A8] hover:bg-[#057A8A]"
+              className="bg-primary hover:bg-primary/80"
             >
               {mutation.isPending ? "Saving..." : "Create Contract"}
             </Button>
@@ -653,7 +653,7 @@ export default function ContractsPage() {
         <h1 className="text-2xl font-bold">Data Contracts</h1>
         <Button
           onClick={() => setShowWizard(true)}
-          className="bg-[#0695A8] hover:bg-[#057A8A]"
+          className="bg-primary hover:bg-primary/80"
         >
           <Plus className="mr-1 h-4 w-4" /> New Contract
         </Button>

@@ -23,8 +23,8 @@ function StatCard({
   label,
   value,
   icon,
-  color = "text-[#0695A8]",
-  bg = "bg-[#0695A8]/10",
+  color = "text-primary",
+  bg = "bg-primary/10",
 }: {
   label: string;
   value: string | number;
@@ -41,8 +41,8 @@ function StatCard({
           <span className={color}>{icon}</span>
         </div>
         <div>
-          <p className="text-2xl font-bold text-[#0F2137]">{value}</p>
-          <p className="text-xs text-[#6B92AD]">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
         </div>
       </CardContent>
     </Card>
@@ -55,7 +55,7 @@ function HorizontalBar({
   label,
   value,
   max,
-  color = "bg-[#0695A8]",
+  color = "bg-primary",
 }: {
   label: string;
   value: number;
@@ -65,16 +65,16 @@ function HorizontalBar({
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className="w-36 shrink-0 truncate text-sm text-[#0F2137]">
+      <span className="w-36 shrink-0 truncate text-sm text-foreground">
         {label}
       </span>
-      <div className="flex-1 h-3 rounded-full bg-[#F0F5FA]">
+      <div className="flex-1 h-3 rounded-full bg-white/[0.60]">
         <div
           className={`h-3 rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-10 text-right text-sm font-medium text-[#0F2137]">
+      <span className="w-10 text-right text-sm font-medium text-foreground">
         {value}
       </span>
     </div>
@@ -116,7 +116,7 @@ export default function StewardshipMetricsPage() {
   if (isLoading || !metrics) {
     return (
       <div className="flex h-60 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[#0695A8]" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -138,14 +138,14 @@ export default function StewardshipMetricsPage() {
             Back
           </Button>
         </Link>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0695A8]/10">
-          <BarChart3 className="h-5 w-5 text-[#0695A8]" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+          <BarChart3 className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-[#0F2137]">
+          <h1 className="text-xl font-bold text-foreground">
             Stewardship Metrics
           </h1>
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             Productivity and queue health dashboard
           </p>
         </div>
@@ -157,8 +157,8 @@ export default function StewardshipMetricsPage() {
           label="Backlog"
           value={metrics.backlog_total}
           icon={<AlertTriangle className="h-5 w-5" />}
-          color="text-[#D97706]"
-          bg="bg-[#D97706]/10"
+          color="text-[#EA580C]"
+          bg="bg-[#EA580C]/10"
         />
         <StatCard
           label="SLA Compliance"
@@ -166,12 +166,12 @@ export default function StewardshipMetricsPage() {
           icon={<Clock className="h-5 w-5" />}
           color={
             metrics.sla_compliance_rate >= 0.9
-              ? "text-[#059669]"
+              ? "text-[#16A34A]"
               : "text-[#DC2626]"
           }
           bg={
             metrics.sla_compliance_rate >= 0.9
-              ? "bg-[#059669]/10"
+              ? "bg-[#16A34A]/10"
               : "bg-[#DC2626]/10"
           }
         />
@@ -179,8 +179,8 @@ export default function StewardshipMetricsPage() {
           label="Resolved"
           value={metrics.items_by_status["resolved"] ?? 0}
           icon={<CheckCircle2 className="h-5 w-5" />}
-          color="text-[#059669]"
-          bg="bg-[#059669]/10"
+          color="text-[#16A34A]"
+          bg="bg-[#16A34A]/10"
         />
         {metrics.ai_acceptance_rate !== null &&
           metrics.ai_acceptance_rate !== undefined && (
@@ -199,7 +199,7 @@ export default function StewardshipMetricsPage() {
         {/* Items by type */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
               Items by Type
             </h3>
             <div className="space-y-2">
@@ -218,7 +218,7 @@ export default function StewardshipMetricsPage() {
         {/* Items by status */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
               Items by Status
             </h3>
             <div className="space-y-2">
@@ -231,10 +231,10 @@ export default function StewardshipMetricsPage() {
                     max={statusMax}
                     color={
                       status === "resolved"
-                        ? "bg-[#059669]"
+                        ? "bg-[#16A34A]"
                         : status === "escalated"
                           ? "bg-[#DC2626]"
-                          : "bg-[#0695A8]"
+                          : "bg-primary"
                     }
                   />
                 )
@@ -246,7 +246,7 @@ export default function StewardshipMetricsPage() {
         {/* Avg resolution time */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="mb-3 text-sm font-semibold text-[#0F2137]">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
               Avg Resolution Time (hours)
             </h3>
             <div className="space-y-2">
@@ -257,13 +257,13 @@ export default function StewardshipMetricsPage() {
                     label={formatType(type)}
                     value={hours}
                     max={resMax}
-                    color="bg-[#D97706]"
+                    color="bg-[#EA580C]"
                   />
                 )
               )}
               {Object.keys(metrics.avg_resolution_hours_by_type).length ===
                 0 && (
-                <p className="text-sm text-[#6B92AD]">
+                <p className="text-sm text-muted-foreground">
                   No resolved items yet
                 </p>
               )}
@@ -276,8 +276,8 @@ export default function StewardshipMetricsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="mb-3 flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#0695A8]" />
-                <h3 className="text-sm font-semibold text-[#0F2137]">
+                <Users className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">
                   Steward Performance (30 days)
                 </h3>
               </div>
@@ -285,28 +285,28 @@ export default function StewardshipMetricsPage() {
                 {metrics.steward_breakdown.map((s) => (
                   <div
                     key={s.steward_name}
-                    className="flex items-center justify-between rounded-lg border border-[#D6E4F0] px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-black/[0.08] px-3 py-2"
                   >
                     <div>
-                      <p className="text-sm font-medium text-[#0F2137]">
+                      <p className="text-sm font-medium text-foreground">
                         {s.steward_name}
                       </p>
-                      <p className="text-[12px] text-[#6B92AD]">
+                      <p className="text-xs text-muted-foreground">
                         {s.resolved} resolved / {s.total} total
                       </p>
                     </div>
                     {s.avg_resolution_hours !== null && (
                       <div className="text-right">
-                        <p className="text-sm font-medium text-[#0F2137]">
+                        <p className="text-sm font-medium text-foreground">
                           {s.avg_resolution_hours}h
                         </p>
-                        <p className="text-[12px] text-[#6B92AD]">avg time</p>
+                        <p className="text-xs text-muted-foreground">avg time</p>
                       </div>
                     )}
                   </div>
                 ))}
                 {metrics.steward_breakdown.length === 0 && (
-                  <p className="text-sm text-[#6B92AD]">No steward data yet</p>
+                  <p className="text-sm text-muted-foreground">No steward data yet</p>
                 )}
               </div>
             </CardContent>
@@ -317,7 +317,7 @@ export default function StewardshipMetricsPage() {
         {isAiReviewer && (
           <Card>
             <CardContent className="flex h-full items-center justify-center p-4">
-              <p className="text-sm text-[#6B92AD]">
+              <p className="text-sm text-muted-foreground">
                 Individual steward metrics are not visible to the AI Reviewer
                 role.
               </p>

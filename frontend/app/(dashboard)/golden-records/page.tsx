@@ -28,38 +28,38 @@ const STATUS_CONFIG: Record<
   candidate: {
     label: "Candidate",
     icon: <Clock className="h-3.5 w-3.5" />,
-    classes: "bg-[#0695A8]/10 text-[#0695A8] border-[#0695A8]/20",
+    classes: "bg-primary/10 text-primary border-primary/20",
   },
   pending_review: {
     label: "Pending Review",
     icon: <AlertTriangle className="h-3.5 w-3.5" />,
-    classes: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
+    classes: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
   },
   golden: {
     label: "Golden",
     icon: <Crown className="h-3.5 w-3.5" />,
-    classes: "bg-[#059669]/10 text-[#059669] border-[#059669]/20",
+    classes: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
   },
   superseded: {
     label: "Superseded",
     icon: <XCircle className="h-3.5 w-3.5" />,
-    classes: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20",
+    classes: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
   },
 };
 
 function ConfidenceBar({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
   const color =
-    pct >= 85 ? "bg-[#059669]" : pct >= 60 ? "bg-[#D97706]" : "bg-[#DC2626]";
+    pct >= 85 ? "bg-[#16A34A]" : pct >= 60 ? "bg-[#EA580C]" : "bg-destructive";
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 rounded-full bg-[#F0F5FA]">
+      <div className="h-1.5 w-20 rounded-full bg-white/[0.60]">
         <div
           className={`h-1.5 rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs font-medium text-[#0F2137]">{pct}%</span>
+      <span className="text-xs font-medium text-foreground">{pct}%</span>
     </div>
   );
 }
@@ -67,7 +67,7 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
 const FALLBACK_STATUS = {
   label: "Unknown",
   icon: <Clock className="h-3.5 w-3.5" />,
-  classes: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20",
+  classes: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
 };
 
 function RecordRow({ record }: { record: MasterRecordSummary }) {
@@ -75,25 +75,25 @@ function RecordRow({ record }: { record: MasterRecordSummary }) {
 
   return (
     <Link href={`/golden-records/${record.id}`}>
-      <div className="flex items-center justify-between rounded-lg border border-[#D6E4F0] bg-white px-4 py-3 transition-colors hover:border-[#0695A8]/30 hover:bg-[#F0F5FA]/50">
+      <div className="flex items-center justify-between rounded-lg border border-black/[0.08] bg-white/[0.70] px-4 py-3 transition-colors hover:border-primary/30 hover:bg-black/[0.03]">
         <div className="flex items-center gap-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0F2137]/5">
-            <Database className="h-4 w-4 text-[#0695A8]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.65]">
+            <Database className="h-4 w-4 text-primary" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-medium text-[#0F2137]">
+              <span className="font-medium text-foreground">
                 {record.sap_object_key}
               </span>
               <Badge
                 variant="outline"
-                className={`text-[12px] gap-1 ${statusConfig.classes}`}
+                className={`text-xs gap-1 ${statusConfig.classes}`}
               >
                 {statusConfig.icon}
                 {statusConfig.label}
               </Badge>
             </div>
-            <p className="text-xs text-[#6B92AD]">
+            <p className="text-xs text-muted-foreground">
               {formatModuleName(record.domain)} &middot;{" "}
               {record.source_count} source{record.source_count !== 1 ? "s" : ""}{" "}
               &middot; Updated {relativeTime(record.updated_at)}
@@ -103,13 +103,13 @@ function RecordRow({ record }: { record: MasterRecordSummary }) {
 
         <div className="flex items-center gap-6">
           {record.pending_issues > 0 && (
-            <div className="flex items-center gap-1 text-xs text-[#D97706]">
+            <div className="flex items-center gap-1 text-xs text-[#EA580C]">
               <AlertTriangle className="h-3.5 w-3.5" />
               {record.pending_issues} AI conflict{record.pending_issues !== 1 ? "s" : ""}
             </div>
           )}
           <ConfidenceBar confidence={record.overall_confidence} />
-          <ChevronRight className="h-4 w-4 text-[#A8C5D8]" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
     </Link>
@@ -146,10 +146,10 @@ export default function GoldenRecordsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#0F2137]">
+          <h1 className="font-display text-xl font-bold text-foreground">
             Golden Records
           </h1>
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             Steward-approved authoritative master data records with field-level
             provenance
           </p>
@@ -158,36 +158,36 @@ export default function GoldenRecordsPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#059669]/10">
-              <Crown className="h-5 w-5 text-[#059669]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#16A34A]/10">
+              <Crown className="h-5 w-5 text-[#16A34A]" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0F2137]">{goldenCount}</p>
-              <p className="text-xs text-[#6B92AD]">Golden</p>
+              <p className="text-2xl font-bold text-foreground">{goldenCount}</p>
+              <p className="text-xs text-muted-foreground">Golden</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#D97706]/10">
-              <AlertTriangle className="h-5 w-5 text-[#D97706]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EA580C]/10">
+              <AlertTriangle className="h-5 w-5 text-[#EA580C]" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0F2137]">{pendingCount}</p>
-              <p className="text-xs text-[#6B92AD]">Pending Review</p>
+              <p className="text-2xl font-bold text-foreground">{pendingCount}</p>
+              <p className="text-xs text-muted-foreground">Pending Review</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0695A8]/10">
-              <CheckCircle2 className="h-5 w-5 text-[#0695A8]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0F2137]">{candidateCount}</p>
-              <p className="text-xs text-[#6B92AD]">Candidates</p>
+              <p className="text-2xl font-bold text-foreground">{candidateCount}</p>
+              <p className="text-xs text-muted-foreground">Candidates</p>
             </div>
           </CardContent>
         </Card>
@@ -195,14 +195,14 @@ export default function GoldenRecordsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <Filter className="h-4 w-4 text-[#6B92AD]" />
+        <Filter className="h-4 w-4 text-muted-foreground" />
         <select
           value={domain}
           onChange={(e) => {
             setDomain(e.target.value);
             setPage(1);
           }}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none focus:ring-1 focus:ring-[#0695A8]"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">All Domains</option>
           <option value="business_partner">Business Partner</option>
@@ -216,7 +216,7 @@ export default function GoldenRecordsPage() {
             setStatus(e.target.value);
             setPage(1);
           }}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none focus:ring-1 focus:ring-[#0695A8]"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">All Statuses</option>
           <option value="candidate">Candidate</option>
@@ -224,7 +224,7 @@ export default function GoldenRecordsPage() {
           <option value="golden">Golden</option>
           <option value="superseded">Superseded</option>
         </select>
-        <span className="ml-auto text-xs text-[#6B92AD]">
+        <span className="ml-auto text-xs text-muted-foreground">
           {total} record{total !== 1 ? "s" : ""}
         </span>
       </div>
@@ -232,16 +232,16 @@ export default function GoldenRecordsPage() {
       {/* Records list */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-[#0695A8]" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : records.length === 0 ? (
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Database className="h-12 w-12 text-[#D6E4F0]" />
-            <h3 className="mt-4 font-semibold text-[#0F2137]">
+            <Database className="h-12 w-12 text-white/[0.08]" />
+            <h3 className="mt-4 font-semibold text-foreground">
               No golden records yet
             </h3>
-            <p className="mt-1 text-sm text-[#6B92AD]">
+            <p className="mt-1 text-sm text-muted-foreground">
               Golden records are created when sync batches are processed through
               the survivorship engine
             </p>
@@ -263,11 +263,11 @@ export default function GoldenRecordsPage() {
             size="sm"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
-            className="border-[#D6E4F0] text-[#0F2137]"
+            className="border-black/[0.08] text-foreground"
           >
             Previous
           </Button>
-          <span className="text-sm text-[#6B92AD]">
+          <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages}
           </span>
           <Button
@@ -275,7 +275,7 @@ export default function GoldenRecordsPage() {
             size="sm"
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}
-            className="border-[#D6E4F0] text-[#0F2137]"
+            className="border-black/[0.08] text-foreground"
           >
             Next
           </Button>

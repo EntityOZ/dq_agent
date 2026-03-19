@@ -38,22 +38,22 @@ import Link from "next/link";
 
 function domainColor(domain: string): string {
   const colors: Record<string, string> = {
-    business_partner: "bg-[#CCEFF1] text-[#0695A8]",
-    material_master: "bg-[#DBEAFE] text-[#1D6ECC]",
-    fi_gl: "bg-[#FEF3C7] text-[#D97706]",
-    employee_central: "bg-[#E8DEF8] text-[#6A3EA1]",
+    business_partner: "bg-primary/10 text-primary",
+    material_master: "bg-[#2563EB]/10 text-[#2563EB]",
+    fi_gl: "bg-[#D97706]/10 text-[#EA580C]",
+    employee_central: "bg-[#7C3AED]/10 text-[#7C3AED]",
   };
-  return colors[domain] || "bg-[#F0F5FA] text-[#6B92AD]";
+  return colors[domain] || "bg-white/[0.60] text-muted-foreground";
 }
 
 function statusBadge(status: string) {
   switch (status) {
     case "active":
-      return <Badge className="bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]">{status}</Badge>;
+      return <Badge className="bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20">{status}</Badge>;
     case "under_review":
-      return <Badge className="bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]">under review</Badge>;
+      return <Badge className="bg-[#D97706]/10 text-[#EA580C] border border-[#D97706]/20">under review</Badge>;
     case "deprecated":
-      return <Badge className="bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]">{status}</Badge>;
+      return <Badge className="bg-[#DC2626]/10 text-destructive border border-[#DC2626]/20">{status}</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -125,7 +125,7 @@ export default function GlossaryDetailPage() {
   }
 
   if (!term) {
-    return <div className="text-[#6B92AD]">Glossary term not found.</div>;
+    return <div className="text-muted-foreground">Glossary term not found.</div>;
   }
 
   const reviewDays = daysSince(term.last_reviewed_at);
@@ -137,7 +137,7 @@ export default function GlossaryDetailPage() {
       {/* Back link */}
       <Link
         href="/glossary"
-        className="inline-flex items-center gap-1 text-sm text-[#6B92AD] hover:text-[#0695A8]"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary/80"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Glossary
       </Link>
@@ -145,16 +145,16 @@ export default function GlossaryDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0F2137] flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             {term.business_name}
-            {term.mandatory_for_s4hana && <Lock className="h-5 w-5 text-[#DC2626]" />}
+            {term.mandatory_for_s4hana && <Lock className="h-5 w-5 text-destructive" />}
           </h1>
-          <p className="text-sm text-[#6B92AD] font-mono mt-1">{term.technical_name}</p>
+          <p className="text-sm text-muted-foreground font-mono mt-1">{term.technical_name}</p>
           <div className="flex items-center gap-2 mt-2">
             <Badge className={domainColor(term.domain)}>{formatModuleName(term.domain)}</Badge>
             {statusBadge(term.status)}
             {term.ai_drafted && (
-              <Badge className="bg-[#E8DEF8] text-[#6A3EA1] border border-[#C4B5FD]">
+              <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20">
                 <Sparkles className="h-3 w-3 mr-0.5" /> AI Drafted
               </Badge>
             )}
@@ -202,7 +202,7 @@ export default function GlossaryDetailPage() {
                   </Button>
                   <Button
                     size="sm"
-                    className="bg-[#0695A8] hover:bg-[#057A8A]"
+                    className="bg-primary hover:bg-primary/80"
                     disabled={saveMutation.isPending}
                     onClick={() => saveMutation.mutate({ business_definition: editDef })}
                   >
@@ -216,17 +216,17 @@ export default function GlossaryDetailPage() {
         </CardHeader>
         <CardContent>
           <textarea
-            className="w-full min-h-[80px] p-3 border border-[#D6E4F0] rounded-md text-sm
-                       focus:outline-none focus:ring-2 focus:ring-[#0695A8]/30 focus:border-[#0695A8]
+            className="w-full min-h-[80px] p-3 border border-black/[0.08] rounded-md text-sm
+                       focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
                        resize-y"
             value={currentDef}
             onChange={(e) => setEditDef(e.target.value)}
             placeholder="No business definition yet. Click 'AI Draft' to generate one."
           />
           {term.why_it_matters && (
-            <div className="mt-3 p-3 bg-[#F0F5FA] rounded-md">
-              <span className="text-xs font-medium text-[#6B92AD] uppercase">Why it matters</span>
-              <p className="text-sm text-[#0F2137] mt-1">{term.why_it_matters}</p>
+            <div className="mt-3 p-3 bg-white/[0.60] rounded-md">
+              <span className="text-xs font-medium text-muted-foreground uppercase">Why it matters</span>
+              <p className="text-sm text-foreground mt-1">{term.why_it_matters}</p>
             </div>
           )}
         </CardContent>
@@ -239,7 +239,7 @@ export default function GlossaryDetailPage() {
             <CardTitle className="text-base">SAP Impact</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-[#0F2137]">{term.sap_impact}</p>
+            <p className="text-sm text-foreground">{term.sap_impact}</p>
           </CardContent>
         </Card>
       )}
@@ -288,7 +288,7 @@ export default function GlossaryDetailPage() {
         </CardHeader>
         <CardContent>
           {term.linked_rules.length === 0 ? (
-            <p className="text-sm text-[#6B92AD]">No rules linked to this term.</p>
+            <p className="text-sm text-muted-foreground">No rules linked to this term.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -322,7 +322,7 @@ export default function GlossaryDetailPage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs text-[#6B92AD]">No data</span>
+                        <span className="text-xs text-muted-foreground">No data</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-xs">
@@ -352,32 +352,32 @@ export default function GlossaryDetailPage() {
         {historyOpen && (
           <CardContent>
             {term.change_history.length === 0 ? (
-              <p className="text-sm text-[#6B92AD]">No changes recorded.</p>
+              <p className="text-sm text-muted-foreground">No changes recorded.</p>
             ) : (
               <div className="space-y-3">
                 {term.change_history.map((entry) => (
-                  <div key={entry.id} className="flex items-start gap-3 border-l-2 border-[#D6E4F0] pl-3">
-                    <Clock className="h-4 w-4 text-[#6B92AD] mt-0.5 flex-shrink-0" />
+                  <div key={entry.id} className="flex items-start gap-3 border-l-2 border-black/[0.08] pl-3">
+                    <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div className="text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-[#0F2137]">{entry.field_changed}</span>
-                        <span className="text-xs text-[#6B92AD]">
+                        <span className="font-medium text-foreground">{entry.field_changed}</span>
+                        <span className="text-xs text-muted-foreground">
                           by {entry.changed_by} &middot;{" "}
                           {new Date(entry.changed_at).toLocaleDateString()}
                         </span>
                       </div>
                       {entry.old_value && (
-                        <div className="text-xs text-[#6B92AD] mt-0.5">
+                        <div className="text-xs text-muted-foreground mt-0.5">
                           From: <span className="line-through">{entry.old_value.substring(0, 100)}</span>
                         </div>
                       )}
                       {entry.new_value && (
-                        <div className="text-xs text-[#0F2137] mt-0.5">
+                        <div className="text-xs text-foreground mt-0.5">
                           To: {entry.new_value.substring(0, 200)}
                         </div>
                       )}
                       {entry.change_reason && (
-                        <div className="text-xs text-[#6B92AD] mt-0.5 italic">{entry.change_reason}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5 italic">{entry.change_reason}</div>
                       )}
                     </div>
                   </div>
@@ -389,7 +389,7 @@ export default function GlossaryDetailPage() {
       </Card>
 
       {/* Review info */}
-      <div className="flex items-center justify-between text-sm text-[#6B92AD]">
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div>
           Review cycle: every {term.review_cycle_days} days
           {reviewDays !== null && (
@@ -407,21 +407,21 @@ export default function GlossaryDetailPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#6A3EA1]" />
+              <Sparkles className="h-4 w-4 text-[#7C3AED]" />
               AI Draft
             </DialogTitle>
           </DialogHeader>
           {draft && (
             <div className="space-y-4">
               <div>
-                <span className="text-xs font-medium text-[#6B92AD] uppercase">Business Definition</span>
-                <p className="text-sm text-[#0F2137] mt-1 p-3 bg-[#F0F5FA] rounded-md">
+                <span className="text-xs font-medium text-muted-foreground uppercase">Business Definition</span>
+                <p className="text-sm text-foreground mt-1 p-3 bg-white/[0.60] rounded-md">
                   {draft.business_definition}
                 </p>
               </div>
               <div>
-                <span className="text-xs font-medium text-[#6B92AD] uppercase">Why It Matters</span>
-                <p className="text-sm text-[#0F2137] mt-1 p-3 bg-[#F0F5FA] rounded-md">
+                <span className="text-xs font-medium text-muted-foreground uppercase">Why It Matters</span>
+                <p className="text-sm text-foreground mt-1 p-3 bg-white/[0.60] rounded-md">
                   {draft.why_it_matters_business}
                 </p>
               </div>
@@ -430,7 +430,7 @@ export default function GlossaryDetailPage() {
                   Discard
                 </Button>
                 <Button
-                  className="bg-[#0695A8] hover:bg-[#057A8A]"
+                  className="bg-primary hover:bg-primary/80"
                   onClick={acceptDraft}
                 >
                   Accept Draft
