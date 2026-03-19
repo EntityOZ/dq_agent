@@ -102,15 +102,15 @@ function KpiCard({
       className="vx-card flex flex-col gap-1"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <p className="text-sm text-[#6B8299]">{label}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-display text-3xl font-bold text-[#1B2A4A]">
+        <span className="font-display text-3xl font-bold text-foreground">
           {value}
         </span>
         {trend != null && (
           <span
             className={`flex items-center gap-1 text-sm font-semibold ${
-              trend >= 0 ? "text-[#10B981]" : "text-[#EF4444]"
+              trend >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"
             }`}
           >
             {trend >= 0 ? (
@@ -139,8 +139,8 @@ function SideStatRow({
 }) {
   return (
     <div className="flex items-center justify-between py-2.5">
-      <span className="text-sm text-[#6B8299]">{label}</span>
-      <span className={`font-display text-sm ${bold ? "font-bold text-[#1B2A4A]" : "font-semibold text-[#1B2A4A]"}`}>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`font-display text-sm ${bold ? "font-bold text-foreground" : "font-semibold text-foreground"}`}>
         {value}
       </span>
     </div>
@@ -222,15 +222,15 @@ export default function DashboardPage() {
   if (!latestComplete || Object.keys(mergedDqs).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-24">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#E0F4F7]">
-          <UploadIcon className="h-10 w-10 text-[#0695A8]" />
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+          <UploadIcon className="h-10 w-10 text-primary" />
         </div>
         <div className="text-center">
-          <h2 className="font-display text-xl font-semibold text-[#1B2A4A]">No analysis data yet</h2>
-          <p className="mt-2 text-[#6B8299]">Upload SAP data to get your first Data Quality Score.</p>
+          <h2 className="font-display text-xl font-semibold text-foreground">No analysis data yet</h2>
+          <p className="mt-2 text-muted-foreground">Upload SAP data to get your first Data Quality Score.</p>
         </div>
         <Link href="/upload">
-          <Button className="bg-[#0695A8] text-white hover:bg-[#057A8A] rounded-xl px-6">
+          <Button className="bg-primary text-white hover:bg-primary/80 rounded-xl px-6">
             Upload Data
           </Button>
         </Link>
@@ -344,18 +344,18 @@ export default function DashboardPage() {
         {/* Chart area — ~70% */}
         <div className="flex-1 p-6 min-w-0">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[#1B2A4A]">
+            <h3 className="text-base font-semibold text-foreground">
               DQS Over Time
             </h3>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#0695A8]" />
-                <span className="text-xs text-[#6B8299]">DQS Score</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                <span className="text-xs text-muted-foreground">DQS Score</span>
               </div>
               {canSeeMdm && mdmSparkline.length >= 2 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" />
-                  <span className="text-xs text-[#6B8299]">MDM Health</span>
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#16A34A]" />
+                  <span className="text-xs text-muted-foreground">MDM Health</span>
                 </div>
               )}
             </div>
@@ -364,7 +364,7 @@ export default function DashboardPage() {
             {barData.length >= 2 ? (
               <DqsBarChart data={barData} />
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-[#6B8299]">
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Upload data at least twice to see trends
               </div>
             )}
@@ -372,20 +372,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Side stats panel — ~30% */}
-        <div className="w-full border-t border-[#EAF0F6] p-6 lg:w-[280px] lg:border-t-0 lg:border-l">
+        <div className="w-full border-t border-black/[0.06] p-6 lg:w-[280px] lg:border-t-0 lg:border-l">
           {/* Checks Summary */}
-          <h4 className="text-sm font-semibold text-[#1B2A4A] mb-1">Quality Checks</h4>
-          <div className="divide-y divide-[#EAF0F6]">
+          <h4 className="text-sm font-semibold text-foreground mb-1">Quality Checks</h4>
+          <div className="divide-y divide-black/[0.06]">
             <SideStatRow label="Total checks" value={checks.total} bold />
             <SideStatRow label="Passing" value={checks.passing} />
             <SideStatRow label="Failing" value={checks.total - checks.passing} />
           </div>
 
-          <div className="my-4 border-t border-[#D0DBE5]" />
+          <div className="my-4 border-t border-black/[0.08]" />
 
           {/* Severity Summary */}
-          <h4 className="text-sm font-semibold text-[#1B2A4A] mb-1">Findings</h4>
-          <div className="divide-y divide-[#EAF0F6]">
+          <h4 className="text-sm font-semibold text-foreground mb-1">Findings</h4>
+          <div className="divide-y divide-black/[0.06]">
             <SideStatRow label="Critical" value={severityCounts.critical} />
             <SideStatRow label="High" value={severityCounts.high} />
             <SideStatRow label="Medium" value={severityCounts.medium} />
@@ -394,7 +394,7 @@ export default function DashboardPage() {
 
           <Link
             href="/findings"
-            className="mt-4 flex items-center gap-1 text-sm font-medium text-[#0695A8] hover:text-[#057A8A] transition-colors"
+            className="mt-4 flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
             See full report <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -411,7 +411,7 @@ export default function DashboardPage() {
           style={{ animationDelay: "300ms" }}
         >
           <div className="mb-4 flex w-full items-center justify-between">
-            <h3 className="text-base font-semibold text-[#1B2A4A]">
+            <h3 className="text-base font-semibold text-foreground">
               Health by Dimension
             </h3>
           </div>
@@ -424,12 +424,12 @@ export default function DashboardPage() {
           style={{ animationDelay: "360ms" }}
         >
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[#1B2A4A]">
+            <h3 className="text-base font-semibold text-foreground">
               Top Modules
             </h3>
             <Link
               href="/findings"
-              className="text-xs font-medium text-[#0695A8] hover:text-[#057A8A] transition-colors"
+              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
               View all
             </Link>
@@ -439,7 +439,7 @@ export default function DashboardPage() {
               <Link
                 key={m.name}
                 href={`/findings?module=${m.name}&version_id=${moduleVersionMap[m.name] ?? latestComplete.id}`}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-[#F3F7FB] group"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-black/[0.03] group"
               >
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-lg font-display text-xs font-bold text-white"
@@ -447,7 +447,7 @@ export default function DashboardPage() {
                 >
                   {i + 1}
                 </span>
-                <span className="flex-1 text-sm text-[#1B2A4A] group-hover:text-[#0695A8] transition-colors">
+                <span className="flex-1 text-sm text-foreground group-hover:text-primary transition-colors">
                   {formatModuleName(m.name)}
                 </span>
                 <span className="font-display text-sm font-bold" style={{ color: scoreColor(m.score) }}>
@@ -464,12 +464,12 @@ export default function DashboardPage() {
           style={{ animationDelay: "420ms" }}
         >
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[#1B2A4A]">
+            <h3 className="text-base font-semibold text-foreground">
               Findings by Severity
             </h3>
             <Link
               href="/findings"
-              className="text-xs font-medium text-[#0695A8] hover:text-[#057A8A] transition-colors"
+              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
               Details
             </Link>
@@ -491,16 +491,16 @@ export default function DashboardPage() {
             style={{ animationDelay: "460ms" }}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-[#1B2A4A]">
+              <h3 className="text-base font-semibold text-foreground">
                 MDM Metrics
               </h3>
               {mdmSparkline.length >= 2 && (
-                <Badge variant="outline" className="text-[12px] font-medium text-[#6B8299] border-[#D0DBE5]">
+                <Badge variant="outline" className="text-xs font-medium text-muted-foreground border-black/[0.08]">
                   {mdmTrend.length} snapshots
                 </Badge>
               )}
             </div>
-            <div className="divide-y divide-[#EAF0F6]">
+            <div className="divide-y divide-black/[0.06]">
               <SideStatRow
                 label="Golden Coverage"
                 value={`${(mdmLatest.golden_record_coverage_pct * 100).toFixed(0)}%`}
@@ -524,7 +524,7 @@ export default function DashboardPage() {
             </div>
             {mdmSparkline.length >= 2 && (
               <div className="mt-4">
-                <p className="mb-1 text-[13px] font-medium text-[#6B8299]">Health Trend</p>
+                <p className="mb-1 text-[13px] font-medium text-muted-foreground">Health Trend</p>
                 <DqsSparkline data={mdmSparkline} color="#0695A8" height={36} />
               </div>
             )}
@@ -537,10 +537,10 @@ export default function DashboardPage() {
           style={{ animationDelay: "500ms" }}
         >
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[#1B2A4A]">
+            <h3 className="text-base font-semibold text-foreground">
               Module Health
             </h3>
-            <span className="text-xs text-[#6B8299]">
+            <span className="text-xs text-muted-foreground">
               Last analysed: {relativeTime(latestComplete.run_at)}
             </span>
           </div>
@@ -549,14 +549,14 @@ export default function DashboardPage() {
               <Link
                 key={m.name}
                 href={`/findings?module=${m.name}&version_id=${moduleVersionMap[m.name] ?? latestComplete.id}`}
-                className="group rounded-xl border border-[#EAF0F6] bg-[#FAFBFC] p-3.5 transition-all hover:border-[#0695A8]/20 hover:bg-[#E0F4F7]/50 hover:shadow-sm"
+                className="group rounded-xl border border-black/[0.06] bg-white/[0.60] p-3.5 transition-all hover:border-primary/20 hover:bg-primary/10 hover:shadow-sm"
               >
-                <p className="text-xs text-[#6B8299] truncate">{formatModuleName(m.name)}</p>
+                <p className="text-xs text-muted-foreground truncate">{formatModuleName(m.name)}</p>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="font-display text-xl font-bold" style={{ color: scoreColor(m.score) }}>
                     {m.score.toFixed(1)}
                   </span>
-                  <div className="h-1.5 flex-1 rounded-full bg-[#D0DBE5] overflow-hidden">
+                  <div className="h-1.5 flex-1 rounded-full bg-black/[0.05] overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
@@ -577,17 +577,17 @@ export default function DashboardPage() {
           ═══════════════════════════════════════════════════════════════ */}
       {canSeeAiPanel && mdmLatest?.ai_narrative && (
         <div
-          className="vx-card overflow-hidden border-l-[3px] border-l-[#8B5CF6]"
+          className="vx-card overflow-hidden border-l-[3px] border-l-[#7C3AED]"
           style={{ animationDelay: "540ms" }}
         >
           <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#8B5CF6]/10">
-              <Sparkles className="h-3.5 w-3.5 text-[#8B5CF6]" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7C3AED]/10">
+              <Sparkles className="h-3.5 w-3.5 text-[#7C3AED]" />
             </div>
-            <h3 className="text-base font-semibold text-[#8B5CF6]">
+            <h3 className="text-base font-semibold text-[#7C3AED]">
               AI Health Insights
             </h3>
-            <Badge className="ml-auto bg-[#8B5CF6]/10 text-[#8B5CF6] text-[12px] border-0 font-medium">
+            <Badge className="ml-auto bg-[#7C3AED]/10 text-[#7C3AED] text-xs border-0 font-medium">
               Weekly Analysis
             </Badge>
           </div>
@@ -595,7 +595,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             {/* Narrative text */}
             <div className="lg:col-span-8">
-              <p className="text-sm leading-relaxed text-[#3D5068] whitespace-pre-line">
+              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
                 {mdmLatest.ai_narrative}
               </p>
             </div>
@@ -603,8 +603,8 @@ export default function DashboardPage() {
             {/* Projected Score + Risk Flags */}
             <div className="lg:col-span-4 flex flex-col gap-4">
               {mdmLatest.ai_projected_score != null && (
-                <div className="rounded-xl bg-[#F3F7FB] p-4">
-                  <h4 className="mb-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#6B8299]">
+                <div className="rounded-xl bg-white/[0.60] p-4">
+                  <h4 className="mb-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     Projected Score (4 weeks)
                   </h4>
                   <div className="flex items-baseline gap-2">
@@ -614,12 +614,12 @@ export default function DashboardPage() {
                     >
                       {mdmLatest.ai_projected_score.toFixed(1)}
                     </span>
-                    <span className="text-sm text-[#6B8299]">/100</span>
+                    <span className="text-sm text-muted-foreground">/100</span>
                     {(() => {
                       const projDelta = mdmLatest.ai_projected_score - mdmLatest.mdm_health_score;
                       if (Math.abs(projDelta) < 0.1) return null;
                       return (
-                        <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${projDelta >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
+                        <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${projDelta >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
                           {projDelta >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                           {projDelta >= 0 ? "+" : ""}{projDelta.toFixed(1)}
                         </span>
@@ -630,7 +630,7 @@ export default function DashboardPage() {
                     <div className="mt-3">
                       <DqsSparkline
                         data={[...mdmSparkline, { score: mdmLatest.ai_projected_score }]}
-                        color="#8B5CF6"
+                        color="#7C3AED"
                         height={32}
                       />
                     </div>
@@ -639,15 +639,15 @@ export default function DashboardPage() {
               )}
 
               {mdmLatest.ai_risk_flags && mdmLatest.ai_risk_flags.length > 0 && (
-                <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
-                  <h4 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#EF4444]">
+                <div className="rounded-xl border border-[#DC2626]/20 bg-[#DC2626]/10 p-4">
+                  <h4 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#DC2626]">
                     <AlertCircle className="h-3.5 w-3.5" />
                     Risk Flags
                   </h4>
                   <ul className="space-y-1.5">
                     {mdmLatest.ai_risk_flags.map((flag, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-[#991B1B]">
-                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#EF4444]" />
+                      <li key={i} className="flex items-start gap-2 text-xs text-[#DC2626]">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#DC2626]" />
                         {flag}
                       </li>
                     ))}

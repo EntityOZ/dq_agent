@@ -14,7 +14,7 @@ interface DqsSparklineProps {
 
 export function DqsSparkline({
   data,
-  color = "#0695A8",
+  color = "#00D4AA",
   height = 48,
 }: DqsSparklineProps) {
   if (data.length < 2) return null;

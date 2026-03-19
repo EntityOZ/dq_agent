@@ -52,18 +52,18 @@ function ConfidenceBar({
 }) {
   const pct = Math.round(confidence * 100);
   const color =
-    pct >= 85 ? "bg-[#059669]" : pct >= 60 ? "bg-[#D97706]" : "bg-[#DC2626]";
+    pct >= 85 ? "bg-[#16A34A]" : pct >= 60 ? "bg-[#EA580C]" : "bg-destructive";
   const height = size === "sm" ? "h-1" : "h-2";
   const width = size === "sm" ? "w-16" : "w-24";
   return (
     <div className="flex items-center gap-2">
-      <div className={`${height} ${width} rounded-full bg-[#F0F5FA]`}>
+      <div className={`${height} ${width} rounded-full bg-white/[0.60]`}>
         <div
           className={`${height} rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs font-medium text-[#0F2137]">{pct}%</span>
+      <span className="text-xs font-medium text-foreground">{pct}%</span>
     </div>
   );
 }
@@ -85,27 +85,27 @@ function FieldRow({
   const hasAi = showAi && contribution?.ai_recommendation;
 
   return (
-    <div className="border-b border-[#F0F5FA] last:border-0">
+    <div className="border-b border-black/[0.06] last:border-0">
       <div
-        className={`flex items-center justify-between px-4 py-3 ${hasAi ? "cursor-pointer hover:bg-[#F0F5FA]/50" : ""}`}
+        className={`flex items-center justify-between px-4 py-3 ${hasAi ? "cursor-pointer hover:bg-black/[0.03]" : ""}`}
         onClick={() => hasAi && setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
           {hasAi && (
             expanded ? (
-              <ChevronUp className="h-3.5 w-3.5 text-[#D97706]" />
+              <ChevronUp className="h-3.5 w-3.5 text-[#EA580C]" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 text-[#D97706]" />
+              <ChevronDown className="h-3.5 w-3.5 text-[#EA580C]" />
             )
           )}
           <div>
-            <span className="text-sm font-medium text-[#0F2137]">
+            <span className="text-sm font-medium text-foreground">
               {businessName || fieldName}
             </span>
             {businessName && (
-              <span className="block text-[12px] font-mono text-[#6B92AD]">{fieldName}</span>
+              <span className="block text-xs font-mono text-muted-foreground">{fieldName}</span>
             )}
-            <p className="text-xs text-[#6B92AD]">
+            <p className="text-xs text-muted-foreground">
               {contribution
                 ? `From ${contribution.source_system} · ${relativeTime(contribution.extracted_at)}`
                 : "No source"}
@@ -113,7 +113,7 @@ function FieldRow({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="font-mono text-sm text-[#0F2137]">
+          <span className="font-mono text-sm text-foreground">
             {String(goldenValue ?? "—")}
           </span>
           {contribution && (
@@ -122,7 +122,7 @@ function FieldRow({
           {hasAi && (
             <Badge
               variant="outline"
-              className="gap-1 bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20 text-[12px]"
+              className="gap-1 bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20 text-xs"
             >
               <Brain className="h-3 w-3" />
               AI
@@ -133,23 +133,23 @@ function FieldRow({
 
       {/* AI recommendation panel */}
       {expanded && hasAi && contribution && (
-        <div className="mx-4 mb-3 rounded-lg border border-[#D97706]/20 bg-[#D97706]/5 p-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-[#D97706]">
+        <div className="mx-4 mb-3 rounded-lg border border-[#EA580C]/20 bg-[#EA580C]/5 p-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-[#EA580C]">
             <Brain className="h-3.5 w-3.5" />
             AI Recommendation
           </div>
-          <div className="mt-2 space-y-1 text-xs text-[#0F2137]">
+          <div className="mt-2 space-y-1 text-xs text-foreground">
             <p>
-              <span className="text-[#6B92AD]">Recommended source:</span>{" "}
+              <span className="text-muted-foreground">Recommended source:</span>{" "}
               {contribution.ai_recommendation}
             </p>
             <p>
-              <span className="text-[#6B92AD]">AI confidence:</span>{" "}
+              <span className="text-muted-foreground">AI confidence:</span>{" "}
               {Math.round((contribution.ai_confidence ?? 0) * 100)}%
             </p>
             {contribution.ai_reasoning && (
               <p>
-                <span className="text-[#6B92AD]">Reasoning:</span>{" "}
+                <span className="text-muted-foreground">Reasoning:</span>{" "}
                 {contribution.ai_reasoning}
               </p>
             )}
@@ -169,14 +169,14 @@ function HistoryPanel({ recordId }: { recordId: string }) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-[#0695A8]" />
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!history || history.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-[#6B92AD]">
+      <p className="py-4 text-center text-sm text-muted-foreground">
         No history entries
       </p>
     );
@@ -193,24 +193,24 @@ function HistoryPanel({ recordId }: { recordId: string }) {
       {history.map((entry: MasterRecordHistoryEntry) => (
         <div
           key={entry.id}
-          className="flex items-start gap-3 rounded-lg border border-[#F0F5FA] px-3 py-2"
+          className="flex items-start gap-3 rounded-lg border border-black/[0.06] px-3 py-2"
         >
-          <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#F0F5FA]">
+          <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.60]">
             {entry.change_type === "promoted" ? (
-              <Crown className="h-3 w-3 text-[#059669]" />
+              <Crown className="h-3 w-3 text-[#16A34A]" />
             ) : (
-              <Clock className="h-3 w-3 text-[#6B92AD]" />
+              <Clock className="h-3 w-3 text-muted-foreground" />
             )}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#0F2137]">
+              <span className="text-sm font-medium text-foreground">
                 {changeTypeLabels[entry.change_type] ?? entry.change_type}
               </span>
               {entry.ai_was_involved && (
                 <Badge
                   variant="outline"
-                  className="gap-1 text-[12px] bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20"
+                  className="gap-1 text-xs bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20"
                 >
                   <Brain className="h-2.5 w-2.5" />
                   AI involved
@@ -219,17 +219,17 @@ function HistoryPanel({ recordId }: { recordId: string }) {
               {entry.ai_recommendation_accepted !== null && (
                 <Badge
                   variant="outline"
-                  className={`text-[12px] ${
+                  className={`text-xs ${
                     entry.ai_recommendation_accepted
-                      ? "bg-[#059669]/10 text-[#059669] border-[#059669]/20"
-                      : "bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20"
+                      ? "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
                   }`}
                 >
                   AI {entry.ai_recommendation_accepted ? "accepted" : "rejected"}
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-[#6B92AD]">
+            <p className="text-xs text-muted-foreground">
               {relativeTime(entry.changed_at)}
               {entry.changed_by && ` · by ${entry.changed_by}`}
             </p>
@@ -255,7 +255,7 @@ function RelationshipsPanel({
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-[#0695A8]" />
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
       </div>
     );
   }
@@ -264,7 +264,7 @@ function RelationshipsPanel({
 
   if (relationships.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-[#6B92AD]">
+      <p className="py-4 text-center text-sm text-muted-foreground">
         No cross-domain relationships found
       </p>
     );
@@ -285,8 +285,8 @@ function RelationshipsPanel({
               key={rel.id}
               className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
                 rel.ai_inferred
-                  ? "border-dashed border-[#2563EB]/30 bg-[#2563EB]/5"
-                  : "border-[#F0F5FA]"
+                  ? "border-dashed border-[#3B82F6]/30 bg-[#2563EB]/5"
+                  : "border-black/[0.06]"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -296,11 +296,11 @@ function RelationshipsPanel({
                 <div>
                   <Link
                     href={`/golden-records?domain=${otherDomain}`}
-                    className="text-sm font-medium text-[#0F2137] hover:text-[#0695A8]"
+                    className="text-sm font-medium text-foreground hover:text-primary/80"
                   >
                     {formatModuleName(otherDomain)} / {otherKey}
                   </Link>
-                  <p className="text-xs text-[#6B92AD]">
+                  <p className="text-xs text-muted-foreground">
                     {rel.relationship_type.replace(/_/g, " ")}
                     {rel.sap_link_table && ` · via ${rel.sap_link_table}`}
                   </p>
@@ -310,19 +310,19 @@ function RelationshipsPanel({
               <div className="flex items-center gap-2">
                 {impactPct !== null && (
                   <div className="flex items-center gap-1">
-                    <div className="h-1.5 w-12 rounded-full bg-[#F0F5FA]">
+                    <div className="h-1.5 w-12 rounded-full bg-white/[0.60]">
                       <div
                         className={`h-1.5 rounded-full ${
                           impactPct >= 70
-                            ? "bg-[#DC2626]"
+                            ? "bg-destructive"
                             : impactPct >= 40
-                              ? "bg-[#D97706]"
-                              : "bg-[#059669]"
+                              ? "bg-[#EA580C]"
+                              : "bg-[#16A34A]"
                         }`}
                         style={{ width: `${impactPct}%` }}
                       />
                     </div>
-                    <span className="text-[12px] font-medium text-[#0F2137]">
+                    <span className="text-xs font-medium text-foreground">
                       {impactPct}%
                     </span>
                   </div>
@@ -332,7 +332,7 @@ function RelationshipsPanel({
                     <TooltipTrigger>
                       <Badge
                         variant="outline"
-                        className="gap-1 bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20 text-[12px]"
+                        className="gap-1 bg-[#2563EB]/10 text-[#2563EB] border-[#3B82F6]/20 text-xs"
                       >
                         <Brain className="h-2.5 w-2.5" />
                         Probable
@@ -393,7 +393,7 @@ export default function GoldenRecordDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-[#0695A8]" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -401,7 +401,7 @@ export default function GoldenRecordDetailPage() {
   if (!record) {
     return (
       <div className="py-20 text-center">
-        <p className="text-[#6B92AD]">Record not found</p>
+        <p className="text-muted-foreground">Record not found</p>
       </div>
     );
   }
@@ -426,10 +426,10 @@ export default function GoldenRecordDetailPage() {
   });
 
   const statusClasses: Record<string, string> = {
-    candidate: "bg-[#0695A8]/10 text-[#0695A8] border-[#0695A8]/20",
-    pending_review: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
-    golden: "bg-[#059669]/10 text-[#059669] border-[#059669]/20",
-    superseded: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20",
+    candidate: "bg-primary/10 text-primary border-primary/20",
+    pending_review: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
+    golden: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
+    superseded: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
   };
 
   return (
@@ -437,7 +437,7 @@ export default function GoldenRecordDetailPage() {
       {/* Back nav */}
       <Link
         href="/golden-records"
-        className="inline-flex items-center gap-1 text-sm text-[#6B92AD] hover:text-[#0695A8]"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary/80"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Golden Records
@@ -447,7 +447,7 @@ export default function GoldenRecordDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-xl font-bold text-[#0F2137]">
+            <h1 className="font-display text-xl font-bold text-foreground">
               {record.sap_object_key}
             </h1>
             <Badge
@@ -458,7 +458,7 @@ export default function GoldenRecordDetailPage() {
               {record.status.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-[#6B92AD]">
+          <p className="mt-1 text-sm text-muted-foreground">
             {formatModuleName(record.domain)} &middot; {sources.size} source
             system{sources.size !== 1 ? "s" : ""}: {Array.from(sources).join(", ")}
           </p>
@@ -469,7 +469,7 @@ export default function GoldenRecordDetailPage() {
             <Button
               onClick={() => promoteMutation.mutate()}
               disabled={promoteMutation.isPending}
-              className="gap-2 bg-[#059669] hover:bg-[#047857] text-white"
+              className="gap-2 bg-[#16A34A] hover:bg-[#16A34A]/80 text-white"
             >
               {promoteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -484,7 +484,7 @@ export default function GoldenRecordDetailPage() {
               onClick={() => writebackMutation.mutate()}
               disabled={writebackMutation.isPending}
               variant="outline"
-              className="gap-2 border-[#0695A8] text-[#0695A8] hover:bg-[#0695A8]/5"
+              className="gap-2 border-primary text-primary hover:bg-primary/5"
             >
               {writebackMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -498,21 +498,21 @@ export default function GoldenRecordDetailPage() {
       </div>
 
       {/* Confidence overview */}
-      <Card className="border-[#D6E4F0] bg-white">
+      <Card className="border-black/[0.08] bg-white/[0.70]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-[#6B92AD]">
+              <p className="text-xs font-medium text-muted-foreground">
                 Overall Confidence
               </p>
-              <p className="text-3xl font-bold text-[#0F2137]">
+              <p className="text-3xl font-bold text-foreground">
                 {Math.round(record.overall_confidence * 100)}%
               </p>
             </div>
             <ConfidenceBar confidence={record.overall_confidence} />
           </div>
           {record.promoted_at && (
-            <p className="mt-2 text-xs text-[#6B92AD]">
+            <p className="mt-2 text-xs text-muted-foreground">
               Promoted {relativeTime(record.promoted_at)}
             </p>
           )}
@@ -521,8 +521,8 @@ export default function GoldenRecordDetailPage() {
 
       {/* Writeback success message */}
       {writebackMutation.isSuccess && writebackMutation.data && (
-        <Card className="border-[#059669]/20 bg-[#059669]/5">
-          <CardContent className="p-4 text-sm text-[#059669]">
+        <Card className="border-[#16A34A]/20 bg-[#16A34A]/5">
+          <CardContent className="p-4 text-sm text-[#16A34A]">
             <CheckCircle2 className="mb-1 inline h-4 w-4" />{" "}
             {writebackMutation.data.message}
           </CardContent>
@@ -530,21 +530,21 @@ export default function GoldenRecordDetailPage() {
       )}
 
       {/* Field-level detail */}
-      <Card className="border-[#D6E4F0] bg-white">
+      <Card className="border-black/[0.08] bg-white/[0.70]">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between border-b border-[#F0F5FA] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[#0F2137]">
+          <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">
               Field Values ({fieldNames.length})
             </h2>
             {hasAiFields && (
-              <div className="flex items-center gap-1 text-xs text-[#D97706]">
+              <div className="flex items-center gap-1 text-xs text-[#EA580C]">
                 <Brain className="h-3.5 w-3.5" />
                 AI recommendations available — click to expand
               </div>
             )}
           </div>
           {fieldNames.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-[#6B92AD]">
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
               No fields yet
             </p>
           ) : (
@@ -563,26 +563,26 @@ export default function GoldenRecordDetailPage() {
       </Card>
 
       {/* Relationships tab */}
-      <Card className="border-[#D6E4F0] bg-white">
+      <Card className="border-black/[0.08] bg-white/[0.70]">
         <CardContent className="p-0">
           <button
             onClick={() => setShowRelationships(!showRelationships)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#F0F5FA]/50"
+            className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-black/[0.03]"
           >
             <div className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-[#2563EB]" />
-              <span className="text-sm font-semibold text-[#0F2137]">
+              <span className="text-sm font-semibold text-foreground">
                 Relationships
               </span>
             </div>
             {showRelationships ? (
-              <ChevronUp className="h-4 w-4 text-[#6B92AD]" />
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-[#6B92AD]" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
           {showRelationships && (
-            <div className="border-t border-[#F0F5FA] px-4 py-3">
+            <div className="border-t border-black/[0.06] px-4 py-3">
               <RelationshipsPanel
                 domain={record.domain}
                 objectKey={record.sap_object_key}
@@ -593,26 +593,26 @@ export default function GoldenRecordDetailPage() {
       </Card>
 
       {/* History toggle */}
-      <Card className="border-[#D6E4F0] bg-white">
+      <Card className="border-black/[0.08] bg-white/[0.70]">
         <CardContent className="p-0">
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#F0F5FA]/50"
+            className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-black/[0.03]"
           >
             <div className="flex items-center gap-2">
-              <History className="h-4 w-4 text-[#6B92AD]" />
-              <span className="text-sm font-semibold text-[#0F2137]">
+              <History className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
                 Audit History
               </span>
             </div>
             {showHistory ? (
-              <ChevronUp className="h-4 w-4 text-[#6B92AD]" />
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-[#6B92AD]" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
           {showHistory && (
-            <div className="border-t border-[#F0F5FA] px-4 py-3">
+            <div className="border-t border-black/[0.06] px-4 py-3">
               <HistoryPanel recordId={recordId} />
             </div>
           )}

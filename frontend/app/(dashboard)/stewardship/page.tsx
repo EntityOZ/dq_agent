@@ -58,7 +58,7 @@ const ITEM_TYPE_CONFIG: Record<
   golden_record_review: {
     label: "Golden Record",
     icon: <Crown className="h-3.5 w-3.5" />,
-    color: "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20",
+    color: "bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20",
   },
   exception: {
     label: "Exception",
@@ -68,7 +68,7 @@ const ITEM_TYPE_CONFIG: Record<
   writeback_approval: {
     label: "Writeback",
     icon: <FileCheck2 className="h-3.5 w-3.5" />,
-    color: "bg-[#0695A8]/10 text-[#0695A8] border-[#0695A8]/20",
+    color: "bg-primary/10 text-primary border-primary/20",
   },
   contract_breach: {
     label: "Contract Breach",
@@ -78,16 +78,16 @@ const ITEM_TYPE_CONFIG: Record<
   glossary_review: {
     label: "Glossary Review",
     icon: <BookOpen className="h-3.5 w-3.5" />,
-    color: "bg-[#059669]/10 text-[#059669] border-[#059669]/20",
+    color: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
   },
 };
 
 const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
   1: { label: "Critical", color: "bg-[#DC2626]/10 text-[#DC2626]" },
-  2: { label: "High", color: "bg-[#D97706]/10 text-[#D97706]" },
-  3: { label: "Medium", color: "bg-[#0695A8]/10 text-[#0695A8]" },
-  4: { label: "Low", color: "bg-[#059669]/10 text-[#059669]" },
-  5: { label: "Info", color: "bg-[#6B92AD]/10 text-[#6B92AD]" },
+  2: { label: "High", color: "bg-[#EA580C]/10 text-[#EA580C]" },
+  3: { label: "Medium", color: "bg-primary/10 text-primary" },
+  4: { label: "Low", color: "bg-[#16A34A]/10 text-[#16A34A]" },
+  5: { label: "Info", color: "bg-white/[0.65] text-muted-foreground" },
 };
 
 const STATUS_FILTERS: StewardshipStatus[] = [
@@ -102,16 +102,16 @@ const STATUS_FILTERS: StewardshipStatus[] = [
 function ConfidenceBar({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
   const color =
-    pct >= 85 ? "bg-[#059669]" : pct >= 60 ? "bg-[#D97706]" : "bg-[#DC2626]";
+    pct >= 85 ? "bg-[#16A34A]" : pct >= 60 ? "bg-[#EA580C]" : "bg-[#DC2626]";
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 rounded-full bg-[#F0F5FA]">
+      <div className="h-1.5 w-24 rounded-full bg-white/[0.60]">
         <div
           className={`h-1.5 rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs font-medium text-[#0F2137]">{pct}%</span>
+      <span className="text-xs font-medium text-foreground">{pct}%</span>
     </div>
   );
 }
@@ -139,11 +139,11 @@ function OverrideModal({
         </DialogHeader>
         <div className="space-y-3">
           {item?.ai_recommendation && (
-            <div className="rounded-lg bg-[#F0F5FA] p-3">
-              <p className="text-xs font-medium text-[#6B92AD]">
+            <div className="rounded-lg bg-white/[0.60] p-3">
+              <p className="text-xs font-medium text-muted-foreground">
                 AI Recommendation
               </p>
-              <p className="mt-1 text-sm text-[#0F2137]">
+              <p className="mt-1 text-sm text-foreground">
                 {item.ai_recommendation}
               </p>
             </div>
@@ -185,37 +185,37 @@ function QueueRow({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20" };
+  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-white/[0.65] text-muted-foreground border-black/[0.08]" };
   const priorityConfig = PRIORITY_LABELS[item.priority] ?? PRIORITY_LABELS[3];
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`flex w-full items-center gap-3 border-b border-[#F0F5FA] px-4 py-3 text-left transition-colors hover:bg-[#F0F5FA]/50 ${
-        selected ? "bg-[#0695A8]/5 border-l-2 border-l-[#0695A8]" : ""
+      className={`flex w-full items-center gap-3 border-b border-black/[0.04] px-4 py-3 text-left transition-colors hover:bg-black/[0.03] ${
+        selected ? "bg-primary/5 border-l-2 border-l-primary" : ""
       }`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className={`text-[12px] ${typeConfig.color}`}
+            className={`text-xs ${typeConfig.color}`}
           >
             {typeConfig.icon}
             <span className="ml-1">{typeConfig.label}</span>
           </Badge>
           <Badge
             variant="outline"
-            className={`text-[12px] ${priorityConfig.color}`}
+            className={`text-xs ${priorityConfig.color}`}
           >
             P{item.priority}
           </Badge>
         </div>
-        <p className="mt-1 truncate text-sm font-medium text-[#0F2137]">
+        <p className="mt-1 truncate text-sm font-medium text-foreground">
           {item.domain}
         </p>
-        <div className="mt-0.5 flex items-center gap-2 text-[12px] text-[#6B92AD]">
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           <span>{relativeTime(item.created_at)}</span>
           {item.due_at && (
             <span>
@@ -229,7 +229,7 @@ function QueueRow({
           <ConfidenceBar confidence={item.ai_confidence} />
         </div>
       )}
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#6B92AD]" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
 }
@@ -253,7 +253,7 @@ function ActionPanel({
   isResolving: boolean;
   userRole: string;
 }) {
-  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-[#6B92AD]/10 text-[#6B92AD] border-[#6B92AD]/20" };
+  const typeConfig = ITEM_TYPE_CONFIG[item.item_type] ?? { label: item.item_type, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "bg-white/[0.65] text-muted-foreground border-black/[0.08]" };
   const isAiReviewer = userRole === "ai_reviewer";
   const canApprove = !isAiReviewer && item.status !== "resolved";
 
@@ -265,7 +265,7 @@ function ActionPanel({
           {typeConfig.icon}
           <span className="ml-1">{typeConfig.label}</span>
         </Badge>
-        <span className="text-sm font-medium text-[#0F2137]">
+        <span className="text-sm font-medium text-foreground">
           {item.domain}
         </span>
       </div>
@@ -273,36 +273,36 @@ function ActionPanel({
       {/* Details */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <p className="text-xs text-[#6B92AD]">Priority</p>
-          <p className="font-medium text-[#0F2137]">
+          <p className="text-xs text-muted-foreground">Priority</p>
+          <p className="font-medium text-foreground">
             P{item.priority} —{" "}
             {PRIORITY_LABELS[item.priority]?.label ?? "Normal"}
           </p>
         </div>
         <div>
-          <p className="text-xs text-[#6B92AD]">Status</p>
-          <p className="font-medium text-[#0F2137] capitalize">{item.status}</p>
+          <p className="text-xs text-muted-foreground">Status</p>
+          <p className="font-medium text-foreground capitalize">{item.status}</p>
         </div>
         <div>
-          <p className="text-xs text-[#6B92AD]">Created</p>
-          <p className="font-medium text-[#0F2137]">
+          <p className="text-xs text-muted-foreground">Created</p>
+          <p className="font-medium text-foreground">
             {relativeTime(item.created_at)}
           </p>
         </div>
         {item.sla_hours && (
           <div>
-            <p className="text-xs text-[#6B92AD]">SLA</p>
-            <p className="font-medium text-[#0F2137]">{item.sla_hours}h</p>
+            <p className="text-xs text-muted-foreground">SLA</p>
+            <p className="font-medium text-foreground">{item.sla_hours}h</p>
           </div>
         )}
       </div>
 
       {/* AI Recommendation panel */}
       {item.ai_recommendation && (
-        <div className="rounded-lg border border-[#D6E4F0] bg-[#F0F5FA] p-3">
+        <div className="rounded-lg border border-black/[0.08] bg-white/[0.60] p-3">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-[#7C3AED]" />
-            <span className="text-xs font-semibold text-[#0F2137]">
+            <span className="text-xs font-semibold text-foreground">
               AI Recommendation
             </span>
           </div>
@@ -311,7 +311,7 @@ function ActionPanel({
               <ConfidenceBar confidence={item.ai_confidence} />
             </div>
           )}
-          <p className="mt-2 text-sm text-[#0F2137]">
+          <p className="mt-2 text-sm text-foreground">
             {item.ai_recommendation}
           </p>
           <Button
@@ -326,12 +326,12 @@ function ActionPanel({
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-2 border-t border-[#D6E4F0]">
+      <div className="flex gap-2 pt-2 border-t border-black/[0.08]">
         {canApprove ? (
           <>
             <Button
               size="sm"
-              className="flex-1 bg-[#059669] hover:bg-[#059669]/90"
+              className="flex-1 bg-[#16A34A] hover:bg-[#16A34A]/90"
               onClick={onApprove}
               disabled={isResolving}
             >
@@ -354,7 +354,7 @@ function ActionPanel({
             </Button>
           </>
         ) : isAiReviewer ? (
-          <div className="w-full rounded-lg bg-[#6B92AD]/10 px-3 py-2 text-center text-xs text-[#6B92AD]">
+          <div className="w-full rounded-lg bg-white/[0.65] px-3 py-2 text-center text-xs text-muted-foreground">
             AI Reviewer role cannot approve data actions. Contact a Steward or
             Admin.
           </div>
@@ -490,14 +490,14 @@ export default function StewardshipWorkbench() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0695A8]/10">
-            <ClipboardList className="h-5 w-5 text-[#0695A8]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+            <ClipboardList className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[#0F2137]">
+            <h1 className="text-xl font-bold text-foreground">
               Stewardship Workbench
             </h1>
-            <p className="text-sm text-[#6B92AD]">
+            <p className="text-sm text-muted-foreground">
               {data?.total ?? 0} items in queue
             </p>
           </div>
@@ -526,7 +526,7 @@ export default function StewardshipWorkbench() {
 
       {/* Filters */}
       <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-[#6B92AD]" />
+        <Filter className="h-4 w-4 text-muted-foreground" />
         {/* Status */}
         {STATUS_FILTERS.map((s) => (
           <Button
@@ -539,7 +539,7 @@ export default function StewardshipWorkbench() {
             {s.replace("_", " ")}
           </Button>
         ))}
-        <span className="mx-1 h-4 w-px bg-[#D6E4F0]" />
+        <span className="mx-1 h-4 w-px bg-black/[0.05]" />
         {/* Type */}
         <Button
           variant={!typeFilter ? "default" : "outline"}
@@ -564,8 +564,8 @@ export default function StewardshipWorkbench() {
 
       {/* Bulk approve bar */}
       {bulkMode && (
-        <div className="flex items-center gap-3 rounded-lg border border-[#0695A8]/30 bg-[#0695A8]/5 px-4 py-2">
-          <span className="text-sm text-[#0F2137]">
+        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
+          <span className="text-sm text-foreground">
             {bulkIds.size} selected (confidence &ge; 85%)
           </span>
           <Button
@@ -604,10 +604,10 @@ export default function StewardshipWorkbench() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-[#0695A8]" />
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
               </div>
             ) : items.length === 0 ? (
-              <div className="flex h-40 items-center justify-center text-sm text-[#6B92AD]">
+              <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                 No items in queue
               </div>
             ) : (
@@ -617,7 +617,7 @@ export default function StewardshipWorkbench() {
                     {bulkMode && (
                       <input
                         type="checkbox"
-                        className="ml-3 h-4 w-4 rounded border-[#D6E4F0]"
+                        className="ml-3 h-4 w-4 rounded border-black/[0.08]"
                         checked={bulkIds.has(item.id)}
                         onChange={(e) => {
                           const next = new Set(bulkIds);
@@ -665,7 +665,7 @@ export default function StewardshipWorkbench() {
                 userRole={userRole}
               />
             ) : (
-              <div className="flex h-60 items-center justify-center text-sm text-[#6B92AD]">
+              <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
                 Select an item from the queue
               </div>
             )}
@@ -691,27 +691,27 @@ export default function StewardshipWorkbench() {
       />
 
       {/* Keyboard shortcut hint */}
-      <div className="flex items-center gap-4 text-[12px] text-[#A8C5D8]">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span>
-          <kbd className="rounded border border-[#D6E4F0] px-1.5 py-0.5 font-mono">
+          <kbd className="rounded border border-black/[0.08] px-1.5 py-0.5 font-mono">
             A
           </kbd>{" "}
           Approve
         </span>
         <span>
-          <kbd className="rounded border border-[#D6E4F0] px-1.5 py-0.5 font-mono">
+          <kbd className="rounded border border-black/[0.08] px-1.5 py-0.5 font-mono">
             R
           </kbd>{" "}
           Reject
         </span>
         <span>
-          <kbd className="rounded border border-[#D6E4F0] px-1.5 py-0.5 font-mono">
+          <kbd className="rounded border border-black/[0.08] px-1.5 py-0.5 font-mono">
             N
           </kbd>{" "}
           Next
         </span>
         <span>
-          <kbd className="rounded border border-[#D6E4F0] px-1.5 py-0.5 font-mono">
+          <kbd className="rounded border border-black/[0.08] px-1.5 py-0.5 font-mono">
             E
           </kbd>{" "}
           Escalate

@@ -11,17 +11,17 @@ import { formatModuleName, relativeTime } from "@/lib/format";
 import type { RecordRelationship, RelationshipTypeRef } from "@/types/api";
 
 function confidenceColor(score: number | null): string {
-  if (score == null) return "bg-[#F0F5FA] text-[#6B92AD]";
-  if (score >= 0.8) return "bg-[#D1FAE5] text-[#059669]";
-  if (score >= 0.5) return "bg-[#FEF3C7] text-[#D97706]";
-  return "bg-[#FEE2E2] text-[#DC2626]";
+  if (score == null) return "bg-white/[0.60] text-muted-foreground";
+  if (score >= 0.8) return "bg-[#16A34A]/10 text-[#16A34A]";
+  if (score >= 0.5) return "bg-[#D97706]/10 text-[#EA580C]";
+  return "bg-[#DC2626]/10 text-destructive";
 }
 
 function impactBadge(score: number | null): string {
-  if (score == null) return "bg-[#F0F5FA] text-[#6B92AD]";
-  if (score >= 0.8) return "bg-[#FEE2E2] text-[#DC2626]";
-  if (score >= 0.5) return "bg-[#FEF3C7] text-[#D97706]";
-  return "bg-[#D1FAE5] text-[#059669]";
+  if (score == null) return "bg-white/[0.60] text-muted-foreground";
+  if (score >= 0.8) return "bg-[#DC2626]/10 text-destructive";
+  if (score >= 0.5) return "bg-[#D97706]/10 text-[#EA580C]";
+  return "bg-[#16A34A]/10 text-[#16A34A]";
 }
 
 export default function RelationshipsPage() {
@@ -56,10 +56,10 @@ export default function RelationshipsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#0F2137]">
+          <h1 className="font-display text-xl font-bold text-foreground">
             Relationships
           </h1>
-          <p className="text-sm text-[#6B92AD]">
+          <p className="text-sm text-muted-foreground">
             Cross-domain SAP record relationships and dependency graph
           </p>
         </div>
@@ -67,11 +67,11 @@ export default function RelationshipsPage() {
 
       {/* Filter */}
       <div className="flex items-center gap-3">
-        <Filter className="h-4 w-4 text-[#6B92AD]" />
+        <Filter className="h-4 w-4 text-muted-foreground" />
         <select
           value={domainFilter}
           onChange={(e) => setDomainFilter(e.target.value)}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137] focus:border-[#0695A8] focus:outline-none focus:ring-1 focus:ring-[#0695A8]"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">All domains</option>
           {domains.map((d) => (
@@ -83,12 +83,12 @@ export default function RelationshipsPage() {
         {domainFilter && (
           <button
             onClick={() => setDomainFilter("")}
-            className="text-xs text-[#0695A8] hover:underline"
+            className="text-xs text-primary hover:underline"
           >
             Clear
           </button>
         )}
-        <span className="ml-auto text-xs text-[#6B92AD]">
+        <span className="ml-auto text-xs text-muted-foreground">
           {data ? `${data.total} relationship${data.total !== 1 ? "s" : ""}` : ""}
         </span>
       </div>
@@ -101,13 +101,13 @@ export default function RelationshipsPage() {
           ))}
         </div>
       ) : relationships.length === 0 ? (
-        <Card className="border-[#D6E4F0] bg-white">
+        <Card className="border-black/[0.08] bg-white/[0.70]">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Network className="h-12 w-12 text-[#D6E4F0]" />
-            <h3 className="mt-4 font-semibold text-[#0F2137]">
+            <Network className="h-12 w-12 text-white/[0.08]" />
+            <h3 className="mt-4 font-semibold text-foreground">
               No relationships found
             </h3>
-            <p className="mt-1 text-sm text-[#6B92AD]">
+            <p className="mt-1 text-sm text-muted-foreground">
               {domainFilter
                 ? "No relationships match the selected domain filter."
                 : "Relationships are discovered during SAP sync and analysis runs."}
@@ -120,7 +120,7 @@ export default function RelationshipsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#D6E4F0] text-left text-[#6B92AD]">
+                  <tr className="border-b border-black/[0.08] text-left text-muted-foreground">
                     <th className="px-4 py-3">From</th>
                     <th className="px-4 py-3">To</th>
                     <th className="px-4 py-3">Type</th>
@@ -134,26 +134,26 @@ export default function RelationshipsPage() {
                   {relationships.map((r: RecordRelationship) => (
                     <tr
                       key={r.id}
-                      className="border-b border-[#D6E4F0]/50 hover:bg-[#F5F9FF]"
+                      className="border-b border-black/[0.08]/50 hover:bg-black/[0.03]"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-[#0F2137]">
+                        <div className="font-medium text-foreground">
                           {formatModuleName(r.from_domain)}
                         </div>
-                        <div className="text-xs text-[#6B92AD]">{r.from_key}</div>
+                        <div className="text-xs text-muted-foreground">{r.from_key}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-[#0F2137]">
+                        <div className="font-medium text-foreground">
                           {formatModuleName(r.to_domain)}
                         </div>
-                        <div className="text-xs text-[#6B92AD]">{r.to_key}</div>
+                        <div className="text-xs text-muted-foreground">{r.to_key}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-[#0F2137]">
+                        <span className="text-foreground">
                           {r.relationship_type.replace(/_/g, " ")}
                         </span>
                         {r.ai_inferred && (
-                          <Badge className="ml-2 gap-1 bg-[#E0F4F7] text-[#0695A8] border border-[#B2E0E6]">
+                          <Badge className="ml-2 gap-1 bg-primary/10 text-primary border border-primary/20">
                             <Sparkles className="h-3 w-3" />
                             AI
                           </Badge>
@@ -165,7 +165,7 @@ export default function RelationshipsPage() {
                             {(r.ai_confidence * 100).toFixed(0)}%
                           </Badge>
                         ) : (
-                          <span className="text-xs text-[#6B92AD]">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -174,18 +174,18 @@ export default function RelationshipsPage() {
                             {(r.impact_score * 100).toFixed(0)}%
                           </Badge>
                         ) : (
-                          <span className="text-xs text-[#6B92AD]">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-[#6B92AD]">
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
                         {relativeTime(r.discovered_at)}
                       </td>
                       <td className="px-4 py-3">
                         <Badge
                           className={
                             r.active
-                              ? "bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]"
-                              : "bg-[#F0F5FA] text-[#6B92AD] border border-[#D6E4F0]"
+                              ? "bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20"
+                              : "bg-white/[0.60] text-muted-foreground border border-black/[0.08]"
                           }
                         >
                           {r.active ? "Active" : "Inactive"}

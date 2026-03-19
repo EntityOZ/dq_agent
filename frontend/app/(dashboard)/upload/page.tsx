@@ -160,12 +160,12 @@ export default function UploadPage() {
       <h1 className="text-2xl font-bold">Import SAP Data</h1>
 
       {hasConnectedSystems && (
-        <Alert className="border-[#0695A8]/30 bg-[#CCEFF1]/30">
-          <Info className="h-4 w-4 text-[#0695A8]" />
-          <AlertDescription className="text-sm text-[#0F2137]">
+        <Alert className="border-primary/30 bg-primary/10">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm text-foreground">
             Connected SAP systems detected — uploads are for one-off assessments only.
             For continuous data quality monitoring, use{" "}
-            <Link href="/sync" className="font-medium text-[#0695A8] underline">
+            <Link href="/sync" className="font-medium text-primary underline">
               Sync Monitor
             </Link>.
           </AlertDescription>
@@ -181,7 +181,7 @@ export default function UploadPage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={onDrop}
               onClick={() => inputRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 transition-colors hover:border-[#0695A8]"
+              className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 transition-colors hover:border-primary"
             >
               <Upload className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
@@ -293,7 +293,7 @@ export default function UploadPage() {
         <Card>
           <CardContent className="space-y-4 py-8 text-center">
             <div
-              className="mx-auto h-12 w-12 rounded-full bg-[#0695A8]/20"
+              className="mx-auto h-12 w-12 rounded-full bg-primary/20"
               style={{ animation: "pulse-soft 2s ease-in-out infinite" }}
             />
             <p className="text-sm font-medium">

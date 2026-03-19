@@ -54,12 +54,12 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  finding: "bg-[#DBEAFE] text-[#1D6ECC]",
-  cleaning: "bg-[#D1FAE5] text-[#059669]",
-  exception: "bg-[#FEE2E2] text-[#DC2626]",
-  approval: "bg-[#D1FAE5] text-[#059669]",
-  digest: "bg-[#FEF3C7] text-[#D97706]",
-  warning: "bg-[#FEF3C7] text-[#D97706]",
+  finding: "bg-[#2563EB]/15 text-[#2563EB]",
+  cleaning: "bg-[#16A34A]/15 text-[#16A34A]",
+  exception: "bg-[#DC2626]/15 text-[#DC2626]",
+  approval: "bg-[#16A34A]/15 text-[#16A34A]",
+  digest: "bg-[#D97706]/15 text-[#D97706]",
+  warning: "bg-[#D97706]/15 text-[#EA580C]",
 };
 
 export default function NotificationsPage() {
@@ -127,8 +127,8 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-[#0695A8]" />
-          <h1 className="text-2xl font-bold text-[#0F2137]">Notifications</h1>
+          <Bell className="h-5 w-5 text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
           {data && (
             <Badge variant="secondary" className="ml-2">
               {data.total}
@@ -161,14 +161,14 @@ export default function NotificationsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <Filter className="h-4 w-4 text-[#6B92AD]" />
+        <Filter className="h-4 w-4 text-muted-foreground" />
         <select
           value={typeFilter}
           onChange={(e) => {
             setTypeFilter(e.target.value);
             setPage(0);
           }}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137]"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground"
         >
           {TYPE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
             setReadFilter(e.target.value);
             setPage(0);
           }}
-          className="rounded-md border border-[#D6E4F0] bg-white px-3 py-1.5 text-sm text-[#0F2137]"
+          className="rounded-md border border-black/[0.08] bg-white/[0.70] px-3 py-1.5 text-sm text-foreground"
         >
           {READ_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -202,18 +202,18 @@ export default function NotificationsPage() {
               ))}
             </div>
           ) : !data?.items?.length ? (
-            <div className="px-4 py-12 text-center text-sm text-[#6B92AD]">
+            <div className="px-4 py-12 text-center text-sm text-muted-foreground">
               No notifications found
             </div>
           ) : (
             <>
               {/* Select all header */}
-              <div className="flex items-center gap-3 border-b border-[#D6E4F0] px-4 py-2 text-xs text-[#6B92AD]">
+              <div className="flex items-center gap-3 border-b border-black/[0.08] px-4 py-2 text-xs text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === data.items.length && data.items.length > 0}
                   onChange={toggleAll}
-                  className="h-4 w-4 rounded border-[#D6E4F0] accent-[#0695A8]"
+                  className="h-4 w-4 rounded border-black/[0.08] accent-primary"
                 />
                 <span>Select all</span>
               </div>
@@ -221,7 +221,7 @@ export default function NotificationsPage() {
               {data.items.map((notif) => (
                 <div
                   key={notif.id}
-                  className={`flex items-start gap-3 border-b border-[#F0F5FA] px-4 py-3 transition-colors hover:bg-[#F0F5FA] ${
+                  className={`flex items-start gap-3 border-b border-black/[0.04] px-4 py-3 transition-colors hover:bg-black/[0.03] ${
                     notif.is_read ? "opacity-60" : ""
                   }`}
                 >
@@ -229,27 +229,27 @@ export default function NotificationsPage() {
                     type="checkbox"
                     checked={selectedIds.has(notif.id)}
                     onChange={() => toggleSelect(notif.id)}
-                    className="mt-1 h-4 w-4 rounded border-[#D6E4F0] accent-[#0695A8]"
+                    className="mt-1 h-4 w-4 rounded border-black/[0.08] accent-primary"
                   />
                   <span className="mt-0.5 text-base">
                     {TYPE_ICONS[notif.type] || "📋"}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[#0F2137]">
+                      <p className="text-sm font-medium text-foreground">
                         {notif.title}
                       </p>
                       <Badge
-                        className={`text-[12px] ${TYPE_COLORS[notif.type] || "bg-[#F0F5FA] text-[#6B92AD]"}`}
+                        className={`text-xs ${TYPE_COLORS[notif.type] || "bg-white/[0.60] text-muted-foreground"}`}
                       >
                         {notif.type}
                       </Badge>
                       {!notif.is_read && (
-                        <span className="h-2 w-2 rounded-full bg-[#0695A8]" />
+                        <span className="h-2 w-2 rounded-full bg-primary" />
                       )}
                     </div>
-                    <p className="mt-0.5 text-sm text-[#6B92AD]">{notif.body}</p>
-                    <p className="mt-1 text-xs text-[#A8C5D8]">
+                    <p className="mt-0.5 text-sm text-muted-foreground">{notif.body}</p>
+                    <p className="mt-1 text-xs text-muted-foreground/70">
                       {relativeTime(notif.created_at)}
                     </p>
                   </div>
@@ -261,7 +261,7 @@ export default function NotificationsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => router.push(notif.link!)}
-                            className="shrink-0 text-[#0695A8]"
+                            className="shrink-0 text-primary"
                           />
                         }
                       >
@@ -280,7 +280,7 @@ export default function NotificationsPage() {
       {/* Pagination */}
       {data && data.total > limit && (
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[#6B92AD]">
+          <span className="text-sm text-muted-foreground">
             Showing {page * limit + 1}–
             {Math.min((page + 1) * limit, data.total)} of {data.total}
           </span>

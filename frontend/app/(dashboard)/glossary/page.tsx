@@ -39,22 +39,22 @@ const STATUS_OPTIONS = [
 
 function domainColor(domain: string): string {
   const colors: Record<string, string> = {
-    business_partner: "bg-[#CCEFF1] text-[#0695A8]",
-    material_master: "bg-[#DBEAFE] text-[#1D6ECC]",
-    fi_gl: "bg-[#FEF3C7] text-[#D97706]",
-    employee_central: "bg-[#E8DEF8] text-[#6A3EA1]",
+    business_partner: "bg-primary/10 text-primary",
+    material_master: "bg-[#2563EB]/10 text-[#2563EB]",
+    fi_gl: "bg-[#D97706]/10 text-[#EA580C]",
+    employee_central: "bg-[#7C3AED]/10 text-[#7C3AED]",
   };
-  return colors[domain] || "bg-[#F0F5FA] text-[#6B92AD]";
+  return colors[domain] || "bg-white/[0.60] text-muted-foreground";
 }
 
 function statusBadge(status: string) {
   switch (status) {
     case "active":
-      return <Badge className="bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]">{status}</Badge>;
+      return <Badge className="bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20">{status}</Badge>;
     case "under_review":
-      return <Badge className="bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]">under review</Badge>;
+      return <Badge className="bg-[#D97706]/10 text-[#EA580C] border border-[#D97706]/20">under review</Badge>;
     case "deprecated":
-      return <Badge className="bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]">{status}</Badge>;
+      return <Badge className="bg-[#DC2626]/10 text-destructive border border-[#DC2626]/20">{status}</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -97,11 +97,11 @@ export default function GlossaryPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-[#0F2137] flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-[#0695A8]" />
+        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+          <BookOpen className="h-6 w-6 text-primary" />
           Business Glossary
         </h1>
-        <p className="text-sm text-[#6B92AD] mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           SAP field definitions translated into business language. {total} terms.
         </p>
       </div>
@@ -109,21 +109,21 @@ export default function GlossaryPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-[400px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B92AD]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search fields, tables, names..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-9 pr-3 py-2 border border-[#D6E4F0] rounded-md text-sm
-                       focus:outline-none focus:ring-2 focus:ring-[#0695A8]/30 focus:border-[#0695A8]"
+            className="w-full pl-9 pr-3 py-2 border border-black/[0.08] rounded-md text-sm
+                       focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />
         </div>
 
         <select
           value={domain}
           onChange={(e) => { setDomain(e.target.value); setPage(1); }}
-          className="border border-[#D6E4F0] rounded-md px-3 py-2 text-sm bg-white"
+          className="border border-black/[0.08] rounded-md px-3 py-2 text-sm bg-white/[0.70]"
         >
           <option value="">All Domains</option>
           {DOMAINS.map((d) => (
@@ -134,7 +134,7 @@ export default function GlossaryPage() {
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="border border-[#D6E4F0] rounded-md px-3 py-2 text-sm bg-white"
+          className="border border-black/[0.08] rounded-md px-3 py-2 text-sm bg-white/[0.70]"
         >
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map((s) => (
@@ -146,7 +146,7 @@ export default function GlossaryPage() {
           variant={mandatoryOnly ? "default" : "outline"}
           size="sm"
           onClick={() => { setMandatoryOnly(!mandatoryOnly); setPage(1); }}
-          className={mandatoryOnly ? "bg-[#0695A8] hover:bg-[#057A8A]" : ""}
+          className={mandatoryOnly ? "bg-primary hover:bg-primary/80" : ""}
         >
           <Lock className="h-3 w-3 mr-1" />
           S/4HANA Mandatory
@@ -156,7 +156,7 @@ export default function GlossaryPage() {
           variant={aiDraftedOnly ? "default" : "outline"}
           size="sm"
           onClick={() => { setAiDraftedOnly(!aiDraftedOnly); setPage(1); }}
-          className={aiDraftedOnly ? "bg-[#0695A8] hover:bg-[#057A8A]" : ""}
+          className={aiDraftedOnly ? "bg-primary hover:bg-primary/80" : ""}
         >
           <Sparkles className="h-3 w-3 mr-1" />
           AI Drafted
@@ -172,7 +172,7 @@ export default function GlossaryPage() {
         </div>
       ) : terms.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-[#6B92AD]">
+          <CardContent className="py-12 text-center text-muted-foreground">
             No glossary terms found. Run the seed script to populate from YAML rules.
           </CardContent>
         </Card>
@@ -187,7 +187,7 @@ export default function GlossaryPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <span className="text-sm text-[#6B92AD]">
+          <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages} ({total} terms)
           </span>
           <div className="flex gap-2">
@@ -220,18 +220,18 @@ function TermCard({ term, onClick }: { term: GlossaryTermSummary; onClick: () =>
 
   return (
     <Card
-      className="cursor-pointer hover:border-[#0695A8]/30 hover:bg-[#F0F5FA]/50 transition-colors"
+      className="cursor-pointer hover:border-primary/30 hover:bg-black/[0.03] transition-colors"
       onClick={onClick}
     >
       <CardContent className="py-3 px-4 flex items-center gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-[#0F2137] truncate">{term.business_name}</span>
+            <span className="font-medium text-foreground truncate">{term.business_name}</span>
             {term.mandatory_for_s4hana && (
-              <Lock className="h-3.5 w-3.5 text-[#DC2626] flex-shrink-0" />
+              <Lock className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
             )}
           </div>
-          <div className="text-xs text-[#6B92AD] mt-0.5 font-mono">{term.technical_name}</div>
+          <div className="text-xs text-muted-foreground mt-0.5 font-mono">{term.technical_name}</div>
         </div>
 
         <Badge className={`${domainColor(term.domain)} text-xs`}>
@@ -241,7 +241,7 @@ function TermCard({ term, onClick }: { term: GlossaryTermSummary; onClick: () =>
         {statusBadge(term.status)}
 
         {term.ai_drafted && (
-          <Badge className="bg-[#E8DEF8] text-[#6A3EA1] border border-[#C4B5FD] text-xs">
+          <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20 text-xs">
             <Sparkles className="h-3 w-3 mr-0.5" />
             AI
           </Badge>
@@ -252,11 +252,11 @@ function TermCard({ term, onClick }: { term: GlossaryTermSummary; onClick: () =>
         </Badge>
 
         {reviewDays !== null ? (
-          <span className={`text-xs whitespace-nowrap ${overdue ? "text-[#D97706] font-medium" : "text-[#6B92AD]"}`}>
+          <span className={`text-xs whitespace-nowrap ${overdue ? "text-[#EA580C] font-medium" : "text-muted-foreground"}`}>
             {reviewDays}d since review
           </span>
         ) : (
-          <span className="text-xs text-[#6B92AD] whitespace-nowrap">Not reviewed</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Not reviewed</span>
         )}
       </CardContent>
     </Card>

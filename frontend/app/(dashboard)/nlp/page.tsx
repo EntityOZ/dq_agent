@@ -50,8 +50,8 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 const CHART_COLOURS = [
-  "#0695A8", "#1D6ECC", "#0F2137", "#D97706", "#DC2626",
-  "#059669", "#6B92AD", "#7C3AED",
+  "#00D4AA", "#2563EB", "#E2E8F0", "#EA580C", "#DC2626",
+  "#16A34A", "#4A5568", "#7C3AED",
 ];
 
 function NlpChart({
@@ -100,7 +100,7 @@ function NlpChart({
           <Line
             type="monotone"
             dataKey={valueKey}
-            stroke="#0695A8"
+            stroke="#00D4AA"
             strokeWidth={2}
             dot={{ r: 3 }}
           />
@@ -115,7 +115,7 @@ function NlpChart({
         <XAxis dataKey={labelKey} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} />
         <Tooltip />
-        <Bar dataKey={valueKey} fill="#0695A8" radius={[4, 4, 0, 0]} />
+        <Bar dataKey={valueKey} fill="#00D4AA" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -175,15 +175,15 @@ export default function NlpPage() {
       <h1 className="mb-4 text-2xl font-bold">Ask AI</h1>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 rounded-lg border border-[#D6E4F0] bg-white p-4">
+      <ScrollArea className="flex-1 rounded-lg border border-black/[0.08] bg-white/[0.70] p-4">
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Sparkles className="mb-4 h-10 w-10 text-[#0695A8]" />
-              <h2 className="mb-2 text-lg font-semibold text-[#0F2137]">
+              <Sparkles className="mb-4 h-10 w-10 text-primary" />
+              <h2 className="mb-2 text-lg font-semibold text-foreground">
                 Ask anything about your data quality
               </h2>
-              <p className="mb-6 max-w-md text-sm text-[#6B92AD]">
+              <p className="mb-6 max-w-md text-sm text-muted-foreground">
                 Query golden records, glossary, relationships, sync history,
                 findings, stewardship queue, and AI proposed rules using
                 natural language.
@@ -193,7 +193,7 @@ export default function NlpPage() {
                   <button
                     key={q}
                     onClick={() => handleSend(q)}
-                    className="rounded-full border border-[#D6E4F0] bg-[#F0F5FA] px-3 py-1.5 text-xs text-[#4A6B84] transition-colors hover:border-[#0695A8] hover:text-[#0695A8]"
+                    className="rounded-full border border-black/[0.08] bg-white/[0.60] px-3 py-1.5 text-xs text-[#6B7280] transition-colors hover:border-primary hover:text-primary"
                   >
                     {q}
                   </button>
@@ -210,8 +210,8 @@ export default function NlpPage() {
               <div
                 className={`max-w-[75%] rounded-xl px-4 py-3 ${
                   msg.role === "user"
-                    ? "bg-[#0695A8] text-white"
-                    : "border border-[#D6E4F0] bg-[#F0F5FA] text-[#0F2137]"
+                    ? "bg-primary text-white"
+                    : "border border-black/[0.08] bg-white/[0.60] text-foreground"
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -226,7 +226,7 @@ export default function NlpPage() {
                         <Badge
                           key={i}
                           variant="outline"
-                          className="bg-white/80 text-[12px]"
+                          className="bg-white/80 text-xs"
                         >
                           {s.type} {s.id.slice(0, 8)}
                         </Badge>
@@ -234,7 +234,7 @@ export default function NlpPage() {
                     ) : (
                       <Badge
                         variant="outline"
-                        className="bg-white/80 text-[12px]"
+                        className="bg-white/80 text-xs"
                       >
                         Based on {msg.sources.length} {msg.sources[0].type}s
                       </Badge>
@@ -244,7 +244,7 @@ export default function NlpPage() {
 
                 {/* Chart */}
                 {msg.chart_type && msg.data && msg.data.length > 0 && (
-                  <div className="mt-3 rounded-lg bg-white p-3">
+                  <div className="mt-3 rounded-lg bg-white/[0.70] p-3">
                     <NlpChart chartType={msg.chart_type} data={msg.data} />
                   </div>
                 )}
@@ -253,14 +253,14 @@ export default function NlpPage() {
                 {msg.data &&
                   msg.data.length > 0 &&
                   !msg.chart_type && (
-                    <div className="mt-3 overflow-x-auto rounded-lg bg-white">
+                    <div className="mt-3 overflow-x-auto rounded-lg bg-white/[0.70]">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-[#D6E4F0]">
+                          <tr className="border-b border-black/[0.08]">
                             {Object.keys(msg.data[0]).map((key) => (
                               <th
                                 key={key}
-                                className="px-2 py-1.5 text-left font-medium text-[#6B92AD]"
+                                className="px-2 py-1.5 text-left font-medium text-muted-foreground"
                               >
                                 {key}
                               </th>
@@ -271,12 +271,12 @@ export default function NlpPage() {
                           {msg.data.slice(0, 10).map((row, i) => (
                             <tr
                               key={i}
-                              className="border-b border-[#D6E4F0]/50"
+                              className="border-b border-black/[0.08]/50"
                             >
                               {Object.values(row).map((val, j) => (
                                 <td
                                   key={j}
-                                  className="px-2 py-1.5 text-[#0F2137]"
+                                  className="px-2 py-1.5 text-foreground"
                                 >
                                   {String(val ?? "—")}
                                 </td>
@@ -293,9 +293,9 @@ export default function NlpPage() {
 
           {mutation.isPending && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-xl border border-[#D6E4F0] bg-[#F0F5FA] px-4 py-3">
-                <Loader2 className="h-4 w-4 animate-spin text-[#0695A8]" />
-                <span className="text-sm text-[#6B92AD]">Thinking...</span>
+              <div className="flex items-center gap-2 rounded-xl border border-black/[0.08] bg-white/[0.60] px-4 py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Thinking...</span>
               </div>
             </div>
           )}
@@ -317,7 +317,7 @@ export default function NlpPage() {
             }
           }}
           placeholder="Ask about your data quality..."
-          className="flex-1 rounded-lg border border-[#D6E4F0] bg-white px-4 py-2.5 text-sm text-[#0F2137] placeholder-[#6B92AD] outline-none transition-colors focus:border-[#0695A8] focus:ring-1 focus:ring-[#0695A8]"
+          className="flex-1 rounded-lg border border-black/[0.08] bg-white/[0.70] px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
           disabled={mutation.isPending}
         />
         <TooltipProvider delay={0}>
@@ -327,7 +327,7 @@ export default function NlpPage() {
                 <Button
                   onClick={() => handleSend()}
                   disabled={mutation.isPending || !input.trim()}
-                  className="bg-[#0695A8] hover:bg-[#057A8A]"
+                  className="bg-primary hover:bg-primary/80"
                 />
               }
             >

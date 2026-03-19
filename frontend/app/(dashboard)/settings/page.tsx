@@ -89,13 +89,13 @@ const ROLE_OPTIONS: { value: UserRole; label: string; tooltip?: string }[] = [
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: "bg-[#FEE2E2] text-[#DC2626]",
-  steward: "bg-[#DBEAFE] text-[#1D6ECC]",
-  analyst: "bg-[#D1FAE5] text-[#059669]",
-  approver: "bg-[#FEF3C7] text-[#D97706]",
-  auditor: "bg-[#F0F5FA] text-[#6B92AD]",
-  viewer: "bg-[#F0F5FA] text-[#6B92AD]",
-  ai_reviewer: "bg-[#EDE9FE] text-[#7C3AED]",
+  admin: "bg-[#DC2626]/10 text-destructive",
+  steward: "bg-[#2563EB]/10 text-[#2563EB]",
+  analyst: "bg-[#16A34A]/10 text-[#16A34A]",
+  approver: "bg-[#D97706]/10 text-[#EA580C]",
+  auditor: "bg-white/[0.60] text-muted-foreground",
+  viewer: "bg-white/[0.60] text-muted-foreground",
+  ai_reviewer: "bg-[#7C3AED]/10 text-[#7C3AED]",
 };
 
 export default function SettingsPage() {
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                   href="https://portal.dqagent.vantax.co.za"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   Manage licence on Vantax Portal
                   <ExternalLink className="h-3 w-3" />
@@ -239,7 +239,7 @@ export default function SettingsPage() {
                             [dim]: parseInt(e.target.value),
                           }))
                         }
-                        className="w-full accent-[#0695A8]"
+                        className="w-full accent-primary"
                       />
                     </div>
                   )
@@ -365,31 +365,31 @@ export default function SettingsPage() {
                       key: "daily_analysis",
                       label: "Daily Analysis",
                       desc: "Re-run checks on latest data (02:00 SAST)",
-                      icon: <Clock className="h-4 w-4 text-[#0695A8]" />,
+                      icon: <Clock className="h-4 w-4 text-primary" />,
                     },
                     {
                       key: "weekly_cleaning",
                       label: "Weekly Cleaning Batch",
                       desc: "Auto-approve and apply standardisations (Mon 03:00 SAST)",
-                      icon: <Calendar className="h-4 w-4 text-[#059669]" />,
+                      icon: <Calendar className="h-4 w-4 text-[#16A34A]" />,
                     },
                     {
                       key: "monthly_report",
                       label: "Monthly Report",
                       desc: "Generate PDF, cost avoidance, exception billing (1st 04:00 SAST)",
-                      icon: <FileText className="h-4 w-4 text-[#D97706]" />,
+                      icon: <FileText className="h-4 w-4 text-[#EA580C]" />,
                     },
                     {
                       key: "daily_digest",
                       label: "Daily Digest",
                       desc: "Findings summary, early warnings, next actions (06:00 SAST)",
-                      icon: <Mail className="h-4 w-4 text-[#1D6ECC]" />,
+                      icon: <Mail className="h-4 w-4 text-[#2563EB]" />,
                     },
                     {
                       key: "weekly_archive",
                       label: "Weekly Archive",
                       desc: "Archive old findings, prune cache, escalate exceptions (Sun 00:00 SAST)",
-                      icon: <Archive className="h-4 w-4 text-[#6B92AD]" />,
+                      icon: <Archive className="h-4 w-4 text-muted-foreground" />,
                     },
                   ] as const).map((job) => {
                     const scheduledJobs = (settings?.dqs_weights as Record<string, unknown> | null)?.scheduled_jobs as Record<string, { enabled: boolean; last_run?: string }> | undefined;
@@ -422,7 +422,7 @@ export default function SettingsPage() {
                             toast.info(`${job.label} toggle saved`);
                           }}
                           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                            enabled ? "bg-[#0695A8]" : "bg-gray-300"
+                            enabled ? "bg-primary" : "bg-gray-300"
                           }`}
                         >
                           <span
@@ -511,8 +511,8 @@ function TeamManagement() {
     <div className="space-y-6 pt-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[#0F2137]">Team Members</h2>
-          <p className="text-sm text-[#6B92AD]">
+          <h2 className="text-lg font-semibold text-foreground">Team Members</h2>
+          <p className="text-sm text-muted-foreground">
             Manage user roles and access permissions
           </p>
         </div>
@@ -535,7 +535,7 @@ function TeamManagement() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="user@company.com"
-                  className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -545,7 +545,7 @@ function TeamManagement() {
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
                   placeholder="Full name"
-                  className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -553,7 +553,7 @@ function TeamManagement() {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as UserRole)}
-                  className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                 >
                   {ROLE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -578,7 +578,7 @@ function TeamManagement() {
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#D6E4F0] text-left text-xs font-medium text-[#6B92AD]">
+              <tr className="border-b border-black/[0.08] text-left text-xs font-medium text-muted-foreground">
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Role</th>
@@ -589,7 +589,7 @@ function TeamManagement() {
             <tbody>
               {(!data?.users || data.users.length === 0) ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-[#6B92AD]">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No team members yet. Invite someone to get started.
                   </td>
                 </tr>
@@ -597,7 +597,7 @@ function TeamManagement() {
                 data.users.map((user) => (
                   <tr
                     key={user.id}
-                    className="border-b border-[#F0F5FA] last:border-b-0"
+                    className="border-b border-black/[0.06] last:border-b-0"
                   >
                     <td className="px-4 py-3 text-sm">{user.email}</td>
                     <td className="px-4 py-3 text-sm">{user.name}</td>
@@ -633,7 +633,7 @@ function TeamManagement() {
                           })
                         }
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                          user.is_active ? "bg-[#059669]" : "bg-gray-300"
+                          user.is_active ? "bg-[#16A34A]" : "bg-gray-300"
                         }`}
                       >
                         <span
@@ -643,7 +643,7 @@ function TeamManagement() {
                         />
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#6B92AD]">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
                       {user.last_login
                         ? new Date(user.last_login).toLocaleDateString()
                         : "Never"}
@@ -665,7 +665,7 @@ function TeamManagement() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#D6E4F0] text-left text-[#6B92AD]">
+                <tr className="border-b border-black/[0.08] text-left text-muted-foreground">
                   <th className="px-2 py-2">Role</th>
                   <th className="px-2 py-2">View</th>
                   <th className="px-2 py-2">Upload</th>
@@ -687,14 +687,14 @@ function TeamManagement() {
                   { role: "Viewer", perms: [true, false, false, false, false, false, false, false] },
                   { role: "AI Reviewer", perms: [true, false, false, false, false, true, false, true] },
                 ].map((row) => (
-                  <tr key={row.role} className="border-b border-[#F0F5FA] last:border-b-0">
+                  <tr key={row.role} className="border-b border-black/[0.06] last:border-b-0">
                     <td className="px-2 py-2 font-medium">{row.role}</td>
                     {row.perms.map((p, i) => (
                       <td key={i} className="px-2 py-2 text-center">
                         {p ? (
-                          <span className="text-[#059669]">&#10003;</span>
+                          <span className="text-[#16A34A]">&#10003;</span>
                         ) : (
-                          <span className="text-[#D6E4F0]">&#8212;</span>
+                          <span className="text-white/[0.08]">&#8212;</span>
                         )}
                       </td>
                     ))}
@@ -797,9 +797,9 @@ function BillingTab({
                 return (
                   <div key={key} className="flex items-center gap-2 text-sm">
                     {enabled ? (
-                      <Check className="h-4 w-4 text-[#059669]" />
+                      <Check className="h-4 w-4 text-[#16A34A]" />
                     ) : (
-                      <X className="h-4 w-4 text-[#D6E4F0]" />
+                      <X className="h-4 w-4 text-white/[0.08]" />
                     )}
                     <span className={enabled ? "" : "text-muted-foreground"}>
                       {label}
@@ -818,7 +818,7 @@ function BillingTab({
                   href="https://portal.vantax.co.za/upgrade"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-medium text-[#0695A8] hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
                 >
                   Manage Licence
                   <ExternalLink className="h-3 w-3" />
@@ -844,7 +844,7 @@ function BillingTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#D6E4F0] text-left text-xs text-[#6B92AD]">
+                    <tr className="border-b border-black/[0.08] text-left text-xs text-muted-foreground">
                       <th className="px-3 py-2">Tier</th>
                       <th className="px-3 py-2 text-right">Count</th>
                       <th className="px-3 py-2 text-right">Unit Price (ZAR)</th>
@@ -858,10 +858,10 @@ function BillingTab({
                       const count = (billing[countKey] as number) || 0;
                       const amount = (billing[amountKey] as number) || 0;
                       return (
-                        <tr key={tier} className="border-b border-[#F0F5FA]">
+                        <tr key={tier} className="border-b border-black/[0.06]">
                           <td className="px-3 py-2">{TIER_LABELS[tier]}</td>
                           <td className="px-3 py-2 text-right font-mono">{count}</td>
-                          <td className="px-3 py-2 text-right text-[#6B92AD]">
+                          <td className="px-3 py-2 text-right text-muted-foreground">
                             R {TIER_PRICES[tier].toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-right font-mono">
@@ -870,8 +870,8 @@ function BillingTab({
                         </tr>
                       );
                     })}
-                    <tr className="border-b border-[#F0F5FA]">
-                      <td className="px-3 py-2 text-[#6B92AD]">Monthly Base Fee</td>
+                    <tr className="border-b border-black/[0.06]">
+                      <td className="px-3 py-2 text-muted-foreground">Monthly Base Fee</td>
                       <td className="px-3 py-2" />
                       <td className="px-3 py-2" />
                       <td className="px-3 py-2 text-right font-mono">
@@ -884,7 +884,7 @@ function BillingTab({
                       <td className="px-3 py-2">Total</td>
                       <td className="px-3 py-2" />
                       <td className="px-3 py-2" />
-                      <td className="px-3 py-2 text-right text-[#0695A8]">
+                      <td className="px-3 py-2 text-right text-primary">
                         R {(billing.total_amount || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -912,7 +912,7 @@ function BillingTab({
                   href="https://portal.vantax.co.za/billing"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-[#0695A8] hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   Manage Licence
                   <ExternalLink className="h-3 w-3" />
@@ -942,11 +942,11 @@ const MATCH_TYPE_OPTIONS: { value: MatchType; label: string }[] = [
 ];
 
 const MATCH_TYPE_COLORS: Record<string, string> = {
-  exact: "bg-[#D1FAE5] text-[#059669]",
-  fuzzy: "bg-[#DBEAFE] text-[#1D6ECC]",
-  phonetic: "bg-[#FEF3C7] text-[#D97706]",
-  numeric_range: "bg-[#F0F5FA] text-[#6B92AD]",
-  semantic: "bg-[#EDE9FE] text-[#7C3AED]",
+  exact: "bg-[#16A34A]/10 text-[#16A34A]",
+  fuzzy: "bg-[#2563EB]/10 text-[#2563EB]",
+  phonetic: "bg-[#D97706]/10 text-[#EA580C]",
+  numeric_range: "bg-white/[0.60] text-muted-foreground",
+  semantic: "bg-[#7C3AED]/10 text-[#7C3AED]",
 };
 
 const DOMAIN_OPTIONS = [
@@ -1039,8 +1039,8 @@ function MatchRulesTab() {
     <div className="space-y-6 pt-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[#0F2137]">Match Rules</h2>
-          <p className="text-sm text-[#6B92AD]">
+          <h2 className="text-lg font-semibold text-foreground">Match Rules</h2>
+          <p className="text-sm text-muted-foreground">
             Configure weighted match scoring rules per domain
           </p>
         </div>
@@ -1048,7 +1048,7 @@ function MatchRulesTab() {
           <select
             value={domainFilter}
             onChange={(e) => setDomainFilter(e.target.value)}
-            className="rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+            className="rounded-md border border-black/[0.08] px-3 py-2 text-sm"
           >
             <option value="">All Domains</option>
             {DOMAIN_OPTIONS.map((d) => (
@@ -1082,7 +1082,7 @@ function MatchRulesTab() {
                   <select
                     value={formDomain}
                     onChange={(e) => setFormDomain(e.target.value)}
-                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                   >
                     {DOMAIN_OPTIONS.map((d) => (
                       <option key={d} value={d}>
@@ -1098,7 +1098,7 @@ function MatchRulesTab() {
                     value={formField}
                     onChange={(e) => setFormField(e.target.value)}
                     placeholder="e.g. BUT000.BU_TYPE"
-                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1106,7 +1106,7 @@ function MatchRulesTab() {
                   <select
                     value={formType}
                     onChange={(e) => setFormType(e.target.value as MatchType)}
-                    className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                   >
                     {MATCH_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -1126,7 +1126,7 @@ function MatchRulesTab() {
                       max={100}
                       value={formWeight}
                       onChange={(e) => setFormWeight(parseInt(e.target.value) || 0)}
-                      className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                      className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1142,7 +1142,7 @@ function MatchRulesTab() {
                       onChange={(e) =>
                         setFormThreshold(parseFloat(e.target.value) || 0)
                       }
-                      className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm"
+                      className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm"
                     />
                   </div>
                 </div>
@@ -1168,13 +1168,13 @@ function MatchRulesTab() {
               <span>
                 <strong>{simResult.total_pairs}</strong> pairs tested
               </span>
-              <span className="text-[#059669]">
+              <span className="text-[#16A34A]">
                 <strong>{simResult.auto_merge_count}</strong> auto-merge
               </span>
-              <span className="text-[#DC2626]">
+              <span className="text-destructive">
                 <strong>{simResult.auto_dismiss_count}</strong> auto-dismiss
               </span>
-              <span className="text-[#D97706]">
+              <span className="text-[#EA580C]">
                 <strong>{simResult.queue_count}</strong> queued for review
               </span>
             </div>
@@ -1187,7 +1187,7 @@ function MatchRulesTab() {
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#D6E4F0] text-left text-xs font-medium text-[#6B92AD]">
+              <tr className="border-b border-black/[0.08] text-left text-xs font-medium text-muted-foreground">
                 <th className="px-4 py-3">Domain</th>
                 <th className="px-4 py-3">Field</th>
                 <th className="px-4 py-3">Type</th>
@@ -1200,7 +1200,7 @@ function MatchRulesTab() {
             <tbody>
               {(!data?.rules || data.rules.length === 0) ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-[#6B92AD]">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No match rules configured. Add a rule to get started.
                   </td>
                 </tr>
@@ -1208,7 +1208,7 @@ function MatchRulesTab() {
                 data.rules.map((rule) => (
                   <tr
                     key={rule.id}
-                    className="border-b border-[#F0F5FA] last:border-b-0"
+                    className="border-b border-black/[0.06] last:border-b-0"
                   >
                     <td className="px-4 py-3 text-sm">
                       {formatModuleName(rule.domain)}
@@ -1237,7 +1237,7 @@ function MatchRulesTab() {
                           })
                         }
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                          rule.active ? "bg-[#059669]" : "bg-gray-300"
+                          rule.active ? "bg-[#16A34A]" : "bg-gray-300"
                         }`}
                       >
                         <span
@@ -1258,14 +1258,14 @@ function MatchRulesTab() {
                           setFormThreshold(rule.threshold);
                           setAddOpen(true);
                         }}
-                        className="rounded p-1 text-[#6B92AD] hover:bg-[#DBEAFE] hover:text-[#1D6ECC]"
+                        className="rounded p-1 text-muted-foreground hover:bg-[#2563EB]/10 hover:text-[#2563EB]"
                         title="Edit rule"
                       >
                         <GitMerge className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => deleteMutation.mutate(rule.id)}
-                        className="rounded p-1 text-[#6B92AD] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
+                        className="rounded p-1 text-muted-foreground hover:bg-[#DC2626]/10 hover:text-destructive"
                         title="Delete rule"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1317,10 +1317,10 @@ function AIProposedRulesTab() {
   return (
     <div className="space-y-6 pt-4">
       <div>
-        <h2 className="text-lg font-semibold text-[#0F2137]">
+        <h2 className="text-lg font-semibold text-foreground">
           AI Proposed Rules
         </h2>
-        <p className="text-sm text-[#6B92AD]">
+        <p className="text-sm text-muted-foreground">
           Review and approve match rules proposed by the AI based on steward
           correction patterns
         </p>
@@ -1328,7 +1328,7 @@ function AIProposedRulesTab() {
 
       {(!data?.rules || data.rules.length === 0) ? (
         <Card>
-          <CardContent className="py-8 text-center text-sm text-[#6B92AD]">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
             No pending rule proposals. The AI will propose rules after
             accumulating steward corrections.
           </CardContent>
@@ -1351,12 +1351,12 @@ function AIProposedRulesTab() {
                       <span className="text-sm font-medium">
                         {formatModuleName(rule.domain)}
                       </span>
-                      <span className="font-mono text-sm text-[#6B92AD]">
+                      <span className="font-mono text-sm text-muted-foreground">
                         {rule.proposed_rule.field}
                       </span>
                     </div>
-                    <p className="text-sm text-[#6B92AD]">{rule.rationale}</p>
-                    <div className="flex items-center gap-4 text-xs text-[#6B92AD]">
+                    <p className="text-sm text-muted-foreground">{rule.rationale}</p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>
                         Weight: <strong>{rule.proposed_rule.weight}</strong>
                       </span>

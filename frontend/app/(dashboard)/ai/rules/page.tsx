@@ -70,8 +70,8 @@ export default function AIRulesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#0F2137]">AI Proposed Rules</h1>
-        <p className="text-sm text-[#6B92AD]">
+        <h1 className="text-2xl font-bold text-foreground">AI Proposed Rules</h1>
+        <p className="text-sm text-muted-foreground">
           Review match rules proposed by AI based on steward correction patterns
         </p>
       </div>
@@ -79,11 +79,11 @@ export default function AIRulesPage() {
       {rules.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <BrainCircuit className="mb-4 h-10 w-10 text-[#6B92AD]" />
-            <h2 className="mb-2 text-lg font-semibold text-[#0F2137]">
+            <BrainCircuit className="mb-4 h-10 w-10 text-muted-foreground" />
+            <h2 className="mb-2 text-lg font-semibold text-foreground">
               No AI-proposed rules awaiting review
             </h2>
-            <p className="max-w-md text-sm text-[#6B92AD]">
+            <p className="max-w-md text-sm text-muted-foreground">
               Rules are generated automatically when steward corrections identify
               consistent patterns.
             </p>
@@ -95,7 +95,7 @@ export default function AIRulesPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#D6E4F0] text-left text-xs font-medium text-[#6B92AD]">
+                  <tr className="border-b border-black/[0.08] text-left text-xs font-medium text-muted-foreground">
                     <th className="px-4 py-3">Domain</th>
                     <th className="px-4 py-3">Field</th>
                     <th className="px-4 py-3">Match Type</th>
@@ -111,13 +111,13 @@ export default function AIRulesPage() {
                   {rules.map((rule) => (
                     <tr
                       key={rule.id}
-                      className="border-b border-[#F0F5FA] last:border-b-0"
+                      className="border-b border-black/[0.04] last:border-b-0"
                     >
                       <td className="px-4 py-3 text-sm font-medium">
                         {formatModuleName(rule.domain)}
                       </td>
                       <td className="px-4 py-3">
-                        <code className="rounded bg-[#F0F5FA] px-1.5 py-0.5 text-xs text-[#0F2137]">
+                        <code className="rounded bg-white/[0.60] px-1.5 py-0.5 text-xs text-foreground">
                           {rule.proposed_rule.field}
                         </code>
                       </td>
@@ -133,7 +133,7 @@ export default function AIRulesPage() {
                       <td className="px-4 py-3 text-sm">
                         {rule.proposed_rule.threshold}
                       </td>
-                      <td className="max-w-xs px-4 py-3 text-xs text-[#4A6B84]">
+                      <td className="max-w-xs px-4 py-3 text-xs text-[#6B7280]">
                         <span className="line-clamp-2">{rule.rationale}</span>
                       </td>
                       <td className="px-4 py-3">
@@ -141,7 +141,7 @@ export default function AIRulesPage() {
                           {rule.supporting_correction_count}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-xs text-[#6B92AD]">
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
                         {new Date(rule.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3">
@@ -149,7 +149,7 @@ export default function AIRulesPage() {
                           <Button
                             size="xs"
                             onClick={() => setApproveTarget(rule)}
-                            className="bg-[#059669] hover:bg-[#047857]"
+                            className="bg-[#16A34A] hover:bg-[#16A34A]/80 text-black"
                           >
                             <Check className="mr-1 h-3 w-3" />
                             Approve
@@ -158,7 +158,7 @@ export default function AIRulesPage() {
                             size="xs"
                             variant="outline"
                             onClick={() => setRejectTarget(rule)}
-                            className="text-[#DC2626] hover:bg-[#FEE2E2]"
+                            className="text-destructive hover:bg-[#DC2626]/10"
                           >
                             <X className="mr-1 h-3 w-3" />
                             Reject
@@ -182,23 +182,23 @@ export default function AIRulesPage() {
           </DialogHeader>
           {approveTarget && (
             <div className="space-y-4 pt-2">
-              <p className="text-sm text-[#4A6B84]">
+              <p className="text-sm text-[#6B7280]">
                 This rule will be added to the match engine for{" "}
                 <strong>{formatModuleName(approveTarget.domain)}</strong>.
                 Continue?
               </p>
-              <div className="rounded-lg bg-[#F0F5FA] p-3 text-sm">
+              <div className="rounded-lg bg-white/[0.60] p-3 text-sm">
                 <div className="grid grid-cols-2 gap-2">
-                  <span className="text-[#6B92AD]">Field:</span>
+                  <span className="text-muted-foreground">Field:</span>
                   <span>{approveTarget.proposed_rule.field}</span>
-                  <span className="text-[#6B92AD]">Match Type:</span>
+                  <span className="text-muted-foreground">Match Type:</span>
                   <span>
                     {MATCH_TYPE_LABELS[approveTarget.proposed_rule.match_type] ??
                       approveTarget.proposed_rule.match_type}
                   </span>
-                  <span className="text-[#6B92AD]">Weight:</span>
+                  <span className="text-muted-foreground">Weight:</span>
                   <span>{approveTarget.proposed_rule.weight}</span>
-                  <span className="text-[#6B92AD]">Threshold:</span>
+                  <span className="text-muted-foreground">Threshold:</span>
                   <span>{approveTarget.proposed_rule.threshold}</span>
                 </div>
               </div>
@@ -212,7 +212,7 @@ export default function AIRulesPage() {
                 <Button
                   onClick={() => approveMutation.mutate(approveTarget.id)}
                   disabled={approveMutation.isPending}
-                  className="bg-[#059669] hover:bg-[#047857]"
+                  className="bg-[#16A34A] hover:bg-[#16A34A]/80 text-black"
                 >
                   {approveMutation.isPending && (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -233,13 +233,13 @@ export default function AIRulesPage() {
           </DialogHeader>
           {rejectTarget && (
             <div className="space-y-4 pt-2">
-              <p className="text-sm text-[#4A6B84]">
+              <p className="text-sm text-[#6B7280]">
                 Reject the proposed{" "}
                 <strong>{rejectTarget.proposed_rule.field}</strong> rule for{" "}
                 {formatModuleName(rejectTarget.domain)}?
               </p>
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-[#0F2137]">
+                <label className="block text-sm font-medium text-foreground">
                   Reason (optional)
                 </label>
                 <textarea
@@ -247,7 +247,7 @@ export default function AIRulesPage() {
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Why is this rule not appropriate?"
                   rows={3}
-                  className="w-full rounded-md border border-[#D6E4F0] px-3 py-2 text-sm placeholder-[#6B92AD] outline-none focus:border-[#0695A8] focus:ring-1 focus:ring-[#0695A8]"
+                  className="w-full rounded-md border border-black/[0.08] px-3 py-2 text-sm placeholder-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div className="flex justify-end gap-2">
