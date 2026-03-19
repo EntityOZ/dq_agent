@@ -175,7 +175,7 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
                             :timeliness, :uniqueness, :validity,
                             :finding_count
                         )
-                        ON CONFLICT (tenant_id, module_id, (recorded_at::date)) DO NOTHING
+                        ON CONFLICT (tenant_id, module_id, ((recorded_at AT TIME ZONE 'UTC')::date)) DO NOTHING
                     """),
                     {
                         "tenant_id": tenant_id,

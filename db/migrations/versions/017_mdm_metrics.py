@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "017"
-down_revision: Union[str, None] = "016_relationships"
+down_revision: Union[str, None] = "016"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

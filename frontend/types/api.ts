@@ -417,12 +417,19 @@ export interface ComplianceRecord {
   uniqueness_actual: number | null;
   validity_actual: number | null;
   overall_compliant: boolean;
-  violations: Array<{
-    dimension: string;
-    threshold: number;
-    actual: number;
-    gap: number;
-  }> | null;
+  violations:
+    | Array<{
+        dimension: string;
+        threshold: number;
+        actual: number;
+        gap: number;
+      }>
+    | {
+        type: string;
+        object_key: string;
+        field_violations: { field: string; reason: string }[];
+      }
+    | null;
   recorded_at: string;
 }
 

@@ -10,8 +10,8 @@ services:
     environment: &dev-env
       - LLM_PROVIDER=ollama_cloud
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:70b}
-      - OLLAMA_BASE_URL=
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:397b-cloud}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://api.ollama.com/v1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DATABASE_URL=postgresql+asyncpg://vantax:${DB_PASSWORD}@db:5432/vantax
       - DATABASE_URL_SYNC=postgresql://vantax:${DB_PASSWORD}@db:5432/vantax
@@ -52,13 +52,21 @@ services:
       - ./llm:/app/llm
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_AUTH_MODE=local
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    ports:
+      - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+    networks:
+      - vantax-net
 
   llm:
     # Disable the local LLM service in dev mode

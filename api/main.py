@@ -1,10 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.config import settings
 from api.routes.health import router as health_router
@@ -86,102 +84,33 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Dev tenant init failed: {e}")
 
-    # Initialise Sentry with SAP data scrubber (only when SENTRY_DSN is set)
-    if settings.sentry_dsn:
-        try:
-            import sentry_sdk
-
-            _SCRUB_KEYS = {
-                "df", "dataframe", "record_data", "record_data_before",
-                "record_data_after", "prompt", "content", "wa", "data_rows",
-                "parquet", "payload", "password", "passwd", "secret",
-            }
-
-            def _scrub_event(event, hint):
-                """Strip SAP data from Sentry payloads before dispatch."""
-                def _scrub(obj, depth=0):
-                    if depth > 10:
-                        return "[DEPTH_LIMIT]"
-                    if isinstance(obj, dict):
-                        return {
-                            k: "[REDACTED]" if k.lower() in _SCRUB_KEYS else _scrub(v, depth + 1)
-                            for k, v in obj.items()
-                        }
-                    if isinstance(obj, (list, tuple)):
-                        return [_scrub(i, depth + 1) for i in obj[:20]]
-                    if isinstance(obj, str) and len(obj) > 500:
-                        return obj[:500] + "...[TRUNCATED]"
-                    return obj
-
-                return _scrub(event)
-
-            sentry_sdk.init(
-                dsn=settings.sentry_dsn,
-                before_send=_scrub_event,
-                traces_sample_rate=0.0,
-            )
-            logger.info("Sentry initialised with SAP data scrubber")
-        except Exception as e:
-            logger.warning(f"Sentry init failed: {e}")
-
     yield
 
 
-# Disable interactive docs in production (prevents API schema reconnaissance)
-_docs_url = "/docs" if settings.auth_mode == "local" else None
-_openapi_url = "/openapi.json" if settings.auth_mode == "local" else None
+app = FastAPI(title="Vantax API", version="1.0.0", lifespan=lifespan)
 
-app = FastAPI(
-    title="Vantax API",
-    version="1.0.0",
-    lifespan=lifespan,
-    docs_url=_docs_url,
-    openapi_url=_openapi_url,
-    redoc_url=None,
-)
-
-
-# ── Global exception handler — never leak stack traces to API callers ─────────
-
-
-@app.exception_handler(Exception)
-async def _global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.error(
-        f"Unhandled exception on {request.method} {request.url.path}", exc_info=True
-    )
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "internal_server_error",
-            "detail": "An unexpected error occurred. Check server logs.",
-        },
-    )
-
-
-# ── Security response headers ────────────────────────────────────────────────
-
+# Security headers middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        if rid := request.headers.get("X-Request-ID"):
-            response.headers["X-Request-ID"] = rid
-        response.headers.pop("server", None)
+        if "server" in response.headers:
+            del response.headers["server"]
         return response
-
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS — tightened methods and headers to what the frontend actually uses
+# CORS — allow frontend origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://frontend:3000"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Tenant-ID", "Accept"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Licence middleware — checks /api/v1/* routes
