@@ -30,6 +30,7 @@ class UploadResponse(BaseModel):
 async def upload_file(
     file: UploadFile = File(...),
     module: str = Form(...),
+    column_mapping: str = Form(None),
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
 ):
@@ -90,7 +91,20 @@ async def upload_file(
     # Sanitise formula injection characters in string cells
     df = _sanitise_formula_injection(df)
 
-    # Step 5: Apply column mapping
+    # Step 5a: Apply custom AI-detected column mapping (if provided)
+    if column_mapping:
+        try:
+            import json as _json
+            custom_map = _json.loads(column_mapping)
+            if isinstance(custom_map, dict):
+                rename_map = {src: tgt for src, tgt in custom_map.items() if src in df.columns}
+                if rename_map:
+                    df = df.rename(columns=rename_map)
+                    logger.info(f"Applied {len(rename_map)} custom column mappings")
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid column_mapping JSON: {e}")
+
+    # Step 5b: Apply standard column mapping (handles any remaining aliases)
     df = apply_column_mapping(df, module)
 
     # Step 6: Validate required columns
