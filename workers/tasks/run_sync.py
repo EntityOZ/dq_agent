@@ -40,29 +40,6 @@ def _get_minio_client():
     )
 
 
-def _parse_rfc_result(result: dict) -> pd.DataFrame:
-    """Parse RFC_READ_TABLE result into a pandas DataFrame."""
-    fields_meta = result.get("FIELDS", [])
-    data_rows = result.get("DATA", [])
-    if not fields_meta:
-        return pd.DataFrame()
-
-    field_names = [f["FIELDNAME"].strip() for f in fields_meta]
-    field_offsets = []
-    for f in fields_meta:
-        offset = int(f.get("OFFSET", 0))
-        length = int(f.get("LENGTH", 0))
-        field_offsets.append((offset, offset + length))
-
-    rows = []
-    for row in data_rows:
-        wa = row.get("WA", "")
-        values = [wa[start:end].strip() for start, end in field_offsets]
-        rows.append(values)
-
-    return pd.DataFrame(rows, columns=field_names)
-
-
 @celery_app.task(bind=True, name="workers.tasks.run_sync.run_sync")
 def run_sync(self, profile_id: str, tenant_id: str):
     """Execute a full sync cycle for one sync profile."""
@@ -133,64 +110,57 @@ def run_sync(self, profile_id: str, tenant_id: str):
         return {"status": "failed", "error": "decryption_failed"}
 
     # Step 3: Connect to SAP and extract data
-    try:
-        import pyrfc
-    except ImportError:
-        _fail_sync_run(engine, tenant_id, sync_run_id, "PyRFC is not installed")
-        return {"status": "failed", "error": "pyrfc_not_installed"}
+    from sap import get_connector
+    from sap.base import SAPConnectionParams, SAPConnectorError, SAPConnector
 
-    conn = None
+    rfc_user = os.getenv("SAP_RFC_USER", "RFC_USER")
+
+    params = SAPConnectionParams(
+        host=host,
+        client=client,
+        sysnr=sysnr,
+        user=rfc_user,
+        password=password,
+    )
+
     all_dfs = []
     total_rows = 0
 
     try:
-        # RFC user is stored as a config value (not sensitive — it's the technical user name)
-        rfc_user = os.getenv("SAP_RFC_USER", "RFC_USER")
+        with get_connector() as conn:
+            conn.connect(params)
 
-        conn = pyrfc.Connection(
-            ashost=host,
-            client=client,
-            user=rfc_user,
-            passwd=password,
-            sysnr=sysnr,
-        )
+            for table_name in tables:
+                try:
+                    df = conn.read_table(table_name, fields=[], max_rows=0)
+                    if not df.empty:
+                        df["_source_table"] = table_name
+                        all_dfs.append(df)
+                        total_rows += len(df)
+                    logger.info(f"Extracted {len(df)} rows from {table_name}")
+                except SAPConnectorError as e:
+                    safe_msg = SAPConnector._mask_password(str(e), password)
+                    logger.warning(f"Failed to extract {table_name}: {safe_msg}")
 
-        for table_name in tables:
+            # Step 3b: RFC relationship discovery (while conn is still open)
             try:
-                result = conn.call("RFC_READ_TABLE", QUERY_TABLE=table_name)
-                df = _parse_rfc_result(result)
-                if not df.empty:
-                    df["_source_table"] = table_name
-                    all_dfs.append(df)
-                    total_rows += len(df)
-                logger.info(f"Extracted {len(df)} rows from {table_name}")
+                from api.services.relationship_discovery import discover_relationships_rfc
+                with Session(engine) as rfc_session:
+                    rfc_session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                    rfc_discovered = discover_relationships_rfc(conn, tenant_id, domain, rfc_session)
+                    logger.info(f"RFC relationship discovery: {len(rfc_discovered)} relationships found")
             except Exception as e:
-                safe_msg = re.sub(re.escape(password), "****", str(e)) if password else str(e)
-                logger.warning(f"Failed to extract {table_name}: {safe_msg}")
+                logger.warning(f"RFC relationship discovery failed (non-fatal): {e}")
 
-        # Step 3b: RFC relationship discovery (while conn is still open)
-        try:
-            from api.services.relationship_discovery import discover_relationships_rfc
-
-            with Session(engine) as rfc_session:
-                rfc_session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
-                rfc_discovered = discover_relationships_rfc(conn, tenant_id, domain, rfc_session)
-                logger.info(f"RFC relationship discovery: {len(rfc_discovered)} relationships found")
-        except Exception as e:
-            logger.warning(f"RFC relationship discovery failed (non-fatal): {e}")
-
-    except Exception as e:
-        safe_msg = re.sub(re.escape(password), "****", str(e)) if password else str(e)
-        _fail_sync_run(engine, tenant_id, sync_run_id, f"RFC connection failed: {safe_msg}")
+    except SAPConnectorError as e:
+        safe_msg = SAPConnector._mask_password(str(e), password)
+        if "pyrfc_not_installed" in str(e):
+            _fail_sync_run(engine, tenant_id, sync_run_id, "PyRFC is not installed")
+            return {"status": "failed", "error": "pyrfc_not_installed"}
+        _fail_sync_run(engine, tenant_id, sync_run_id, f"SAP connector failed: {safe_msg}")
         return {"status": "failed", "error": "rfc_error"}
     finally:
-        if conn is not None:
-            try:
-                conn.close()
-            except Exception:
-                pass
-        # Clear password from memory
-        password = ""  # noqa: F841
+        password = ""  # clear from memory
 
     if not all_dfs:
         _fail_sync_run(engine, tenant_id, sync_run_id, "No data extracted from any table")

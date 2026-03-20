@@ -1,4 +1,4 @@
-"""Tests for PyRFC live connector — api/routes/connect.py
+"""Tests for SAP connector — api/routes/connect.py via sap/ abstraction layer.
 
 All tests use mocked pyrfc to avoid needing a real SAP system.
 """
@@ -194,7 +194,7 @@ class TestLargeTableParsing:
 
     def test_parse_rfc_result_correctness(self):
         """Verify the parser extracts field values correctly from WA strings."""
-        from api.routes.connect import _parse_rfc_result
+        from sap.rfc import _parse_rfc_result
 
         result = _make_rfc_result(3)
         df = _parse_rfc_result(result)
