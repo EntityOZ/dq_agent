@@ -105,18 +105,18 @@ vantax/
 │       ├── column_mapper.py         ← normalise uploaded column names per module
 │       ├── storage.py               ← MinIO bucket management
 │       ├── standardisers.py         ← SA-specific standardisers (phone, postal, company)
-│       ├── cleaning_engine.py       ← dedup detection, standardisation, merge preview
+│       ├── cleaning_engine.py       ← 5-category cleaning detection across all 29 modules
 │       ├── exception_engine.py      ← rule evaluation, auto-detection, SLA, escalation
 │       ├── analytics_engine.py      ← predictive, prescriptive, impact, operational
 │       ├── nlp_service.py           ← intent classification, data retrieval, answer synthesis
-│       ├── lineage_service.py       ← data lineage mapping (table→field dependencies)
-│       ├── export_engine.py         ← export cleaned data as CSV/Parquet
+│       ├── lineage_service.py       ← data lineage mapping (29 module prefixes)
+│       ├── export_engine.py         ← export cleaned data (CSV, Excel, LSMW, BAPI, IDoc, SF CSV)
 │       ├── golden_record_engine.py  ← survivorship logic (deterministic + AI fallback)
 │       ├── survivorship.py          ← deterministic rules (most_recent, trusted_source, majority_vote)
 │       ├── ai_survivorship.py       ← LLM-assisted field winner selection
 │       ├── match_engine.py          ← record pair matching (blocking, scoring)
 │       ├── ai_semantic_matcher.py   ← LLM semantic similarity for match scoring
-│       ├── relationship_discovery.py ← cross-domain SAP relationships
+│       ├── relationship_discovery.py ← cross-domain SAP relationships (17 RFC link maps)
 │       ├── ai_impact_scorer.py      ← LLM-scored impact of relationships/changes
 │       ├── ai_glossary_enricher.py  ← LLM expansion of glossary definitions
 │       ├── mdm_scoring.py           ← MDM health score calculation
@@ -635,6 +635,84 @@ LangGraph orchestrator. The frontend polls `GET /api/v1/versions/{id}` for statu
 
 ---
 
+## Cleaning engine — 5-category detection across all 29 modules
+
+After checks complete, `run_cleaning` is enqueued automatically. The `CleaningEngine` in
+`api/services/cleaning_engine.py` runs five deterministic detection categories:
+
+1. **Duplicates** — exact primary-key dedup (all modules) + O(n^2) fuzzy matching on name,
+   email, tax, bank columns (first 500 rows, Levenshtein/Soundex/Jaccard)
+2. **Standardisation** — applies SA-specific standardisers (phone, country code, title case,
+   legal suffix, UOM, material descriptions) with module-specific mappings
+3. **Enrichment gaps** — flags missing fields per module (e.g. currency defaults to ZAR,
+   country defaults to ZA, missing payment terms, descriptions, emails)
+4. **Validation errors** — SA ID Luhn check, VAT format, bank branch codes, currency code
+   validation, negative amount detection (dynamic — any module with an amount column)
+5. **Lifecycle issues** — dormant records (>24 months), blocked archival candidates,
+   terminated employees with active status, batch expiry
+
+**Column detection uses SAP-prefixed names.** The `_find_col()` function strips SAP table
+prefixes (`BUT000.NAME_ORG1` → matches `name_org1`) so detection works with both mapped
+and raw SAP column names. Every module has either explicit detection rules or falls back to
+generic country/currency/description gap checks.
+
+Results are inserted into `cleaning_queue` (all categories) and `dedup_candidates` (dedup
+category only). After insertion, `populate_stewardship_queue` is enqueued immediately so
+stewards see items without waiting for the 15-minute scheduler.
+
+---
+
+## Export engine — 6 formats, all 29 modules
+
+The `ExportEngine` in `api/services/export_engine.py` generates cleaned data exports.
+`SAP_EXPORT_FIELDS` contains field mappings for all 29 modules (33 entries including
+generic object types like `customer`, `vendor`).
+
+| Format | Extension | Content-Type | Notes |
+|---|---|---|---|
+| `csv` | .csv | text/csv | SAP field headers (KUNNR, NAME1, etc.) |
+| `xlsx` | .xlsx | application/vnd.openxmlformats... | Excel via openpyxl, auto-sized columns |
+| `lsmw` | .txt | text/plain | Tab-delimited transaction recording format |
+| `bapi` | .json | application/json | BAPI call structure for direct execution |
+| `idoc` | .json | application/json | IDoc segment structure (EDI_DC40 + E1segment) |
+| `sf_csv` | .csv | text/csv | SuccessFactors OData field names |
+
+Export endpoint: `GET /api/v1/cleaning/export/{format}?status=applied&object_type=...`
+
+---
+
+## Write-back BAPI mapping — all 11 ECC modules
+
+The `BAPI_MAP` in `api/routes/writeback.py` maps all ECC modules to their SAP BAPI function:
+
+| Module | BAPI |
+|---|---|
+| business_partner | BAPI_BUPA_CENTRAL_DATA_SET |
+| material_master | BAPI_MATERIAL_SAVEDATA |
+| fi_gl | BAPI_GL_ACCOUNT_CREATE |
+| accounts_payable | BAPI_VENDOR_CHANGEFROMDATA |
+| accounts_receivable | BAPI_CUSTOMER_CHANGEFROMDATA1 |
+| asset_accounting | BAPI_FIXEDASSET_CHANGE |
+| mm_purchasing | BAPI_PO_CHANGE |
+| plant_maintenance | BAPI_EQUI_CHANGE |
+| production_planning | BAPI_PRODORD_CHANGE |
+| sd_customer_master | BAPI_CUSTOMER_CHANGEFROMDATA1 |
+| sd_sales_orders | BAPI_SALESORDER_CHANGE |
+
+SuccessFactors modules use OData APIs (not RFC BAPIs) and are excluded intentionally.
+
+---
+
+## Relationship discovery — 17 RFC link maps
+
+The `DOMAIN_LINK_MAPS` in `api/services/relationship_discovery.py` maps SAP link tables
+for cross-domain relationship discovery via RFC. Covers all ECC modules and warehouse
+modules that have RFC-accessible link tables. SuccessFactors modules use OData APIs and
+are excluded. `cross_system_integration` and `grc_compliance` are audit/control modules
+without deterministic link tables.
+
+---
+
 ## Cloudflare licence server — implement this exactly
 
 ```typescript
@@ -814,6 +892,7 @@ All modules include enriched rule files with column mappings.
 | Branch | Description | Status |
 |---|---|---|
 | abstract-sap-connector-layer | Pluggable SAP connector abstraction (`sap/` package) — decouples pyrfc from production code | Done |
+| fixes | Cleaning engine full 29-module detection, Excel export, export/writeback/relationship/lineage coverage for all modules, stewardship queue wiring | Done |
 
 ### Security review
 
@@ -936,15 +1015,18 @@ A customer can:
 3. See a DQS score per module within 10 minutes of upload
 4. Read LLM-generated remediation guidance specific to SAP — not generic advice
 5. Download a branded PDF executive report (with MDM health and golden record sections)
-6. Manage golden records with AI-assisted survivorship and conflict resolution
-7. Run match & merge with AI semantic scoring for fuzzy dedup
-8. Use the NLP "Ask Vantax" interface to query findings in natural language
-9. Monitor data contracts for schema, quality, freshness, and volume compliance
-10. Track stewardship SLAs and exception resolution on Kanban boards
-11. View MDM governance metrics with AI-generated health narratives
-12. Configure daily/weekly email digests and Teams webhook notifications
-13. Manage users with RBAC (admin, steward, analyst, viewer roles)
-14. The Vantax portal shows their licence status and allows module add-ons via Stripe
+6. Review cleaning candidates (dedup, standardisation, validation, enrichment, lifecycle) detected automatically after upload across any of the 29 modules
+7. Approve, apply, and export cleaned data as Excel (.xlsx), CSV, LSMW, BAPI JSON, or IDoc
+8. Manage golden records with AI-assisted survivorship and conflict resolution
+9. Run match & merge with AI semantic scoring for fuzzy dedup
+10. Use the NLP "Ask Vantax" interface to query findings in natural language
+11. Monitor data contracts for schema, quality, freshness, and volume compliance
+12. Track stewardship SLAs and exception resolution on Kanban boards
+13. View MDM governance metrics with AI-generated health narratives
+14. Configure daily/weekly email digests and Teams webhook notifications
+15. Manage users with RBAC (admin, steward, analyst, viewer roles)
+16. Write back corrections to SAP for all 11 ECC modules via BAPI
+17. The Vantax portal shows their licence status and allows module add-ons via Stripe
 
 At no point does any SAP data leave their server.
 

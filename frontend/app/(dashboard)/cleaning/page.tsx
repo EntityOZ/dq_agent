@@ -314,8 +314,13 @@ export default function CleaningPage() {
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                        No cleaning items found.
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <p className="text-muted-foreground font-medium">No cleaning candidates detected</p>
+                        <p className="text-muted-foreground/70 text-xs mt-1 max-w-md mx-auto">
+                          Upload a file and run analysis first. Cleaning detection runs automatically
+                          after checks complete, scanning for duplicates, standardisation issues,
+                          enrichment gaps, validation errors, and lifecycle issues.
+                        </p>
                       </td>
                     </tr>
                   )}
@@ -356,6 +361,7 @@ export default function CleaningPage() {
               <span className="text-sm font-medium">Format</span>
               {([
                 { value: "csv" as const, label: "CSV (SAP field headers)" },
+                { value: "xlsx" as const, label: "Excel (.xlsx)" },
                 { value: "lsmw" as const, label: "LSMW Recording" },
                 { value: "bapi" as const, label: "BAPI Call JSON" },
                 { value: "idoc" as const, label: "IDoc JSON" },

@@ -17,7 +17,9 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger("vantax.relationship_discovery")
 
 # Known SAP link table mappings: domain -> [(link_table, target_domain, relationship_type, key_field)]
+# SuccessFactors modules use OData APIs, not RFC link tables — excluded intentionally.
 DOMAIN_LINK_MAPS: dict[str, list[tuple[str, str, str, str]]] = {
+    # ECC master data
     "business_partner": [
         ("KNA1", "customer", "bp_is_customer", "KUNNR"),
         ("LFA1", "vendor", "bp_is_vendor", "LIFNR"),
@@ -28,12 +30,62 @@ DOMAIN_LINK_MAPS: dict[str, list[tuple[str, str, str, str]]] = {
     "fi_gl": [
         ("SKB1", "gl_company_code", "gl_in_company_code", "SAKNR"),
     ],
+    "accounts_payable": [
+        ("LFB1", "vendor_company_code", "vendor_in_company_code", "LIFNR"),
+    ],
+    "accounts_receivable": [
+        ("KNB1", "customer_company_code", "customer_in_company_code", "KUNNR"),
+    ],
+    "asset_accounting": [
+        ("ANLZ", "asset_time_segment", "asset_in_cost_center", "ANLN1"),
+    ],
+    "mm_purchasing": [
+        ("EKPO", "po_item", "po_references_material", "MATNR"),
+    ],
+    "plant_maintenance": [
+        ("EQUZ", "equipment_time_segment", "equipment_in_plant", "EQUNR"),
+    ],
+    "sd_customer_master": [
+        ("KNVV", "customer_sales_area", "customer_in_sales_org", "KUNNR"),
+    ],
+    "sd_sales_orders": [
+        ("VBAP", "sales_order_item", "so_references_material", "MATNR"),
+    ],
+    "production_planning": [
+        ("STPO", "bom_item", "bom_references_material", "IDNRK"),
+    ],
+    # Warehouse
+    "ewms_stock": [
+        ("LQUA", "quant", "stock_in_bin", "MATNR"),
+    ],
+    "batch_management": [
+        ("MCH1", "batch_master", "batch_for_material", "MATNR"),
+    ],
+    "fleet_management": [
+        ("EQUI", "plant_maintenance", "fleet_uses_equipment", "EQUNR"),
+    ],
+    "transport_management": [
+        ("VTTP", "sd_sales_orders", "shipment_contains_delivery", "VBELN"),
+    ],
+    "wm_interface": [
+        ("LTAK", "ewms_stock", "interface_routes_to_warehouse", "LGNUM"),
+    ],
+    "mdg_master_data": [
+        ("USMD_CREQU", "business_partner", "mdg_change_for_entity", "ENTITY_ID"),
+    ],
+    # cross_system_integration: no RFC link tables — validation/reconciliation only
+    # grc_compliance: no RFC link tables — audit/control-centric
 }
 
 # All domains that could have cross-domain relationships (for AI inference)
 ALL_DOMAINS = [
     "business_partner", "customer", "vendor", "material_master",
-    "material_plant", "fi_gl", "gl_company_code", "fi_ap", "fi_ar",
+    "material_plant", "fi_gl", "gl_company_code",
+    "accounts_payable", "accounts_receivable", "asset_accounting",
+    "mm_purchasing", "plant_maintenance", "sd_customer_master",
+    "sd_sales_orders", "production_planning",
+    "ewms_stock", "batch_management",
+    "fleet_management", "transport_management", "wm_interface", "mdg_master_data",
 ]
 
 

@@ -20,7 +20,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **Data contracts** — schema, quality, freshness, and volume compliance monitoring
 
 ### Data Governance
-- **Cleaning engine** — deduplication, standardisation (SA-specific), enrichment, merge preview
+- **Cleaning engine** — 5-category detection (dedup, standardisation, enrichment, validation, lifecycle) across all 29 modules with Excel export
 - **Exception management** — rule-based detection, 4-tier SLA, Kanban board, impact estimation (ZAR)
 - **Analytics** — predictive DQS forecasting, prescriptive actions, impact analysis, cost avoidance ROI
 - **NLP query interface** — "Ask Vantax" natural language search across all findings and MDM data
@@ -31,7 +31,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **CSV/Excel upload** — SE16 exports with automatic column mapping
 - **Pluggable SAP connector** — abstraction layer supporting PyRFC (default), ctypes, OData, or custom backends via `SAP_CONNECTOR` env var
 - **Sync engine** — scheduled data extraction with AI anomaly detection and quality scoring
-- **Write-back** — push cleaning corrections and merged records back to SAP via BAPI calls
+- **Write-back** — push corrections back to SAP for all 11 ECC modules via BAPI (SF uses OData)
 
 ### Platform
 - **Multi-tenancy** — PostgreSQL Row Level Security, Clerk auth with RBAC (admin, steward, analyst, viewer)

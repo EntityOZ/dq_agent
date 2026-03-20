@@ -79,9 +79,20 @@ async def get_lineage(
     # Fallback: search by check_id prefix matching object_type
     if not findings_result.rowcount:
         prefix_map = {
-            "business_partner": "BP",
-            "material_master": "MM",
-            "fi_gl": "GL",
+            "business_partner": "BP", "material_master": "MM", "fi_gl": "GL",
+            "accounts_payable": "AP", "accounts_receivable": "AR",
+            "asset_accounting": "AA", "mm_purchasing": "PO",
+            "plant_maintenance": "PM", "production_planning": "PP",
+            "sd_customer_master": "SD", "sd_sales_orders": "SO",
+            "employee_central": "EC", "compensation": "CO", "benefits": "BN",
+            "payroll_integration": "PY", "performance_goals": "PG",
+            "succession_planning": "SP", "recruiting_onboarding": "RC",
+            "learning_management": "LM", "time_attendance": "TA",
+            "ewms_stock": "WS", "ewms_transfer_orders": "WT",
+            "batch_management": "BM", "mdg_master_data": "MD",
+            "grc_compliance": "GR", "fleet_management": "FL",
+            "transport_management": "TM", "wm_interface": "WI",
+            "cross_system_integration": "XI",
         }
         prefix = prefix_map.get(object_type, object_type[:2].upper())
         findings_result = await db.execute(

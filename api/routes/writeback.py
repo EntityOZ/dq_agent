@@ -24,11 +24,21 @@ from api.deps import Tenant, get_db, get_tenant
 router = APIRouter(prefix="/api/v1", tags=["writeback"])
 logger = logging.getLogger("vantax.writeback")
 
-# BAPI mapping for common fix types
+# BAPI mapping for ECC module write-back.
+# SuccessFactors modules use OData APIs (not RFC BAPIs) — excluded intentionally.
+# Warehouse modules may use RFC but with specialised function modules — extend as needed.
 BAPI_MAP = {
     "business_partner": "BAPI_BUPA_CENTRAL_DATA_SET",
     "material_master": "BAPI_MATERIAL_SAVEDATA",
     "fi_gl": "BAPI_GL_ACCOUNT_CREATE",
+    "accounts_payable": "BAPI_VENDOR_CHANGEFROMDATA",
+    "accounts_receivable": "BAPI_CUSTOMER_CHANGEFROMDATA1",
+    "asset_accounting": "BAPI_FIXEDASSET_CHANGE",
+    "mm_purchasing": "BAPI_PO_CHANGE",
+    "plant_maintenance": "BAPI_EQUI_CHANGE",
+    "production_planning": "BAPI_PRODORD_CHANGE",
+    "sd_customer_master": "BAPI_CUSTOMER_CHANGEFROMDATA1",
+    "sd_sales_orders": "BAPI_SALESORDER_CHANGE",
 }
 
 
