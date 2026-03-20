@@ -29,9 +29,9 @@ SAP data, findings, and reports **never leave the customer boundary**.
 
 ### SAP Integration
 - **CSV/Excel upload** — SE16 exports with automatic column mapping
-- **PyRFC live connector** — direct SAP system connection (RFC)
+- **Pluggable SAP connector** — abstraction layer supporting PyRFC (default), ctypes, OData, or custom backends via `SAP_CONNECTOR` env var
 - **Sync engine** — scheduled data extraction with AI anomaly detection and quality scoring
-- **Write-back** — push cleaning corrections and merged records back to SAP
+- **Write-back** — push cleaning corrections and merged records back to SAP via BAPI calls
 
 ### Platform
 - **Multi-tenancy** — PostgreSQL Row Level Security, Clerk auth with RBAC (admin, steward, analyst, viewer)
@@ -91,6 +91,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
    - `MINIO_SECRET_KEY` — MinIO password
    - `LICENCE_KEY` — issued from the Vantax portal
    - `LLM_PROVIDER` — `ollama` (default), `ollama_cloud` (dev), or `anthropic`
+   - `SAP_CONNECTOR` — `rfc` (default), `ctypes`, `odata`, or `mock` (see [docs/sap-connector.md](docs/sap-connector.md))
 
 4. Run the install script:
    ```bash
@@ -128,6 +129,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 | Licence server | Cloudflare Workers + KV |
 | Portal | Next.js on Cloudflare Pages |
 | Billing | Stripe (ZAR) |
+| SAP connector | Pluggable (`sap/`) — PyRFC, ctypes, OData, mock |
 | Container | Docker Compose / Kubernetes Helm chart |
 
 ## Development

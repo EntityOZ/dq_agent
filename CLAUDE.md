@@ -63,6 +63,11 @@ vantax/
 ├── Dockerfile / Dockerfile.api      ← container images
 ├── alembic.ini                      ← database migration config
 │
+├── sap/                             ← pluggable SAP connector abstraction
+│   ├── __init__.py                  ← get_connector() factory (SAP_CONNECTOR env var)
+│   ├── base.py                      ← SAPConnector ABC, SAPConnectionParams, BAPICall, SAPConnectorError
+│   └── rfc.py                       ← RFCConnector (pyrfc wrapper, deferred import)
+│
 ├── api/                             ← FastAPI application
 │   ├── main.py                      ← app entrypoint, router registration
 │   ├── config.py                    ← settings from env vars
@@ -89,8 +94,8 @@ vantax/
 │   │   ├── stewardship.py           ← stewardship queue (AI triage, SLA tracking)
 │   │   ├── mdm_metrics.py           ← MDM health dashboard metrics
 │   │   ├── systems.py               ← SAP system config (RFC hostname, credentials)
-│   │   ├── connect.py               ← RFC connection test, table metadata fetch
-│   │   ├── writeback.py             ← write corrections back to SAP
+│   │   ├── connect.py               ← SAP live extraction via sap/ connector abstraction
+│   │   ├── writeback.py             ← write corrections back to SAP via sap/ connector
 │   │   ├── ai_feedback.py           ← steward corrections for AI training
 │   │   ├── settings.py              ← tenant settings (DQS weights, thresholds)
 │   │   ├── users.py                 ← user management (Clerk integration, RBAC)
@@ -144,7 +149,7 @@ vantax/
 │       ├── send_notifications.py    ← email (Resend) + Teams webhook
 │       ├── run_cleaning.py          ← execute cleaning rules (dedup, standardisation)
 │       ├── run_exception_scan.py    ← rule-based exception detection and triage
-│       ├── run_sync.py              ← SAP PyRFC sync (extract, match, survivorship, write back)
+│       ├── run_sync.py              ← SAP sync via sap/ connector (extract, match, survivorship, write back)
 │       ├── ai_sync_quality.py       ← AI scoring of sync batch quality
 │       ├── ai_health_narrative.py   ← LLM narrative for MDM health dashboard
 │       ├── ai_triage.py             ← AI-assisted exception/cleaning triage
@@ -481,6 +486,51 @@ Import `get_llm()` wherever an LLM instance is needed. Never hardcode a provider
 
 ---
 
+## The pluggable SAP connector — implement exactly this pattern
+
+All SAP connectivity goes through `sap/`. No production code outside `sap/` may import
+`pyrfc`, `pyodata`, or `ctypes` directly. The backend is selected via `SAP_CONNECTOR` env var.
+
+```python
+# Usage in any route or worker:
+from sap import get_connector
+from sap.base import SAPConnectionParams, SAPConnectorError, BAPICall
+
+params = SAPConnectionParams(host=..., client=..., sysnr=..., user=..., password=...)
+try:
+    with get_connector() as conn:
+        conn.connect(params)
+        df = conn.read_table("BUT000", ["PARTNER", "BU_TYPE"])
+except SAPConnectorError as e:
+    ...  # message is already password-safe
+```
+
+Available backends (controlled by `SAP_CONNECTOR` env var, default `rfc`):
+
+| Value | Implementation | Notes |
+|---|---|---|
+| `rfc` | `sap/rfc.py` → `RFCConnector` | PyRFC / SAP NW RFC SDK (default, current) |
+| `ctypes` | `sap/ctypes_rfc.py` | Direct ctypes bindings (future) |
+| `odata` | `sap/odata.py` | OData V2/V4 via pyodata (future) |
+| `mock` | `sap/mock.py` | In-memory mock for testing (future) |
+
+Key rules:
+- **Always use as a context manager** (`with get_connector() as conn:`) to guarantee `close()`.
+- **Never import pyrfc outside `sap/rfc.py`**. The import is deferred to `connect()` so the
+  module loads even without SAP NW RFC SDK installed.
+- **`SAPConnectorError` messages are password-safe** — the connector masks passwords internally.
+  Callers should still mask passwords in any additional error messages they construct.
+- Adding a new backend: create `sap/<backend>.py` implementing `SAPConnector`, add an `elif`
+  branch in `sap/__init__.py`. No other files need changes.
+
+All four SAP-touching files use this abstraction:
+- `api/routes/connect.py` — live RFC extraction endpoint
+- `api/routes/systems.py` — test connection endpoint
+- `api/routes/writeback.py` — BAPI write-back execution
+- `workers/tasks/run_sync.py` — scheduled sync extraction
+
+---
+
 ## Check engine — YAML rule format
 
 Every check is defined in YAML. The runner loads these dynamically.
@@ -663,6 +713,9 @@ Dev mode (`docker-compose.dev.yml`) uses Ollama Cloud API — no local GPU requi
 ## Environment variables — full reference
 
 ```bash
+# SAP connector
+SAP_CONNECTOR=rfc                            # rfc | ctypes | odata | mock
+
 # LLM — choose one mode
 LLM_PROVIDER=ollama                          # ollama | ollama_cloud | anthropic
 OLLAMA_BASE_URL=http://llm:11434
@@ -756,6 +809,12 @@ All modules include enriched rule files with column mappings.
 | P2 | Exceptions→stewardship, analytics MDM, contracts golden, licence gating | Done |
 | P3 | PDF report MDM Health and Golden Record sections | Done |
 
+### Refactoring
+
+| Branch | Description | Status |
+|---|---|---|
+| abstract-sap-connector-layer | Pluggable SAP connector abstraction (`sap/` package) — decouples pyrfc from production code | Done |
+
 ### Security review
 
 | Branch | Description | Status |
@@ -784,6 +843,9 @@ All modules include enriched rule files with column mappings.
   Never introduce dark-mode hex colors (#0F1117 as bg, #E8ECF4 as text, etc.).
   Use CSS custom property tokens (`--primary`, `--foreground`, etc.) or Tailwind semantic
   classes (`text-foreground`, `bg-primary`, `border-black/[0.08]`).
+- SAP connectivity: all SAP calls go through `sap/get_connector()`. Never import `pyrfc`,
+  `pyodata`, or `ctypes` directly in `api/`, `workers/`, or `agents/`. Always use the
+  connector as a context manager (`with get_connector() as conn:`).
 - Commit messages: `phase-N: short description` — e.g. `phase-a: cleaning engine`.
   Integration branches: `integration/pN: short description`.
 
@@ -870,7 +932,7 @@ Solid white fallback backgrounds are used instead.
 
 A customer can:
 1. Run `./scripts/install.sh` on their server and have the full stack running within 30 minutes
-2. Upload a CSV export from SAP transaction SE16 or connect live via PyRFC
+2. Upload a CSV export from SAP transaction SE16 or connect live via the SAP connector (PyRFC, OData, or custom backend)
 3. See a DQS score per module within 10 minutes of upload
 4. Read LLM-generated remediation guidance specific to SAP — not generic advice
 5. Download a branded PDF executive report (with MDM health and golden record sections)
