@@ -24,44 +24,87 @@ from api.services.standardisers import (
 
 logger = logging.getLogger("vantax.cleaning")
 
-# Column name patterns per object type
-_NAME_COLS = ["name", "partner_name", "vendor_name", "customer_name", "bp_name"]
-_PHONE_COLS = ["phone", "telephone", "tel", "phone_number", "tel_number"]
-_COUNTRY_COLS = ["country", "country_code", "land1"]
-_UOM_COLS = ["uom", "base_unit", "base_uom", "meins"]
-_EMAIL_COLS = ["email", "smtp_addr", "email_address"]
+# Column name patterns — includes SAP technical field names so detection works
+# with both mapped (friendly) names and raw SAP TABLE.FIELD names.
+_NAME_COLS = [
+    "name", "partner_name", "vendor_name", "customer_name", "bp_name",
+    "name_org1", "name1", "name2", "mcod1", "firstname", "lastname",
+    "first_name", "last_name", "vorna", "nachn", "sname",
+]
+_PHONE_COLS = [
+    "phone", "telephone", "tel", "phone_number", "tel_number",
+    "telf1", "telf2", "mobile", "cell",
+]
+_COUNTRY_COLS = ["country", "country_code", "land1", "land", "nation"]
+_UOM_COLS = ["uom", "base_unit", "base_uom", "meins", "gewei", "unit_of_measure", "unit"]
+_EMAIL_COLS = ["email", "smtp_addr", "email_address", "e_mail", "contact_email"]
 _ID_COLS = ["id_number", "sa_id", "national_id"]
 _VAT_COLS = ["vat_number", "vat_no", "stceg"]
 _BRANCH_COLS = ["branch_code", "bank_branch", "bankl"]
-_DESC_COLS = ["description", "material_description", "maktx"]
+_DESC_COLS = [
+    "description", "material_description", "maktx", "txt50", "eqktx",
+    "text", "desc", "goal_description",
+]
 _PAYMENT_COLS = ["payment_terms", "zterm"]
-_CURRENCY_COLS = ["currency", "waers"]
-_TAX_COLS = ["tax_number", "stcd1", "vat_number"]
-_BANK_ACCT_COLS = ["bank_account", "bankn"]
+_CURRENCY_COLS = ["currency", "waers", "curr", "currency_code"]
+_TAX_COLS = ["tax_number", "stcd1", "vat_number", "stceg", "tax_id"]
+_BANK_ACCT_COLS = ["bank_account", "bankn", "banka", "bankl", "bank_key"]
 _MATERIAL_GROUP_COLS = ["material_group", "matkl"]
 _BASE_UNIT_COLS = ["base_unit", "meins", "base_uom"]
-_ACTIVITY_COLS = ["last_activity", "modified_date", "last_changed", "aedat"]
-_STATUS_COLS = ["status", "block_status", "sperr"]
+_ACTIVITY_COLS = [
+    "last_activity", "modified_date", "last_changed", "aedat", "laeda",
+    "created_at", "erdat", "start_date", "hire_date", "effective_date",
+]
+_STATUS_COLS = [
+    "status", "block_status", "sperr", "mstae", "employment_type",
+    "approval_status", "is_active", "active",
+]
 _TERMINATION_COLS = ["termination_date", "term_date"]
-_STOCK_COLS = ["stock_quantity", "labst", "stock"]
-_PRICE_COLS = ["price", "stprs", "verpr"]
+_STOCK_COLS = ["stock_quantity", "labst", "stock", "bestq"]
+_PRICE_COLS = ["price", "stprs", "verpr", "salary", "net_pay", "amount", "cost"]
+_AMOUNT_COLS = [
+    "price", "stprs", "salary", "net_pay", "amount", "cost",
+    "weight", "ntgew", "quantity", "menge", "kwmeng", "bestq",
+]
+_PK_COLS = [
+    "partner", "lifnr", "kunnr", "matnr", "equnr", "userid",
+    "pernr", "employee_id", "candidate_id", "anln1", "saknr",
+    "ebeln", "vbeln", "tanum", "charg", "lgpla",
+]
 
 
 def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Find first matching column name (case-insensitive)."""
-    df_lower = {c.lower(): c for c in df.columns}
-    for c in candidates:
-        if c.lower() in df_lower:
-            return df_lower[c.lower()]
+    """Find first matching column name (case-insensitive).
+
+    Also strips SAP table prefixes: 'BUT000.NAME_ORG1' matches 'name_org1'.
+    """
+    cols_lower = {c.lower(): c for c in df.columns}
+    # Build stripped map: "BUT000.NAME_ORG1" → "name_org1" → original column name
+    cols_stripped: dict[str, str] = {}
+    for c in df.columns:
+        if "." in c:
+            stripped = c.split(".", 1)[1].lower()
+            cols_stripped[stripped] = c
+
+    for candidate in candidates:
+        cl = candidate.lower()
+        if cl in cols_lower:
+            return cols_lower[cl]
+        if cl in cols_stripped:
+            return cols_stripped[cl]
     return None
 
 
 def _record_key(row: pd.Series, df: pd.DataFrame) -> str:
     """Build a record key from the first plausible key column or index."""
-    for col in ["partner", "bp_number", "material", "matnr", "employee_id", "pernr", "id"]:
-        actual = _find_col(df, [col])
-        if actual and pd.notna(row.get(actual)):
-            return str(row[actual])
+    actual = _find_col(df, _PK_COLS)
+    if actual and pd.notna(row.get(actual)):
+        return str(row[actual])
+    # Fallback: try first column if it looks like an ID
+    if len(df.columns) > 0:
+        first_val = row.get(df.columns[0])
+        if pd.notna(first_val) and str(first_val).strip():
+            return str(first_val).strip()
     return str(row.name)
 
 
@@ -112,8 +155,49 @@ class CleaningEngine:
         version_id: str,
         tenant_id: str,
     ) -> list[dict]:
-        """Category 1: O(n^2) pairwise dedup detection."""
+        """Category 1: Exact primary-key duplicates + O(n^2) fuzzy dedup."""
         results: list[dict] = []
+
+        # Phase 1: Exact duplicate detection on primary key (applies to all modules)
+        pk_col = _find_col(df, _PK_COLS)
+        if pk_col:
+            dupes = df[df[pk_col].duplicated(keep=False) & df[pk_col].notna()]
+            if not dupes.empty:
+                for pk_val, group in dupes.groupby(pk_col):
+                    if len(group) < 2:
+                        continue
+                    rows_list = list(group.iterrows())
+                    for g in range(1, len(rows_list)):
+                        idx_a, row_a = rows_list[0]
+                        idx_b, row_b = rows_list[g]
+                        key_a = str(pk_val)
+                        key_b = f"{pk_val}_dup{g}"
+                        merge_preview: dict[str, dict] = {}
+                        for col in df.columns:
+                            va = row_a.get(col)
+                            vb = row_b.get(col)
+                            sa = str(va) if pd.notna(va) else ""
+                            sb = str(vb) if pd.notna(vb) else ""
+                            survivor = sa if len(sa) >= len(sb) else sb
+                            merge_preview[col] = {"a": sa, "b": sb, "survivor": survivor}
+                        results.append({
+                            "object_type": object_type,
+                            "status": "detected",
+                            "record_key": f"{key_a}|{key_b}",
+                            "record_data_before": {"record_a": key_a, "record_b": key_b},
+                            "record_data_after": None,
+                            "confidence": 98,
+                            "rule_id": None,
+                            "version_id": version_id,
+                            "tenant_id": tenant_id,
+                            "priority": 80,
+                            "merge_preview": merge_preview,
+                            "match_method": "exact_pk",
+                            "match_fields": {pk_col: {"a": str(pk_val), "b": str(pk_val), "method": "exact_pk"}},
+                            "category": "dedup",
+                        })
+
+        # Phase 2: Fuzzy matching on name/email/tax/bank (O(n^2), capped at 500 rows)
         name_col = _find_col(df, _NAME_COLS)
         email_col = _find_col(df, _EMAIL_COLS)
         tax_col = _find_col(df, _TAX_COLS)
@@ -225,18 +309,36 @@ class CleaningEngine:
         """Category 2: Apply standardisers and flag differences."""
         results: list[dict] = []
 
-        # Map columns to standardiser functions
+        # Map columns to standardiser functions — base set applies to all modules
         mappings: list[tuple[list[str], callable, int]] = [
             (_PHONE_COLS, sa_phone_number, 90),
             (_COUNTRY_COLS, country_code, 90),
         ]
 
-        if object_type in ("customer", "vendor", "business_partner"):
+        # ECC master data — names, UOM, descriptions
+        if object_type in ("customer", "vendor", "business_partner",
+                           "accounts_payable", "accounts_receivable",
+                           "sd_customer_master"):
             mappings.append((_NAME_COLS, lambda v: title_case(v), 75))
             mappings.append((_UOM_COLS, sap_uom, 85))
 
-        if object_type == "material":
+        if object_type in ("material", "production_planning", "mm_purchasing"):
             mappings.append((_DESC_COLS, material_description, 80))
+            mappings.append((_UOM_COLS, sap_uom, 85))
+
+        # ECC operations — UOM for quantities
+        if object_type in ("plant_maintenance", "asset_accounting",
+                           "sd_sales_orders"):
+            mappings.append((_UOM_COLS, sap_uom, 85))
+
+        # SuccessFactors — names and phones
+        if object_type in ("employee_central", "recruiting_onboarding"):
+            mappings.append((_NAME_COLS, lambda v: title_case(v), 75))
+
+        # Warehouse — UOM standardisation
+        if object_type in ("ewms_stock", "ewms_transfer_orders",
+                           "batch_management", "transport_management",
+                           "fleet_management"):
             mappings.append((_UOM_COLS, sap_uom, 85))
 
         for col_candidates, func, confidence in mappings:
@@ -294,6 +396,65 @@ class CleaningEngine:
             checks = [
                 (_BASE_UNIT_COLS, 95, None),
                 (_MATERIAL_GROUP_COLS, 70, None),
+            ]
+        # ECC Finance
+        elif object_type == "fi_gl":
+            checks = [
+                (_CURRENCY_COLS, 90, "ZAR"),
+                (_DESC_COLS, 60, None),
+            ]
+        elif object_type in ("accounts_payable", "accounts_receivable"):
+            checks = [
+                (_PAYMENT_COLS, 80, None),
+                (_CURRENCY_COLS, 90, "ZAR"),
+                (_COUNTRY_COLS, 85, "ZA"),
+                (_EMAIL_COLS, 70, None),
+            ]
+        # ECC Operations
+        elif object_type in ("plant_maintenance", "asset_accounting"):
+            checks = [(_DESC_COLS, 70, None)]
+        elif object_type in ("production_planning", "mm_purchasing"):
+            checks = [(_UOM_COLS, 85, None)]
+        elif object_type == "sd_customer_master":
+            checks = [
+                (_PAYMENT_COLS, 80, None),
+                (_COUNTRY_COLS, 85, "ZA"),
+            ]
+        elif object_type == "sd_sales_orders":
+            checks = [(_UOM_COLS, 80, None)]
+        # SuccessFactors
+        elif object_type == "employee_central":
+            checks = [
+                (_EMAIL_COLS, 80, None),
+                (_PHONE_COLS, 70, None),
+                (_COUNTRY_COLS, 85, "ZA"),
+            ]
+        elif object_type in ("compensation", "payroll_integration"):
+            checks = [(_CURRENCY_COLS, 95, "ZAR")]
+        elif object_type == "benefits":
+            checks = [(_ACTIVITY_COLS, 70, None)]
+        elif object_type == "recruiting_onboarding":
+            checks = [
+                (_EMAIL_COLS, 85, None),
+                (_PHONE_COLS, 70, None),
+            ]
+        elif object_type == "time_attendance":
+            checks = [(_STATUS_COLS, 75, None)]
+        # Warehouse
+        elif object_type in ("ewms_stock", "ewms_transfer_orders"):
+            checks = [(_UOM_COLS, 85, None)]
+        elif object_type == "batch_management":
+            checks = [(_ACTIVITY_COLS, 80, None)]
+        elif object_type == "fleet_management":
+            checks = [(_ACTIVITY_COLS, 75, None), (_DESC_COLS, 60, None)]
+        elif object_type == "transport_management":
+            checks = [(_COUNTRY_COLS, 85, None)]
+        # Catch-all for remaining modules
+        else:
+            checks = [
+                (_COUNTRY_COLS, 85, "ZA"),
+                (_CURRENCY_COLS, 90, "ZAR"),
+                (_DESC_COLS, 50, None),
             ]
 
         for col_candidates, confidence, default_value in checks:
@@ -437,6 +598,61 @@ class CleaningEngine:
                 except (ValueError, TypeError):
                     pass
 
+        # Currency code validation — applies to all modules with a currency field
+        currency_col = _find_col(df, _CURRENCY_COLS)
+        if currency_col:
+            valid_currencies = {"ZAR", "USD", "EUR", "GBP", "AUD", "CAD", "CHF", "JPY", "CNY",
+                                "BWP", "NAD", "ZMW", "KES", "NGN", "MZN", "INR", "BRL"}
+            for idx, row in df.iterrows():
+                val = row.get(currency_col)
+                if pd.isna(val) or not str(val).strip():
+                    continue
+                currency_str = str(val).strip().upper()
+                if currency_str not in valid_currencies:
+                    key = _record_key(row, df)
+                    results.append({
+                        "object_type": object_type,
+                        "status": "detected",
+                        "record_key": key,
+                        "record_data_before": {currency_col: currency_str, "error": "unknown currency code"},
+                        "record_data_after": {},
+                        "confidence": 85,
+                        "rule_id": None,
+                        "version_id": version_id,
+                        "tenant_id": tenant_id,
+                        "priority": 50,
+                        "merge_preview": None,
+                        "category": "validation",
+                    })
+
+        # Negative amount validation — runs for any module with an amount column
+        amount_col = _find_col(df, _AMOUNT_COLS)
+        if amount_col:
+            for idx, row in df.iterrows():
+                val = row.get(amount_col)
+                if pd.isna(val):
+                    continue
+                try:
+                    num = float(val)
+                    if num < 0:
+                        key = _record_key(row, df)
+                        results.append({
+                            "object_type": object_type,
+                            "status": "detected",
+                            "record_key": key,
+                            "record_data_before": {amount_col: str(val), "issue": "negative amount"},
+                            "record_data_after": {},
+                            "confidence": 80,
+                            "rule_id": None,
+                            "version_id": version_id,
+                            "tenant_id": tenant_id,
+                            "priority": 45,
+                            "merge_preview": None,
+                            "category": "validation",
+                        })
+                except (ValueError, TypeError):
+                    pass
+
         price_col = _find_col(df, _PRICE_COLS)
         if price_col and object_type == "material":
             status_col = _find_col(df, _STATUS_COLS)
@@ -547,7 +763,7 @@ class CleaningEngine:
                     pass
 
         # Access risk — terminated employees with active status
-        if object_type == "employee":
+        if object_type in ("employee", "employee_central"):
             term_col = _find_col(df, _TERMINATION_COLS)
             emp_status_col = _find_col(df, _STATUS_COLS)
             if term_col and emp_status_col:

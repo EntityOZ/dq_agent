@@ -157,7 +157,7 @@ export async function mergeDedupCandidate(params: {
 
 // ── Export ───────────────────────────────────────────────────────────────────
 
-export type ExportFormat = "csv" | "lsmw" | "bapi" | "idoc" | "sf_csv";
+export type ExportFormat = "csv" | "lsmw" | "bapi" | "idoc" | "sf_csv" | "xlsx";
 
 export async function downloadCleaningExport(
   format: ExportFormat,

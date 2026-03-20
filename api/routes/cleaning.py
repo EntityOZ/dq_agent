@@ -447,7 +447,7 @@ async def export_cleaning_data(
     tenant: Tenant = Depends(get_tenant),
     _role: str = Depends(require_permission("export")),
 ):
-    valid_formats = ("csv", "lsmw", "bapi", "idoc", "sf_csv")
+    valid_formats = ("csv", "lsmw", "bapi", "idoc", "sf_csv", "xlsx")
     if export_format not in valid_formats:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {export_format}")
 
@@ -483,6 +483,16 @@ async def export_cleaning_data(
 
     from api.services.export_engine import ExportEngine
     engine = ExportEngine()
+
+    # Excel export returns binary, handle separately
+    if export_format == "xlsx":
+        content_bytes = engine.export_xlsx(records, resolved_object_type)
+        filename = f"cleaning_export_{object_type or 'all'}.xlsx"
+        return StreamingResponse(
+            io.BytesIO(content_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
 
     format_dispatch = {
         "csv": engine.export_csv,
