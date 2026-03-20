@@ -458,7 +458,7 @@ SAP_MODULES: list[SAPModule] = [
 
 @dataclass
 class SAPConnectionConfig:
-    """Emulated SAP RFC connection parameters (mirrors pyrfc.Connection)."""
+    """Emulated SAP RFC connection parameters (mirrors sap.base.SAPConnectionParams)."""
 
     ashost: str = "10.0.1.50"
     sysnr: str = "00"
@@ -479,11 +479,13 @@ class SAPConnectionConfig:
 
 class EmulatedSAPConnection:
     """
-    Emulates pyrfc.Connection for seeding purposes.
+    Emulates the SAP connector for seeding purposes.
 
     In production, Vantax uses:
-        conn = pyrfc.Connection(**config)
-        result = conn.call('RFC_READ_TABLE', ...)
+        from sap import get_connector
+        with get_connector() as conn:
+            conn.connect(params)
+            df = conn.read_table('BUT000', ['PARTNER', 'BU_TYPE'])
 
     This emulator generates realistic SAP-shaped data for each module
     without requiring an actual SAP system.
@@ -1076,7 +1078,7 @@ def generate_sap_systems() -> list[dict]:
             "id": str(uuid.uuid4()),
             "name": "SAP ECC Production",
             "system_type": "ECC",
-            "connection_type": "pyrfc",
+            "connection_type": "rfc",
             "host": "10.0.1.50",
             "system_number": "00",
             "client": "100",
@@ -1104,7 +1106,7 @@ def generate_sap_systems() -> list[dict]:
             "id": str(uuid.uuid4()),
             "name": "SAP EWM Production",
             "system_type": "Warehouse",
-            "connection_type": "pyrfc",
+            "connection_type": "rfc",
             "host": "10.0.1.55",
             "system_number": "01",
             "client": "200",

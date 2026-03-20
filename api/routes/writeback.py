@@ -123,11 +123,13 @@ async def create_writeback(
         if not bapi:
             errors.append(f"No BAPI mapping for module '{module}' — write-back not supported")
         else:
-            # Validate pyrfc is available
+            # Verify the configured connector backend is available
+            from sap import get_connector
+            from sap.base import SAPConnectorError
             try:
-                import pyrfc  # noqa: F401
-            except ImportError:
-                errors.append("PyRFC not installed — cannot validate BAPI calls")
+                _test_conn = get_connector()
+            except Exception:
+                errors.append("SAP connector not available — cannot validate BAPI calls")
 
         # Create pending write-back log entry
         log_id = str(uuid.uuid4())
@@ -251,41 +253,34 @@ async def approve_writeback(
     elif not valid_fixes:
         errors.append("No deterministic fixes available")
     else:
-        # Execute via RFC
+        # Execute via SAP connector
+        from sap import get_connector
+        from sap.base import SAPConnectionParams, SAPConnectorError, BAPICall
+
+        params = SAPConnectionParams(
+            host=record[4],   # sap_host from write_back_log
+            client="100",
+            sysnr="00",
+            user="WRITEBACK",
+            password="****",  # sourced from secure store — placeholder matches existing
+        )
         try:
-            import pyrfc
-        except ImportError:
-            errors.append("PyRFC not installed")
-            valid_fixes = []
-
-        if valid_fixes:
-            conn = None
-            try:
-                conn = pyrfc.Connection(
-                    ashost=record[4],  # sap_host
-                    client="100",
-                    user="WRITEBACK",
-                    passwd="****",  # would come from secure store in production
-                    sysnr="00",
-                )
-
+            with get_connector() as conn:
+                conn.connect(params)
                 for fix in valid_fixes:
                     try:
-                        # Call BAPI with the fix parameters
-                        conn.call(bapi, **fix.get("bapi_params", {}))
+                        conn.execute_bapi(BAPICall(
+                            bapi_name=bapi,
+                            params=fix.get("bapi_params", {}),
+                        ))
                         applied += 1
-                    except Exception as e:
-                        safe_msg = str(e)
-                        errors.append(f"BAPI call failed for {fix.get('field', '?')}: {safe_msg}")
-
-            except Exception as e:
+                    except SAPConnectorError as e:
+                        errors.append(f"BAPI call failed for {fix.get('field', '?')}: {str(e)}")
+        except SAPConnectorError as e:
+            if "pyrfc_not_installed" in str(e):
+                errors.append("PyRFC not installed")
+            else:
                 errors.append(f"RFC connection failed: {str(e)}")
-            finally:
-                if conn is not None:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
 
     # Update the log record
     await db.execute(

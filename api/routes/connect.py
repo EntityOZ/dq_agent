@@ -1,4 +1,4 @@
-"""PyRFC live connector — extract data directly from SAP via RFC_READ_TABLE.
+"""SAP live connector — extract data directly from SAP via the pluggable connector layer.
 
 Raw SAP data is NEVER persisted. Only findings are stored in Postgres.
 The SAP password is NEVER logged or stored.
@@ -109,37 +109,6 @@ def _mask_password(msg: str, password: str) -> str:
     return msg
 
 
-def _parse_rfc_result(result: dict) -> pd.DataFrame:
-    """Parse RFC_READ_TABLE result into a pandas DataFrame.
-
-    RFC_READ_TABLE returns:
-      - FIELDS: list of {FIELDNAME, OFFSET, LENGTH, TYPE, FIELDTEXT}
-      - DATA: list of {WA: "value1|value2|..."} where | is the delimiter
-    """
-    fields_meta = result.get("FIELDS", [])
-    data_rows = result.get("DATA", [])
-
-    if not fields_meta:
-        return pd.DataFrame()
-
-    field_names = [f["FIELDNAME"].strip() for f in fields_meta]
-    field_offsets = []
-    for f in fields_meta:
-        offset = int(f.get("OFFSET", 0))
-        length = int(f.get("LENGTH", 0))
-        field_offsets.append((offset, offset + length))
-
-    rows = []
-    for row in data_rows:
-        wa = row.get("WA", "")
-        values = []
-        for start, end in field_offsets:
-            values.append(wa[start:end].strip())
-        rows.append(values)
-
-    return pd.DataFrame(rows, columns=field_names)
-
-
 @router.post("/connect", response_model=SAPConnectionResponse)
 async def connect_sap(
     body: SAPConnectionRequest,
@@ -155,57 +124,39 @@ async def connect_sap(
     # Rate limiting: Redis-backed, persists across restarts
     _check_rfc_rate_limit(tenant_key)
 
-    # Import pyrfc — optional dependency
+    # ── Connect and extract via SAP connector ──────────────────────────────
+    from sap import get_connector
+    from sap.base import SAPConnectionParams, SAPConnectorError
+
+    params = SAPConnectionParams(
+        host=body.host,
+        client=body.client,
+        sysnr=body.sysnr,
+        user=body.user,
+        password=body.password,
+    )
+    validated_where = validate_rfc_where(body.where)
+
     try:
-        import pyrfc
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "error": "pyrfc_not_installed",
-                "detail": "PyRFC is not installed. Build the API image with INSTALL_PYRFC=true.",
-            },
-        )
-
-    # Extract data via RFC
-    conn = None
-    try:
-        conn = pyrfc.Connection(
-            ashost=body.host,
-            client=body.client,
-            user=body.user,
-            passwd=body.password,
-            sysnr=body.sysnr,
-        )
-
-        validated_where = validate_rfc_where(body.where)
-        options = [{"TEXT": validated_where}] if validated_where else []
-
-        result = conn.call(
-            "RFC_READ_TABLE",
-            QUERY_TABLE=body.table,
-            FIELDS=[{"FIELDNAME": f} for f in body.fields],
-            OPTIONS=options,
-        )
-
-        df = _parse_rfc_result(result)
-
-    except Exception as e:
-        # Mask the password in any error message
+        with get_connector() as conn:
+            conn.connect(params)
+            df = conn.read_table(body.table, body.fields, validated_where)
+    except SAPConnectorError as e:
         safe_msg = _mask_password(str(e), body.password)
-        # Also mask in any nested repr
-        safe_msg = re.sub(re.escape(body.password), "****", safe_msg) if body.password else safe_msg
-        logger.error(f"RFC connection failed: {safe_msg}")
+        logger.error(f"SAP connector failed: {safe_msg}")
+        # Preserve existing error key and HTTP status for API compatibility
+        if "pyrfc_not_installed" in str(e):
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "error": "pyrfc_not_installed",
+                    "detail": "PyRFC is not installed. Build the API image with INSTALL_PYRFC=true.",
+                },
+            )
         raise HTTPException(
             status_code=422,
             detail={"error": "rfc_error", "detail": safe_msg},
         )
-    finally:
-        if conn is not None:
-            try:
-                conn.close()
-            except Exception:
-                pass  # best-effort close
 
     if df.empty:
         raise HTTPException(

@@ -54,3 +54,6 @@ stripe>=11.0.0
 # Observability
 sentry-sdk[fastapi]>=2.19.0
 scikit-learn==1.6.1
+
+# SAP connector — optional, required when SAP_CONNECTOR=rfc (default)
+# pyrfc>=3.1.0  # Install separately: requires SAP NW RFC SDK. See docs/sap-connector.md.

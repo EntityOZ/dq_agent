@@ -336,18 +336,31 @@ async def test_connection(
     except Exception:
         return TestConnectionResponse(connected=False, message="Failed to decrypt credentials")
 
+    from sap import get_connector
+    from sap.base import SAPConnectionParams, SAPConnectorError
+
+    rfc_user = os.getenv("SAP_RFC_USER", "RFC_USER")
+
+    params = SAPConnectionParams(
+        host=host,
+        client=client,
+        sysnr=sysnr,
+        user=rfc_user,
+        password=password,
+    )
     try:
-        import pyrfc
-        rfc_user = os.getenv("SAP_RFC_USER", "RFC_USER")
-        conn = pyrfc.Connection(ashost=host, client=client, user=rfc_user, passwd=password, sysnr=sysnr)
-        conn.close()
-        password = ""  # noqa: F841
-        return TestConnectionResponse(connected=True, message="Connection successful")
-    except ImportError:
-        return TestConnectionResponse(connected=False, message="PyRFC is not installed")
-    except Exception as e:
+        with get_connector() as conn:
+            conn.connect(params)
+            connected = conn.ping()
+        password = ""  # clear from memory
+        if connected:
+            return TestConnectionResponse(connected=True, message="Connection successful")
+        return TestConnectionResponse(connected=False, message="Ping failed")
+    except SAPConnectorError as e:
         safe_msg = re.sub(re.escape(password), "****", str(e)) if password else str(e)
-        password = ""  # noqa: F841
+        password = ""  # clear from memory
+        if "pyrfc_not_installed" in str(e):
+            return TestConnectionResponse(connected=False, message="PyRFC is not installed")
         return TestConnectionResponse(connected=False, message=f"Connection failed: {safe_msg}")
 
 
