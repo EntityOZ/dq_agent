@@ -171,9 +171,53 @@ const CATEGORY_LABELS: Record<string, string> = {
   contract_violation: "Contract Violation",
 };
 
+// ── Section Toggle ──────────────────────────────────────────────────────────
+
+function SectionToggle({
+  sections,
+  visible,
+  onToggle,
+}: {
+  sections: { key: string; label: string }[];
+  visible: Set<string>;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-4">
+      {sections.map((s) => (
+        <button
+          key={s.key}
+          onClick={() => onToggle(s.key)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            visible.has(s.key)
+              ? "bg-primary text-white"
+              : "bg-accent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function useToggle(keys: string[]): [Set<string>, (key: string) => void] {
+  const [visible, setVisible] = useState<Set<string>>(() => new Set(keys));
+  const toggle = (key: string) => {
+    setVisible((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  return [visible, toggle];
+}
+
 // ── Predictive Tab ──────────────────────────────────────────────────────────
 
 function PredictiveTab() {
+  const [visible, toggle] = useToggle(["warnings", "forecasts"]);
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "predictive"],
     queryFn: async () => (await apiClient.get("/api/v1/analytics/predictive")).data,
@@ -187,8 +231,17 @@ function PredictiveTab() {
 
   return (
     <div className="space-y-6">
+      <SectionToggle
+        sections={[
+          { key: "warnings", label: "Early Warnings" },
+          { key: "forecasts", label: "DQS Forecasts" },
+        ]}
+        visible={visible}
+        onToggle={toggle}
+      />
+
       {/* Early Warnings */}
-      <div>
+      {visible.has("warnings") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">Early Warnings</h3>
         {warnings.length === 0 ? (
           <p className="text-sm text-muted-foreground">No warnings — all modules healthy</p>
@@ -214,10 +267,10 @@ function PredictiveTab() {
             })}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Forecast Charts */}
-      <div>
+      {visible.has("forecasts") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">DQS Forecasts</h3>
         {forecasts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -334,7 +387,7 @@ function PredictiveTab() {
             })}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -342,6 +395,7 @@ function PredictiveTab() {
 // ── Prescriptive Tab ────────────────────────────────────────────────────────
 
 function PrescriptiveTab() {
+  const [visible, toggle] = useToggle(["actions", "sprints"]);
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "prescriptive"],
     queryFn: async () => (await apiClient.get("/api/v1/analytics/prescriptive")).data,
@@ -364,8 +418,17 @@ function PrescriptiveTab() {
 
   return (
     <div className="space-y-6">
+      <SectionToggle
+        sections={[
+          { key: "actions", label: "Next Best Actions" },
+          { key: "sprints", label: "Sprint Planner" },
+        ]}
+        visible={visible}
+        onToggle={toggle}
+      />
+
       {/* Next Best Actions */}
-      <div>
+      {visible.has("actions") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           Next Best Actions
         </h3>
@@ -424,10 +487,10 @@ function PrescriptiveTab() {
             </Table>
           </Card>
         )}
-      </div>
+      </div>}
 
       {/* Sprint Planner */}
-      <div>
+      {visible.has("sprints") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           Sprint Planner
         </h3>
@@ -474,7 +537,7 @@ function PrescriptiveTab() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -548,6 +611,7 @@ function ImpactTreemap({
 }
 
 function ImpactTab() {
+  const [visible, toggle] = useToggle(["roi", "treemap", "breakdown"]);
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "impact"],
     queryFn: async () => (await apiClient.get("/api/v1/analytics/impact")).data,
@@ -566,8 +630,18 @@ function ImpactTab() {
 
   return (
     <div className="space-y-6">
+      <SectionToggle
+        sections={[
+          { key: "roi", label: "ROI Summary" },
+          { key: "treemap", label: "Impact Treemap" },
+          { key: "breakdown", label: "Breakdown Table" },
+        ]}
+        visible={visible}
+        onToggle={toggle}
+      />
+
       {/* ROI Summary */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      {visible.has("roi") && <div className="grid gap-4 sm:grid-cols-4">
         <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">Subscription</p>
@@ -604,10 +678,10 @@ function ImpactTab() {
             <p className="text-xs text-muted-foreground">to break even</p>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
       {/* Treemap */}
-      <Card className="border-black/[0.08]">
+      {visible.has("treemap") && <Card className="border-black/[0.08]">
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-foreground">
             Impact Treemap — Annual Risk (ZAR)
@@ -616,10 +690,10 @@ function ImpactTab() {
         <CardContent>
           <ImpactTreemap impacts={impacts} />
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Breakdown Table */}
-      <Card className="border-black/[0.08]">
+      {visible.has("breakdown") && <Card className="border-black/[0.08]">
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-foreground">
             Impact Breakdown
@@ -664,7 +738,7 @@ function ImpactTab() {
             ))}
           </TableBody>
         </Table>
-      </Card>
+      </Card>}
     </div>
   );
 }
@@ -693,6 +767,7 @@ const KPI_META: {
 ];
 
 function OperationalTab() {
+  const [visible, toggle] = useToggle(["kpis", "bottlenecks", "capacity"]);
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "operational"],
     queryFn: async () =>
@@ -703,8 +778,6 @@ function OperationalTab() {
   const { data: teamData } = useQuery({
     queryKey: ["analytics", "operational", "stewards"],
     queryFn: async () => {
-      // Steward data comes from the operational endpoint's underlying query
-      // For team table, we reuse capacity endpoint
       return (await apiClient.get("/api/v1/analytics/capacity")).data;
     },
     staleTime: 60_000,
@@ -723,8 +796,18 @@ function OperationalTab() {
 
   return (
     <div className="space-y-6">
+      <SectionToggle
+        sections={[
+          { key: "kpis", label: "KPIs" },
+          { key: "bottlenecks", label: "Bottlenecks" },
+          { key: "capacity", label: "Capacity" },
+        ]}
+        visible={visible}
+        onToggle={toggle}
+      />
+
       {/* KPI Grid */}
-      <div>
+      {visible.has("kpis") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           Key Performance Indicators
         </h3>
@@ -756,10 +839,10 @@ function OperationalTab() {
             );
           })}
         </div>
-      </div>
+      </div>}
 
       {/* Bottlenecks */}
-      <div>
+      {visible.has("bottlenecks") && <div>
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           Bottleneck Analysis
         </h3>
@@ -796,10 +879,10 @@ function OperationalTab() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Capacity Planning */}
-      <Card className="border-black/[0.08]">
+      {visible.has("capacity") && <Card className="border-black/[0.08]">
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-foreground">
             Capacity Planning
@@ -838,7 +921,7 @@ function OperationalTab() {
           </div>
           <p className="text-sm text-muted-foreground">{capacity.recommendation}</p>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }
@@ -859,6 +942,7 @@ interface MDMHealthRow {
 }
 
 function MDMHealthTab() {
+  const [visible, toggle] = useToggle(["summary", "trend", "insights"]);
   const { data: mdmHealth, isLoading } = useQuery({
     queryKey: ["analytics", "mdm-health"],
     queryFn: async () =>
@@ -892,8 +976,18 @@ function MDMHealthTab() {
 
   return (
     <div className="space-y-6">
+      <SectionToggle
+        sections={[
+          { key: "summary", label: "Summary" },
+          { key: "trend", label: "Trend Chart" },
+          { key: "insights", label: "AI Insights" },
+        ]}
+        visible={visible}
+        onToggle={toggle}
+      />
+
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      {visible.has("summary") && <div className="grid gap-4 sm:grid-cols-4">
         <Card className="border-black/[0.08]">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">Health Score</p>
@@ -930,10 +1024,10 @@ function MDMHealthTab() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
       {/* Area Chart */}
-      <Card className="border-black/[0.08]">
+      {visible.has("trend") && <Card className="border-black/[0.08]">
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-foreground">
             MDM Health Score Over Time
@@ -982,10 +1076,10 @@ function MDMHealthTab() {
             </ResponsiveContainer>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* AI Insights panel — only render if ai_narrative exists */}
-      {latest.ai_narrative && (
+      {visible.has("insights") && latest.ai_narrative && (
         <Card className="border-black/[0.08]">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-foreground">

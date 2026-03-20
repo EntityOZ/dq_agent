@@ -1,9 +1,9 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, ChevronLeft, ChevronRight, RefreshCw, Network } from "lucide-react";
+import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Network } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,6 @@ const DIMENSIONS: Dimension[] = [
   "uniqueness",
   "validity",
 ];
-const PAGE_SIZE = 50;
 
 /* ── Helpers ────────────────────────────────────────────── */
 
@@ -77,7 +76,6 @@ function getFixForValue(
       ? ""
       : String(value).trim();
 
-  // Strip trailing .0 from float strings ("2.0" → "2")
   const stripped = normalised.replace(/\.0+$/, "");
 
   return (
@@ -152,6 +150,57 @@ function authorityLabel(authority: string): string {
   }
 }
 
+/* ── Module summary helpers ─────────────────────────────── */
+
+interface ModuleSummary {
+  module: string;
+  findings: Finding[];
+  total: number;
+  severityCounts: Record<Severity, number>;
+  avgPassRate: number;
+}
+
+function buildModuleSummaries(findings: Finding[]): ModuleSummary[] {
+  const grouped = new Map<string, Finding[]>();
+  for (const f of findings) {
+    const existing = grouped.get(f.module) ?? [];
+    existing.push(f);
+    grouped.set(f.module, existing);
+  }
+
+  const summaries: ModuleSummary[] = [];
+  for (const [module, items] of grouped) {
+    const severityCounts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    let passRateSum = 0;
+    let passRateCount = 0;
+    for (const f of items) {
+      if (f.severity in severityCounts) {
+        severityCounts[f.severity as Severity]++;
+      }
+      if (f.pass_rate != null) {
+        passRateSum += f.pass_rate;
+        passRateCount++;
+      }
+    }
+    summaries.push({
+      module,
+      findings: items,
+      total: items.length,
+      severityCounts,
+      avgPassRate: passRateCount > 0 ? passRateSum / passRateCount : 0,
+    });
+  }
+
+  // Sort: modules with critical findings first, then by total count
+  summaries.sort((a, b) => {
+    if (a.severityCounts.critical !== b.severityCounts.critical)
+      return b.severityCounts.critical - a.severityCounts.critical;
+    return b.total - a.total;
+  });
+
+  return summaries;
+}
+
 /* ── Main page ──────────────────────────────────────────── */
 
 function FindingsContent() {
@@ -166,7 +215,7 @@ function FindingsContent() {
   const [moduleFilter, setModuleFilter] = useState(paramModule);
   const [severityFilter, setSeverityFilter] = useState(paramSeverity);
   const [dimensionFilter, setDimensionFilter] = useState(paramDimension);
-  const [page, setPage] = useState(0);
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const [lineageFinding, setLineageFinding] = useState<Finding | null>(null);
   const [lineageData, setLineageData] = useState<LineageGraph | null>(null);
@@ -176,7 +225,6 @@ function FindingsContent() {
     setLineageFinding(f);
     setLineageLoading(true);
     try {
-      // Extract a record key from the finding's sample data
       const samples = f.details?.sample_failing_records ?? [];
       const idField = f.details?.id_field_used as string | undefined;
       const recordKey =
@@ -200,9 +248,9 @@ function FindingsContent() {
     (v) => v.status === "agents_complete" || v.status === "complete"
   );
 
-  // Default to URL param if provided, otherwise empty string = "all versions"
   const activeVersionId = versionId || "";
 
+  // Fetch ALL findings (large limit) so we can group by module client-side
   const {
     data: findingsData,
     isLoading,
@@ -215,7 +263,6 @@ function FindingsContent() {
       moduleFilter,
       severityFilter,
       dimensionFilter,
-      page,
     ],
     queryFn: () =>
       getFindings({
@@ -223,10 +270,42 @@ function FindingsContent() {
         module: moduleFilter || undefined,
         severity: severityFilter || undefined,
         dimension: dimensionFilter || undefined,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
+        limit: 200,
+        offset: 0,
       }),
   });
+
+  // Build module summaries from findings
+  const moduleSummaries = useMemo(
+    () => buildModuleSummaries(findingsData?.findings ?? []),
+    [findingsData],
+  );
+
+  // Derive unique modules for the filter dropdown
+  const availableModules = useMemo(() => {
+    const modules = new Set<string>();
+    for (const f of findingsData?.findings ?? []) {
+      modules.add(f.module);
+    }
+    return Array.from(modules).sort();
+  }, [findingsData]);
+
+  const toggleModule = (module: string) => {
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(module)) next.delete(module);
+      else next.add(module);
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedModules(new Set(moduleSummaries.map((s) => s.module)));
+  };
+
+  const collapseAll = () => {
+    setExpandedModules(new Set());
+  };
 
   const updateUrl = (params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -241,18 +320,25 @@ function FindingsContent() {
     setModuleFilter("");
     setSeverityFilter("");
     setDimensionFilter("");
-    setPage(0);
     router.push(`/findings${activeVersionId ? `?version_id=${activeVersionId}` : ""}`);
   };
-
-  const totalPages = findingsData
-    ? Math.ceil(findingsData.total / PAGE_SIZE)
-    : 0;
 
   return (
     <TooltipProvider delay={0}>
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Findings</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Findings</h1>
+        {moduleSummaries.length > 0 && (
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={expandAll}>
+              Expand all
+            </Button>
+            <Button variant="ghost" size="sm" onClick={collapseAll}>
+              Collapse all
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Filter bar */}
       <Card>
@@ -262,7 +348,7 @@ function FindingsContent() {
             value={activeVersionId}
             onChange={(e) => {
               setVersionId(e.target.value);
-              setPage(0);
+              setExpandedModules(new Set());
               updateUrl({ version_id: e.target.value });
             }}
             className="rounded-md border border-border bg-accent px-3 py-1.5 text-sm"
@@ -282,19 +368,21 @@ function FindingsContent() {
             })}
           </select>
 
-          {/* Module filter */}
+          {/* Module filter — dynamic */}
           <select
             value={moduleFilter}
             onChange={(e) => {
               setModuleFilter(e.target.value);
-              setPage(0);
+              setExpandedModules(new Set());
             }}
             className="rounded-md border border-border bg-accent px-3 py-1.5 text-sm"
           >
             <option value="">All modules</option>
-            <option value="business_partner">Business Partner</option>
-            <option value="material_master">Material Master</option>
-            <option value="fi_gl">GL Accounts</option>
+            {availableModules.map((m) => (
+              <option key={m} value={m}>
+                {formatModuleName(m)}
+              </option>
+            ))}
           </select>
 
           {/* Severity pills */}
@@ -304,7 +392,7 @@ function FindingsContent() {
                 key={s}
                 onClick={() => {
                   setSeverityFilter(severityFilter === s ? "" : s);
-                  setPage(0);
+                  setExpandedModules(new Set());
                 }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   severityFilter === s
@@ -324,7 +412,7 @@ function FindingsContent() {
                 key={d}
                 onClick={() => {
                   setDimensionFilter(dimensionFilter === d ? "" : d);
-                  setPage(0);
+                  setExpandedModules(new Set());
                 }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   dimensionFilter === d
@@ -345,17 +433,17 @@ function FindingsContent() {
 
           <span className="ml-auto text-xs text-muted-foreground">
             {findingsData
-              ? `Showing ${Math.min(page * PAGE_SIZE + 1, findingsData.total)}–${Math.min((page + 1) * PAGE_SIZE, findingsData.total)} of ${findingsData.total} findings`
+              ? `${findingsData.total} findings across ${moduleSummaries.length} modules`
               : ""}
           </span>
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* Module cards */}
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-lg" />
           ))}
         </div>
       ) : error ? (
@@ -367,142 +455,186 @@ function FindingsContent() {
             </Button>
           </AlertDescription>
         </Alert>
-      ) : (
+      ) : moduleSummaries.length === 0 ? (
         <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="px-4 py-3">Severity</th>
-                    <th className="px-4 py-3">Module</th>
-                    <th className="px-4 py-3">Check</th>
-                    <th className="px-4 py-3">Message</th>
-                    <th className="px-4 py-3 text-right">Affected / Total</th>
-                    <th className="w-32 px-4 py-3">Pass Rate</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {findingsData?.findings.map((f) => (
-                    <tr
-                      key={f.id}
-                      className="border-b border-black/[0.06] hover:bg-black/[0.03]"
-                    >
-                      <td className="px-4 py-3">
-                        <Badge className={severityColor(f.severity)}>
-                          {f.severity}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {formatModuleName(f.module)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-mono text-xs">{f.check_id}</div>
-                        {f.business_name && (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <div className="text-xs text-primary truncate max-w-[180px] cursor-default" />
-                              }
-                            >
-                              {f.business_name}
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              {f.business_definition || f.business_name}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {f.glossary_term_id && (
-                          <a
-                            href={`/glossary/${f.glossary_term_id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-[#2563EB] hover:underline"
-                          >
-                            View in Glossary
-                          </a>
-                        )}
-                      </td>
-                      <td className="max-w-xs truncate px-4 py-3">
-                        {f.details?.message ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {f.affected_count.toLocaleString()} / {f.total_count.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        {f.pass_rate != null ? (
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={f.pass_rate}
-                              className={`h-2 ${passRateColor(f.pass_rate)}`}
-                            />
-                            <span className="text-xs">
-                              {f.pass_rate.toFixed(1)}%
-                            </span>
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedFinding(f)}
-                          >
-                            View detail
-                          </Button>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openLineage(f);
-                                  }}
-                                />
-                              }
-                            >
-                              <Network className="h-4 w-4" />
-                            </TooltipTrigger>
-                            <TooltipContent>View lineage</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground font-medium">No findings found</p>
+            <p className="text-muted-foreground/70 text-xs mt-1">
+              Upload a file and run an analysis to see findings.
+            </p>
           </CardContent>
         </Card>
-      )}
+      ) : (
+        <div className="space-y-3">
+          {moduleSummaries.map((summary) => {
+            const isExpanded = expandedModules.has(summary.module);
+            return (
+              <Card key={summary.module} className="border-black/[0.08]">
+                {/* Module header — clickable to expand/collapse */}
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => toggleModule(summary.module)}
+                >
+                  <CardContent className="flex items-center gap-4 py-4">
+                    {/* Expand icon */}
+                    <div className="shrink-0">
+                      {isExpanded ? (
+                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 0}
-            onClick={() => setPage(page - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {page + 1} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(page + 1)}
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </Button>
+                    {/* Module name + total */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">
+                          {formatModuleName(summary.module)}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {summary.total} finding{summary.total !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Severity breakdown pills */}
+                    <div className="flex gap-1.5 shrink-0">
+                      {SEVERITIES.map((s) => {
+                        const count = summary.severityCounts[s];
+                        if (count === 0) return null;
+                        return (
+                          <Badge key={s} className={`text-xs ${severityColor(s)}`}>
+                            {count} {s}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+
+                    {/* Avg pass rate */}
+                    <div className="flex items-center gap-2 shrink-0 w-32">
+                      <Progress
+                        value={summary.avgPassRate}
+                        className={`h-2 ${passRateColor(summary.avgPassRate)}`}
+                      />
+                      <span className="text-xs text-muted-foreground w-12 text-right">
+                        {summary.avgPassRate.toFixed(1)}%
+                      </span>
+                    </div>
+                  </CardContent>
+                </button>
+
+                {/* Expanded: findings table for this module */}
+                {isExpanded && (
+                  <div className="border-t border-black/[0.06]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="px-4 py-3">Severity</th>
+                            <th className="px-4 py-3">Check</th>
+                            <th className="px-4 py-3">Message</th>
+                            <th className="px-4 py-3 text-right">Affected / Total</th>
+                            <th className="w-32 px-4 py-3">Pass Rate</th>
+                            <th className="px-4 py-3">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summary.findings.map((f) => (
+                            <tr
+                              key={f.id}
+                              className="border-b border-black/[0.06] hover:bg-black/[0.03]"
+                            >
+                              <td className="px-4 py-3">
+                                <Badge className={severityColor(f.severity)}>
+                                  {f.severity}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="font-mono text-xs">{f.check_id}</div>
+                                {f.business_name && (
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <div className="text-xs text-primary truncate max-w-[180px] cursor-default" />
+                                      }
+                                    >
+                                      {f.business_name}
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      {f.business_definition || f.business_name}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {f.glossary_term_id && (
+                                  <a
+                                    href={`/glossary/${f.glossary_term_id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-xs text-[#2563EB] hover:underline"
+                                  >
+                                    View in Glossary
+                                  </a>
+                                )}
+                              </td>
+                              <td className="max-w-xs truncate px-4 py-3">
+                                {f.details?.message ?? "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {f.affected_count.toLocaleString()} / {f.total_count.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3">
+                                {f.pass_rate != null ? (
+                                  <div className="flex items-center gap-2">
+                                    <Progress
+                                      value={f.pass_rate}
+                                      className={`h-2 ${passRateColor(f.pass_rate)}`}
+                                    />
+                                    <span className="text-xs">
+                                      {f.pass_rate.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedFinding(f)}
+                                  >
+                                    View detail
+                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openLineage(f);
+                                          }}
+                                        />
+                                      }
+                                    >
+                                      <Network className="h-4 w-4" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>View lineage</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -555,6 +687,9 @@ function FindingsContent() {
                   <DialogTitle className="font-mono text-sm text-muted-foreground">
                     {selectedFinding.check_id}
                   </DialogTitle>
+                  <Badge variant="outline" className="text-xs">
+                    {formatModuleName(selectedFinding.module)}
+                  </Badge>
                 </div>
                 <p className="text-foreground font-medium mt-1">
                   {selectedFinding.details?.message ?? "—"}
@@ -602,21 +737,12 @@ function FindingDetail({
   const recordFixes = finding.record_fixes;
   const checkField = finding.details?.field_checked as string | undefined;
 
-  // Fetch report context for Panel 3
   const { data: reportCtxData, isLoading: isReportCtxLoading } = useQuery({
     queryKey: ["finding-report-context", finding.id],
     queryFn: () => getFindingReportContext(finding.id),
     enabled: !!finding.id,
   });
   const reportCtx = reportCtxData?.report_context;
-
-  // Debug: log the full finding object and fix map vs record values
-  console.log("Finding detail:", JSON.stringify(finding, null, 2));
-  console.log("value_fix_map keys:", Object.keys(valueFixes || {}));
-  console.log(
-    "record values:",
-    samples.map((r) => (checkField ? r[checkField] : undefined)),
-  );
 
   return (
     <div className="space-y-6">
@@ -924,7 +1050,6 @@ function FindingDetail({
           (reportCtx.effort_estimate ||
             reportCtx.cross_finding_patterns?.length > 0) ? (
             <div className="space-y-4">
-              {/* Effort estimate card */}
               {reportCtx.effort_estimate && (
                 <div className="bg-white/[0.60] rounded-lg p-4 border border-black/[0.08]">
                   <div className="flex items-center justify-between mb-1">
@@ -944,7 +1069,6 @@ function FindingDetail({
                 </div>
               )}
 
-              {/* Fix sequence position */}
               {reportCtx.fix_sequence && (
                 <div className="border-l-[3px] border-[#2563EB] pl-4 py-2">
                   <p className="text-xs font-semibold text-muted-foreground mb-1">
@@ -956,7 +1080,6 @@ function FindingDetail({
                 </div>
               )}
 
-              {/* Cross-finding patterns */}
               {reportCtx.cross_finding_patterns.length > 0 && (
                 <div>
                   <h5 className="mb-1 text-xs font-semibold">
@@ -979,7 +1102,6 @@ function FindingDetail({
                 </div>
               )}
 
-              {/* Flags */}
               {reportCtx.flags.length > 0 && (
                 <Alert>
                   <AlertTitle>Note from AI analysis</AlertTitle>
@@ -996,7 +1118,6 @@ function FindingDetail({
               <Skeleton className="h-10 w-1/2" />
             </div>
           ) : finding.remediation_text ? (
-            /* Fallback: show legacy remediation_text from Phase 3 */
             <div className="bg-white/[0.60] rounded-lg p-4 border border-black/[0.08]">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                 Remediation guidance
@@ -1006,7 +1127,6 @@ function FindingDetail({
               </p>
             </div>
           ) : (
-            /* No data at all */
             <div className="text-center py-8 space-y-3">
               <p className="text-sm text-secondary-foreground">
                 Remediation guidance is generated during analysis. This

@@ -79,7 +79,10 @@ async def _get_user_role(
                 raise HTTPException(status_code=403, detail="User account is deactivated")
             return row[0]
 
-    # Fall back to tenant default role
+    # Fall back — in local dev mode (no Clerk), grant admin so all features work
+    from api.config import settings
+    if settings.auth_mode == "local":
+        return "admin"
     return "analyst"
 
 

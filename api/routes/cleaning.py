@@ -71,28 +71,33 @@ async def _create_audit(
     rule_id: str | None = None,
     metadata: dict | None = None,
 ) -> None:
-    await db.execute(
-        text("""
-            INSERT INTO cleaning_audit (id, tenant_id, queue_id, rule_id, action,
-                actor_name, record_key, object_type, data_before, data_after, metadata, created_at)
-            VALUES (gen_random_uuid(), :tenant_id, :queue_id, :rule_id, :action,
-                :actor_name, :record_key, :object_type,
-                CAST(:data_before AS jsonb), CAST(:data_after AS jsonb),
-                CAST(:metadata AS jsonb), now())
-        """),
-        {
-            "tenant_id": str(tenant_id),
-            "queue_id": queue_id,
-            "rule_id": rule_id,
-            "action": action,
-            "actor_name": actor_name,
-            "record_key": record_key,
-            "object_type": object_type,
-            "data_before": _json_dumps(data_before),
-            "data_after": _json_dumps(data_after),
-            "metadata": _json_dumps(metadata),
-        },
-    )
+    """Insert audit record. Uses a savepoint so failures don't poison the session."""
+    try:
+        async with db.begin_nested():
+            await db.execute(
+                text("""
+                    INSERT INTO cleaning_audit (id, tenant_id, queue_id, rule_id, action,
+                        actor_name, record_key, object_type, data_before, data_after, metadata, created_at)
+                    VALUES (gen_random_uuid(), :tenant_id, :queue_id, :rule_id, :action,
+                        :actor_name, :record_key, :object_type,
+                        CAST(:data_before AS jsonb), CAST(:data_after AS jsonb),
+                        CAST(:metadata AS jsonb), now())
+                """),
+                {
+                    "tenant_id": str(tenant_id),
+                    "queue_id": queue_id,
+                    "rule_id": rule_id,
+                    "action": action,
+                    "actor_name": actor_name,
+                    "record_key": record_key,
+                    "object_type": object_type,
+                    "data_before": _json_dumps(data_before),
+                    "data_after": _json_dumps(data_after),
+                    "metadata": _json_dumps(metadata),
+                },
+            )
+    except Exception:
+        pass  # audit trail unavailable — continue without it
 
 
 def _json_dumps(obj: dict | None) -> str:
@@ -190,19 +195,28 @@ async def get_cleaning_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # Last 10 audit entries
-    audit_result = await db.execute(
-        text("""
-            SELECT id, action, actor_name, record_key, data_before, data_after, metadata, created_at
-            FROM cleaning_audit
-            WHERE queue_id = :qid AND tenant_id = :tid
-            ORDER BY created_at DESC LIMIT 10
-        """),
-        {"qid": item_id, "tid": str(tenant.id)},
-    )
-    audit = [_row_to_dict(r) for r in audit_result.fetchall()]
+    # Last 10 audit entries — graceful fallback if table doesn't exist yet
+    audit: list[dict] = []
+    try:
+        async with db.begin_nested():
+            audit_result = await db.execute(
+                text("""
+                    SELECT id, action, actor_name, record_key, data_before, data_after, metadata, created_at
+                    FROM cleaning_audit
+                    WHERE queue_id = :qid AND tenant_id = :tid
+                    ORDER BY created_at DESC LIMIT 10
+                """),
+                {"qid": item_id, "tid": str(tenant.id)},
+            )
+            audit = [_row_to_dict(r) for r in audit_result.fetchall()]
+    except Exception:
+        pass  # audit trail unavailable — continue without it
 
-    return {**_row_to_dict(item), "audit": audit}
+    row = _row_to_dict(item)
+    row["golden_record_exists"] = row.get("golden_record_id") is not None
+    if row.get("golden_record_id") is not None:
+        row["golden_record_id"] = str(row["golden_record_id"])
+    return {**row, "audit": audit}
 
 
 # ── POST /api/v1/cleaning/approve/{id} ───────────────────────────────────────

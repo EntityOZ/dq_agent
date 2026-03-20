@@ -18,13 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -95,10 +88,11 @@ export default function CleaningPage() {
       }),
   });
 
-  const { data: detailData, isLoading: isDetailLoading } = useQuery({
+  const { data: detailData, isLoading: isDetailLoading, isError: isDetailError } = useQuery({
     queryKey: ["cleaning-item", selectedId],
     queryFn: () => getCleaningItem(selectedId!),
     enabled: !!selectedId,
+    retry: 1,
   });
 
   const invalidate = () => {
@@ -110,28 +104,42 @@ export default function CleaningPage() {
   const approveMut = useMutation({
     mutationFn: (id: string) => approveCleaning(id),
     onSuccess: () => { toast.success("Approved"); invalidate(); },
+    onError: (err: Error & { response?: { status?: number } }) => {
+      const status = err.response?.status;
+      if (status === 403) {
+        toast.error("You don't have permission to approve items. Contact your admin to request the steward or approver role.");
+      } else {
+        toast.error("Failed to approve item");
+      }
+    },
   });
 
   const rejectMut = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectCleaning(id, reason),
     onSuccess: () => { toast.success("Rejected"); invalidate(); setRejectReason(""); },
+    onError: () => { toast.error("Failed to reject item"); },
   });
 
   const applyMut = useMutation({
     mutationFn: (id: string) => applyCleaning(id),
     onSuccess: () => { toast.success("Applied"); invalidate(); },
+    onError: () => { toast.error("Failed to apply change"); },
   });
 
   const rollbackMut = useMutation({
     mutationFn: (id: string) => rollbackCleaning(id),
     onSuccess: () => { toast.success("Rolled back"); invalidate(); },
+    onError: () => { toast.error("Failed to rollback"); },
   });
 
   const totals = metricsData?.totals;
   const items = queueData?.items ?? [];
   const totalItems = queueData?.total ?? 0;
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
-  const detail = detailData;
+
+  // Use detail API data if available, fall back to the list item data
+  const listItem = selectedId ? items.find((i) => i.id === selectedId) : undefined;
+  const detail = detailData ?? (isDetailError ? listItem : undefined);
 
   // Filter by search key client-side
   const filtered = searchKey
@@ -428,45 +436,99 @@ export default function CleaningPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Detail drawer */}
-      <Sheet open={!!selectedId} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Cleaning Item Detail</SheetTitle>
-            <SheetDescription>
+      {/* Detail modal */}
+      <Dialog open={!!selectedId} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
+        <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-[900px] h-[85vh] overflow-y-auto p-0 rounded-xl shadow-2xl border border-black/[0.08] bg-white/[0.70] backdrop-blur-xl">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-black/[0.08] sticky top-0 bg-white/[0.70] backdrop-blur-xl z-10">
+            <DialogTitle>Cleaning Item Detail</DialogTitle>
+            <DialogDescription>
               {detail?.record_key ?? "Loading..."}
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
 
-          {isDetailLoading || !detail ? (
-            <div className="space-y-3 p-4">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
+          {!detail ? (
+            isDetailError ? (
+              <div className="px-6 py-12 text-center">
+                <p className="text-sm text-muted-foreground">Failed to load item details.</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => setSelectedId(null)}>
+                  Close
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 px-6 py-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            )
           ) : (
-            <div className="space-y-4 p-4">
-              {/* Panel 1: Before/After diff */}
+            <div className="space-y-4 px-6 py-4">
+              {/* Summary header — always visible */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Before / After</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-muted-foreground">
-                        <th className="py-2 pr-2">Field</th>
-                        <th className="py-2 pr-2">Original</th>
-                        <th className="py-2">New Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const before = detail.record_data_before ?? {};
-                        const after = detail.record_data_after ?? {};
-                        const allFields = [...new Set([...Object.keys(before), ...Object.keys(after)])];
-                        return allFields
-                          .filter((f) => f !== "issue" && f !== "error")
-                          .map((field) => {
+                <CardContent className="pt-4">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Badge className={STATUS_COLORS[detail.status] ?? STATUS_COLORS.detected}>
+                      {detail.status}
+                    </Badge>
+                    <Badge variant="outline">
+                      {detail.merge_preview ? "Deduplication" : "Cleaning"}
+                    </Badge>
+                    <Badge variant="secondary" className="font-mono text-xs">
+                      {detail.object_type}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Record Key</span>
+                      <p className="font-mono text-xs font-medium">{detail.record_key}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Confidence</span>
+                      <p className={`font-medium ${confidenceColor(detail.confidence)}`}>
+                        {detail.confidence}%
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Priority</span>
+                      <p className="font-medium">{detail.priority}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Detected</span>
+                      <p className="text-xs">{new Date(detail.detected_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {detail.rule_id && (
+                    <div className="mt-2">
+                      <span className="text-muted-foreground text-xs">Rule</span>
+                      <p className="font-mono text-xs">{detail.rule_id}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Panel 1: Before/After diff */}
+              {(() => {
+                const before = detail.record_data_before ?? {};
+                const after = detail.record_data_after ?? {};
+                const allFields = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+                  .filter((f) => f !== "issue" && f !== "error");
+                const hasChanges = allFields.length > 0;
+
+                return hasChanges ? (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Before / After</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="py-2 pr-2">Field</th>
+                            <th className="py-2 pr-2">Original</th>
+                            <th className="py-2">New Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allFields.map((field) => {
                             const oldVal = String(before[field] ?? "");
                             const newVal = String(after[field] ?? "");
                             const changed = oldVal !== newVal;
@@ -484,12 +546,24 @@ export default function CleaningPage() {
                                 </td>
                               </tr>
                             );
-                          });
-                      })()}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
+                          })}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                ) : !detail.merge_preview ? (
+                  <Card>
+                    <CardContent className="py-6 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        No field-level changes detected for this item.
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Use the actions below to approve or reject this cleaning candidate.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : null;
+              })()}
 
               {/* Golden record value hint */}
               {detail.golden_field_value && (
@@ -654,8 +728,8 @@ export default function CleaningPage() {
               )}
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

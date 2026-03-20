@@ -245,6 +245,7 @@ const NAV_GROUPS: NavGroup[] = [
     group: "Analyse",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/upload", label: "Import", icon: Upload },
       { href: "/findings", label: "Findings", icon: AlertTriangle },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/nlp", label: "Ask AI", icon: MessageSquareText },
@@ -281,7 +282,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/systems", label: "Systems", icon: Server },
       { href: "/sync", label: "Sync Monitor", icon: RefreshCw },
-      { href: "/upload", label: "Import", icon: Upload },
     ],
   },
 ];
