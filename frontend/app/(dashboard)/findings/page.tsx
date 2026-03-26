@@ -50,7 +50,7 @@ import {
 import { AlertTitle } from "@/components/ui/alert";
 import type { Finding, Severity, Dimension, ValueFixEntry } from "@/types/api";
 
-const SEVERITIES: Severity[] = ["critical", "high", "medium", "low"];
+const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "warning"];
 const DIMENSIONS: Dimension[] = [
   "completeness",
   "accuracy",
@@ -171,7 +171,7 @@ function buildModuleSummaries(findings: Finding[]): ModuleSummary[] {
 
   const summaries: ModuleSummary[] = [];
   for (const [module, items] of grouped) {
-    const severityCounts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    const severityCounts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, warning: 0 };
     let passRateSum = 0;
     let passRateCount = 0;
     for (const f of items) {
