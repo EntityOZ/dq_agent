@@ -1,14 +1,20 @@
-name = "vantax-licence-server"
+name = "meridian-licence-worker"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-11-01"
 
 [[kv_namespaces]]
 binding = "LICENCE_KV"
-id = "placeholder"              # filled in after wrangler kv:namespace create
-preview_id = "placeholder"      # filled in after wrangler kv:namespace create --preview
+id = "placeholder"              # filled in after: wrangler kv:namespace create LICENCE_KV
+preview_id = "placeholder"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meridian-licence"
+database_id = "placeholder"    # filled in after: wrangler d1 create meridian-licence
 
 [vars]
 ENVIRONMENT = "production"
 
-# Secrets set via: wrangler secret put LICENCE_ADMIN_SECRET
-# Secrets set via: wrangler secret put LICENCE_SECRET
+# Secrets — set via:
+#   wrangler secret put LICENCE_ADMIN_SECRET
+#   wrangler secret put LICENCE_SECRET

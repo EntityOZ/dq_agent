@@ -12,7 +12,7 @@ Mappings are synced back to Meridian HQ on the next licence check-in.
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,6 +78,7 @@ def _is_self_service_enabled(request=None) -> bool:
 
 @router.get("/field-mappings")
 async def list_field_mappings(
+    request: Request,
     module: Optional[str] = Query(None, description="Filter by SAP module"),
     is_mapped: Optional[bool] = Query(None, description="Filter by mapped status"),
     search: Optional[str] = Query(None, description="Search standard_field or standard_label"),
@@ -139,7 +140,7 @@ async def list_field_mappings(
     return {
         "mappings": mappings,
         "total": total,
-        "self_service_enabled": _is_self_service_enabled(),
+        "self_service_enabled": _is_self_service_enabled(request),
     }
 
 
@@ -183,12 +184,13 @@ async def list_module_mappings(
 async def update_field_mapping(
     mapping_id: str,
     body: UpdateMappingBody,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
     _role: str = Depends(require_permission("manage_field_mappings")),
 ):
     """Update a field mapping. Requires admin role and self-service enabled."""
-    if not _is_self_service_enabled():
+    if not _is_self_service_enabled(request):
         raise HTTPException(
             status_code=403,
             detail="Field mapping self-service is not enabled for this tenant",
@@ -256,6 +258,7 @@ async def update_field_mapping(
 
 @router.post("/field-mappings/reset")
 async def reset_field_mappings(
+    request: Request,
     module: Optional[str] = Query(None, description="Reset only this module"),
     db: AsyncSession = Depends(get_db),
     tenant: Tenant = Depends(get_tenant),
@@ -264,7 +267,7 @@ async def reset_field_mappings(
     """Reset all field mappings to their standard defaults (customer_field = standard_field).
     Requires admin role and self-service enabled.
     """
-    if not _is_self_service_enabled():
+    if not _is_self_service_enabled(request):
         raise HTTPException(
             status_code=403,
             detail="Field mapping self-service is not enabled for this tenant",

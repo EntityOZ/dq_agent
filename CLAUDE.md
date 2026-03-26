@@ -900,6 +900,30 @@ All modules include enriched rule files with column mappings.
 |---|---|---|
 | review/full-code-review | Full security and quality audit — 19 findings across 4 severity levels | Done |
 
+### Phase 3A — Meridian HQ admin portal + licence enforcement
+
+| Branch | Description | Status |
+|---|---|---|
+| phase-3a | Full Meridian HQ admin portal, licence worker D1 migration, customer licence enforcement | Done |
+
+**Phase 3A scope (8 tasks):**
+
+1. **Licence worker D1 migration** — Replaced KV with Cloudflare D1 (SQLite). New schema: `tenants`, `rules`, `field_mappings` tables. New `MRDX-XXXX-XXXX-XXXX` key format. SHA-256 key hashing (never stored plaintext). Full manifest response from `POST /api/licence/validate`: `enabled_modules`, `enabled_menu_items`, `features` (dict), `rules[]`, `field_mappings[]`, `llm_config`. 7-day grace period returns 402 with `grace_period_ends`. KV kept as legacy fallback. Heartbeat and field-mapping sync endpoints added.
+
+2. **Admin portal — dashboard & tenant CRUD** (`cloudflare/portal/app/admin/`) — Layout with Clerk `is_meridian_admin` guard. Analytics dashboard (total tenants, active/trial counts, by-status/tier). Full tenant list with search/filter. Tenant detail page: tier/status/expiry/key regen, SAP module toggles (grouped by ECC/SF/Warehouse), menu item toggles, feature flags, LLM config, danger zone.
+
+3. **Admin portal — rules engine** (`cloudflare/portal/app/admin/rules/`) — Rules list grouped by category/module with severity badges. Full CRUD edit form: name, description, severity, enabled toggle, tag chips, conditions builder (field/operator/value rows).
+
+4. **Admin portal — SAP field mapping** (`cloudflare/portal/app/admin/tenants/[tenant_id]/field-mappings/`) — Per-tenant field mapping editor: module selector, inline editing, pending-edit tracking, Apply Standard Defaults.
+
+5. **Admin portal — Next.js API proxy routes** (`cloudflare/portal/app/api/admin/`) — All admin routes proxy to the worker with `X-Admin-Secret`. Clerk `is_meridian_admin` enforced on every route.
+
+6. **Customer backend** — New `GET /api/v1/licence` route returns cached manifest. `LicenceMiddleware` updated: populates `_manifest_cache`, handles dict features (new) vs list (legacy), syncs rules/field_mappings to DB in background thread on validation. `revalidate_licence` Celery task added (every 6 hours via beat scheduler).
+
+7. **Customer frontend — licence UI** — `LicenceManifest` types in `frontend/lib/api/licence.ts`. `LicenceProvider` + `useLicence()` hook with `isModuleEnabled`, `isMenuItemEnabled`, `isFeatureEnabled`. Licence details page (`/settings/licence`): status card, SAP modules grid, feature entitlements grid. Sidebar filters items by `isMenuItemEnabled(licenceKey)`. `AskMeridian` FAB gated on `isFeatureEnabled("ask_meridian")`.
+
+8. **Integration rewiring** — `FEATURE_ROUTE_MAP` updated to new feature keys: `/api/v1/nlp → ask_meridian`, `/api/v1/reports → export_reports`, `/api/v1/cleaning/export → export_reports`, `/api/v1/sync-trigger → run_sync`. `field_mappings.py` write endpoints now pass `Request` to `_is_self_service_enabled()` so production licence check works. Run Sync page, Reports page, Cleaning export button all gated on licence features. 402 → `/licence-error` redirect in axios interceptor.
+
 ---
 
 ## Coding standards

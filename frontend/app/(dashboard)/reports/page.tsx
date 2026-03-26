@@ -13,6 +13,7 @@ import { getVersions } from "@/lib/api/versions";
 import { getReportDownloadUrl } from "@/lib/api/reports";
 import { getSettings, saveNotificationSettings } from "@/lib/api/settings";
 import { formatModuleName, scoreColor } from "@/lib/format";
+import { useLicence } from "@/hooks/use-licence";
 import type { Version } from "@/types/api";
 
 const READINESS_BADGE: Record<string, { label: string; className: string }> = {
@@ -22,6 +23,8 @@ const READINESS_BADGE: Record<string, { label: string; className: string }> = {
 };
 
 export default function ReportsPage() {
+  const { isFeatureEnabled } = useLicence();
+  const exportEnabled = isFeatureEnabled("export_reports");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: versionData, isLoading } = useQuery({
@@ -77,6 +80,7 @@ export default function ReportsPage() {
                         version={v}
                         dqs={dqs}
                         expanded={expanded}
+                        exportEnabled={exportEnabled}
                         onToggle={() =>
                           setExpandedId(expanded ? null : v.id)
                         }
@@ -102,11 +106,13 @@ function ReportRow({
   version,
   dqs,
   expanded,
+  exportEnabled,
   onToggle,
 }: {
   version: Version;
   dqs: number | null;
   expanded: boolean;
+  exportEnabled: boolean;
   onToggle: () => void;
 }) {
   // Determine readiness from DQS summary (approximation without report_json)
@@ -146,11 +152,17 @@ function ReportRow({
         </td>
         <td className="px-4 py-3">
           <div className="flex gap-1">
-            <a href={getReportDownloadUrl(version.id)} download>
-              <Button variant="ghost" size="sm">
+            {exportEnabled ? (
+              <a href={getReportDownloadUrl(version.id)} download>
+                <Button variant="ghost" size="sm">
+                  <Download className="mr-1 h-4 w-4" /> PDF
+                </Button>
+              </a>
+            ) : (
+              <Button variant="ghost" size="sm" disabled title="Not included in your current licence">
                 <Download className="mr-1 h-4 w-4" /> PDF
               </Button>
-            </a>
+            )}
             <Button variant="ghost" size="sm" onClick={onToggle}>
               {expanded ? (
                 <ChevronUp className="h-4 w-4" />

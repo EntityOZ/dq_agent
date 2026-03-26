@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { getModuleStatuses, triggerModules } from "@/lib/api/sync-trigger";
 import type { ModuleStatus } from "@/lib/api/sync-trigger";
+import { useLicence } from "@/hooks/use-licence";
 import { toast } from "sonner";
 
 const CATEGORY_ORDER = ["ECC", "SuccessFactors", "Warehouse"];
@@ -60,6 +61,8 @@ function statusBadge(status: ModuleStatus["status"]) {
 }
 
 export default function RunSyncPage() {
+  const { isFeatureEnabled } = useLicence();
+  const runSyncEnabled = isFeatureEnabled("run_sync");
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -129,27 +132,36 @@ export default function RunSyncPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleAll}
-            disabled={isLoading}
-          >
-            {allSelected ? "Deselect All" : "Select All"}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleRunSelected}
-            disabled={selected.size === 0 || trigger.isPending}
-            className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            {trigger.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            Run Selected ({selected.size})
-          </Button>
+          {!runSyncEnabled && (
+            <span className="text-xs text-muted-foreground rounded-lg border border-black/[0.08] px-3 py-1.5">
+              Not included in your current licence
+            </span>
+          )}
+          {runSyncEnabled && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAll}
+                disabled={isLoading}
+              >
+                {allSelected ? "Deselect All" : "Select All"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRunSelected}
+                disabled={selected.size === 0 || trigger.isPending}
+                className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                {trigger.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Run Selected ({selected.size})
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -176,7 +188,8 @@ export default function RunSyncPage() {
                     <button
                       key={mod.module_id}
                       type="button"
-                      onClick={() => toggleModule(mod.module_id)}
+                      onClick={() => runSyncEnabled && toggleModule(mod.module_id)}
+                      disabled={!runSyncEnabled}
                       className={`vx-card vx-glass-shimmer text-left transition-all ${
                         isSelected
                           ? "border-primary/40 bg-primary/[0.06] shadow-[0_0_12px_rgba(13,86,57,0.12)]"
