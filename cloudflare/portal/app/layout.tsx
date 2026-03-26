@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Meridian HQ",
-  description: "Manage your Vantax DQ Agent licence and billing",
+  description: "Manage your Meridian licence and billing",
 };
 
 export default function RootLayout({

@@ -1,4 +1,19 @@
-"""RBAC service — 7-role permission matrix with FastAPI dependency factory."""
+"""RBAC service — permission matrix with FastAPI dependency factory.
+
+Supports both the legacy 7-role system and the simplified 3-tier system:
+
+  3-tier (Phase 2+):
+    admin   — full access including user/rules management and SAP field mapping
+    manager — write access but no admin-only features (rules engine, user mgmt)
+    viewer  — read-only access + Ask Meridian + licence details
+
+  Legacy (backward compat):
+    steward, analyst, approver, auditor, ai_reviewer — mapped to equivalent tiers
+
+Actions: view, upload, analyse, approve, apply, export, manage_users, manage_rules,
+         ai_feedback, review_ai_rules, trigger_ai, view_ai_confidence,
+         trigger_sync, manage_field_mappings
+"""
 
 from typing import Optional
 
@@ -9,25 +24,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import Tenant, get_db, get_tenant
 
 # ── Permission matrix ────────────────────────────────────────────────────────
-# Roles: admin, steward, analyst, approver, auditor, viewer, ai_reviewer
-# Actions: view, upload, analyse, approve, apply, export, manage_users, manage_rules,
-#          ai_feedback, review_ai_rules, trigger_ai, view_ai_confidence
 
 PERMISSIONS: dict[str, set[str]] = {
+    # ── 3-tier roles (Phase 2+) ───────────────────────────────────────────
     "admin": {
-        "view", "upload", "analyse", "approve", "apply", "export", "manage_users", "manage_rules",
+        "view", "upload", "analyse", "approve", "apply", "export",
+        "manage_users", "manage_rules", "manage_field_mappings",
         "ai_feedback", "review_ai_rules", "trigger_ai", "view_ai_confidence",
+        "trigger_sync",
     },
+    "manager": {
+        "view", "upload", "analyse", "approve", "apply", "export",
+        "ai_feedback", "trigger_ai", "view_ai_confidence", "trigger_sync",
+    },
+    "viewer": {"view", "view_ai_confidence"},
+
+    # ── Legacy roles (backward compat) ────────────────────────────────────
     "steward": {
         "view", "upload", "analyse", "approve", "apply", "export", "manage_rules",
         "ai_feedback", "review_ai_rules", "trigger_ai", "view_ai_confidence",
+        "trigger_sync",
     },
-    "analyst": {"view", "upload", "analyse", "export", "trigger_ai", "view_ai_confidence"},
+    "analyst": {"view", "upload", "analyse", "export", "trigger_ai", "view_ai_confidence", "trigger_sync"},
     "approver": {"view", "approve", "export"},
     "auditor": {"view", "export"},
-    "viewer": {"view"},
     "ai_reviewer": {"view", "view_ai_confidence", "review_ai_rules", "ai_feedback"},
 }
+
+# All valid role values accepted by the users table
+VALID_ROLES: set[str] = set(PERMISSIONS.keys())
 
 
 def has_permission(role: str, action: str) -> bool:
@@ -62,7 +87,7 @@ async def _get_user_role(
     """Resolve the current user's role from the users table or tenant default."""
     # In local dev mode, check for X-User-Role header override
     role_header = request.headers.get("x-user-role")
-    if role_header and role_header in PERMISSIONS:
+    if role_header and role_header in VALID_ROLES:
         return role_header
 
     # Try to look up user by Clerk user ID from JWT claims

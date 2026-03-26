@@ -2,6 +2,7 @@ import uuid
 from typing import AsyncGenerator
 
 from fastapi import Depends, Request
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from api.config import settings
@@ -11,7 +12,19 @@ async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an async DB session with RLS tenant context pre-set.
+
+    Reads the current tenant ID from the TenantMiddleware ContextVar so every
+    query executes within the correct tenant's RLS policy automatically.
+    Individual routes may still call SET app.tenant_id explicitly — that is
+    harmless and keeps backward compatibility.
+    """
+    from api.middleware.tenant import get_current_tenant_id  # deferred to avoid circular
+
     async with async_session_factory() as session:
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            await session.execute(text(f"SET LOCAL app.tenant_id = '{tenant_id}'"))
         yield session
 
 

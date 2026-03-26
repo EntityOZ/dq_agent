@@ -47,10 +47,13 @@ import {
   Eraser,
   BrainCircuit,
   Play,
+  Sliders,
+  Map,
   type LucideIcon,
 } from "lucide-react";
 import "@/app/sidebar-responsive.css";
 import { AskMeridian } from "@/components/ask-meridian";
+import { useRole } from "@/hooks/use-role";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
@@ -90,6 +93,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/reports": "Reports",
   "/versions": "Versions",
   "/settings": "Settings",
+  "/settings/rules": "Rules Engine",
+  "/settings/field-mapping": "SAP Field Mapping",
   "/notifications": "Notifications",
   "/users": "User Management",
 };
@@ -289,6 +294,19 @@ const NAV_GROUPS: NavGroup[] = [
 
 const ROLES_WITH_AI_RULES = ["admin", "steward", "ai_reviewer"];
 
+// Settings sub-nav items (admin-only)
+interface SettingsNavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  permission: string;
+}
+
+const SETTINGS_SUB_NAV: SettingsNavItem[] = [
+  { href: "/settings/rules", label: "Rules Engine", icon: Sliders, permission: "manage_rules" },
+  { href: "/settings/field-mapping", label: "Field Mapping", icon: Map, permission: "manage_field_mappings" },
+];
+
 /*
  * Sidebar content — uses data-* attributes for CSS-driven responsive collapse.
  * Between lg (1024px) and xl (1280px), globals.css hides labels and collapses
@@ -306,6 +324,8 @@ function SidebarNav({
   userRole: string;
   onNavClick?: () => void;
 }) {
+  const { can } = useRole();
+
   return (
     <nav className="flex flex-col gap-5">
       {NAV_GROUPS.map(({ group, items }) => {
@@ -362,7 +382,7 @@ function SidebarNav({
         );
       })}
 
-      {/* Settings — standalone */}
+      {/* Settings — with admin-only sub-items */}
       <div>
         {collapsed && <div className="mb-1 mx-auto w-6 border-t border-black/[0.06]" />}
         {!collapsed && <div data-sidebar-divider className="hidden mb-1 mx-auto w-6 border-t border-black/[0.06]" />}
@@ -376,7 +396,7 @@ function SidebarNav({
               ? "mx-auto h-10 w-10 justify-center"
               : "mx-1 px-3 py-2"
           } ${
-            pathname.startsWith("/settings")
+            pathname === "/settings"
               ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(13,86,57,0.15)]"
               : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
           }`}
@@ -384,6 +404,34 @@ function SidebarNav({
           <Settings data-sidebar-icon className={`shrink-0 ${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
           {!collapsed && <span data-sidebar-label className="text-base font-medium">Settings</span>}
         </Link>
+
+        {/* Admin-only settings sub-items (only shown expanded + admin role) */}
+        {!collapsed && (
+          <div className="mt-0.5 ml-3 flex flex-col gap-0.5">
+            {SETTINGS_SUB_NAV.filter((item) => can(item.permission)).map(
+              ({ href, label, icon: Icon }) => {
+                const active = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    data-sidebar-link
+                    title={label}
+                    onClick={onNavClick}
+                    className={`group flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm transition-all duration-150 ${
+                      active
+                        ? "bg-primary/[0.12] text-primary border border-primary/20"
+                        : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
+                    }`}
+                  >
+                    <Icon className="h-[15px] w-[15px] shrink-0" />
+                    <span data-sidebar-label className="font-medium truncate">{label}</span>
+                  </Link>
+                );
+              }
+            )}
+          </div>
+        )}
       </div>
     </nav>
   );
@@ -442,7 +490,7 @@ export default function DashboardLayout({
         : "bg-muted-foreground";
   const licencePulse = licence?.valid === true ? "animate-[vx-pulse-dot_2s_ease-in-out_infinite]" : "";
 
-  const userRole = (typeof window !== "undefined" && localStorage.getItem("mn_demo_role")) || "admin";
+  const { role: userRole } = useRole();
   const pageTitle = getPageTitle(pathname);
 
   return (

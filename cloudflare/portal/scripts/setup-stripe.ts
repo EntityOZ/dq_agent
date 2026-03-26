@@ -21,13 +21,13 @@ interface ProductDef {
 
 const PRODUCTS: ProductDef[] = [
   {
-    name: "Vantax DQ Agent — Starter",
+    name: "Meridian — Starter",
     priceMonthly: 850000, // R 8,500
     priceAnnual: 8670000, // R 86,700
     metadata: { modules: "business_partner,material_master,fi_gl" },
   },
   {
-    name: "Vantax DQ Agent — Growth",
+    name: "Meridian — Growth",
     priceMonthly: 2200000, // R 22,000
     priceAnnual: 22440000, // R 224,400
     metadata: {
@@ -36,7 +36,7 @@ const PRODUCTS: ProductDef[] = [
     },
   },
   {
-    name: "Vantax DQ Agent — Enterprise",
+    name: "Meridian — Enterprise",
     priceMonthly: 6500000, // R 65,000
     priceAnnual: 66300000, // R 663,000
     metadata: { modules: "all" },
@@ -51,7 +51,7 @@ const ADDONS: { name: string; module: string; priceMonthly: number }[] = [
 ];
 
 async function main() {
-  console.log("Setting up Stripe products for Vantax...\n");
+  console.log("Setting up Stripe products for Meridian...\n");
 
   // Create tier products
   for (const prod of PRODUCTS) {
