@@ -17,7 +17,7 @@ from typing import Optional
 from api.utils.pii_fields import sanitise_for_prompt
 from api.utils.llm_logger import log_llm_call
 
-logger = logging.getLogger("vantax.ai_survivorship")
+logger = logging.getLogger("meridian.ai_survivorship")
 
 
 def _hash_value(value: object) -> str:

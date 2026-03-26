@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import Tenant, get_db, get_tenant
 
 router = APIRouter(prefix="/api/v1", tags=["connect"])
-logger = logging.getLogger("vantax.connect")
+logger = logging.getLogger("meridian.connect")
 
 RATE_LIMIT_SECONDS = 5 * 60
 

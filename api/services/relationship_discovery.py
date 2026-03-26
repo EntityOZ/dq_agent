@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("vantax.relationship_discovery")
+logger = logging.getLogger("meridian.relationship_discovery")
 
 # Known SAP link table mappings: domain -> [(link_table, target_domain, relationship_type, key_field)]
 # SuccessFactors modules use OData APIs, not RFC link tables — excluded intentionally.

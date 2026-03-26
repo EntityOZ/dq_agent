@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from api.services.mdm_scoring import compute_mdm_health_score
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.snapshot_mdm_metrics")
+logger = logging.getLogger("meridian.snapshot_mdm_metrics")
 
 SAST = timezone(timedelta(hours=2))
 

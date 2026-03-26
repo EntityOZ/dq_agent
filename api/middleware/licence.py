@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 
 from api.config import settings
 
-logger = logging.getLogger("vantax.licence")
+logger = logging.getLogger("meridian.licence")
 
 # In-memory licence cache
 _cache: dict = {
@@ -98,7 +98,7 @@ def _read_offline_licence() -> dict | None:
             return None
         licence_path = settings.licence_file
     else:
-        licence_path = os.getenv("LICENCE_FILE_PATH", "/etc/vantax/licence.json")
+        licence_path = os.getenv("LICENCE_FILE_PATH", "/etc/meridian/licence.json")
         if not settings.licence_file:
             licence_path = licence_path  # use LICENCE_FILE_PATH
         else:
@@ -237,7 +237,7 @@ def _check_feature_gate(path: str, licensed_features: list[str]) -> JSONResponse
                     {
                         "error": "feature_not_licenced",
                         "feature": feature,
-                        "upgrade_url": "https://portal.vantax.co.za/upgrade",
+                        "upgrade_url": "https://meridian-hq.vantax.co.za/upgrade",
                     },
                     status_code=402,
                 )

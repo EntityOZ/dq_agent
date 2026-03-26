@@ -31,7 +31,7 @@ from db.schema import (
 )
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
-logger = logging.getLogger("vantax.analytics")
+logger = logging.getLogger("meridian.analytics")
 
 predictive = PredictiveAnalytics()
 prescriptive = PrescriptiveAnalytics()

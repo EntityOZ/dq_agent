@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.populate_stewardship_queue")
+logger = logging.getLogger("meridian.populate_stewardship_queue")
 
 SAST = timezone(timedelta(hours=2))
 

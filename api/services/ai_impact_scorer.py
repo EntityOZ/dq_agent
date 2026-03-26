@@ -18,7 +18,7 @@ from typing import Optional
 from api.utils.pii_fields import sanitise_for_prompt
 from api.utils.llm_logger import log_llm_call
 
-logger = logging.getLogger("vantax.ai_impact_scorer")
+logger = logging.getLogger("meridian.ai_impact_scorer")
 
 
 def _build_impact_prompt(

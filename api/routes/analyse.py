@@ -11,7 +11,7 @@ from api.deps import Tenant, get_db, get_tenant
 from db.schema import AnalysisVersion
 
 router = APIRouter(prefix="/api/v1", tags=["analyse"])
-logger = logging.getLogger("vantax.analyse")
+logger = logging.getLogger("meridian.analyse")
 
 
 @router.post("/versions/{version_id}/run-agents")

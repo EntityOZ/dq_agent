@@ -59,7 +59,7 @@ except ImportError:
     fake = None  # Fallback to hand-rolled generators
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-log = logging.getLogger("vantax_seed")
+log = logging.getLogger("meridian_seed")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — CONSTANTS & CONFIGURATION
@@ -1780,7 +1780,7 @@ def _persist_to_database(db_url: str, tenant_id: str, payload: dict) -> None:
                     c["id"], tenant_id,
                     f"{c['module_code']} {c['contract_type'].title()} Contract",
                     c["description"],
-                    f"SAP {c['module_code']}", "Vantax MDM",
+                    f"SAP {c['module_code']}", "Meridian",
                     json.dumps({"enforced": True}) if c["contract_type"] == "schema" else None,
                     json.dumps({"min_dqs": 80}) if c["contract_type"] == "quality" else None,
                     json.dumps({"max_age_hours": 24}) if c["contract_type"] == "freshness" else None,

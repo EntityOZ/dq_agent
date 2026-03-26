@@ -39,10 +39,10 @@ Create docker-compose.yml using the structure in CLAUDE.md. Add the following th
 not in the CLAUDE.md snippet but are required for a working stack:
 
 - Healthchecks on every service (api, worker, db, redis, minio, llm)
-- A shared network called vantax-net
+- A shared network called meridian-net
 - restart: unless-stopped on all services except llm (GPU services should not auto-restart
   as the GPU may not be available on startup in all environments)
-- db healthcheck: pg_isready -U vantax
+- db healthcheck: pg_isready -U meridian
 - redis healthcheck: redis-cli ping
 - minio healthcheck: curl -f http://localhost:9000/minio/health/live
 - api healthcheck: curl -f http://localhost:8000/health
@@ -62,10 +62,10 @@ Group them into logical sections matching the .env.example comments (LLM, Databa
 MinIO, Licence, Notifications, Auth, Observability).
 
 main.py must:
-- Create the FastAPI app with title "Vantax API", version "1.0.0"
+- Create the FastAPI app with title "Meridian API", version "1.0.0"
 - Register the health router
 - Add CORS middleware allowing the frontend origin from config
-- On startup: log "Vantax API starting", log the LLM_PROVIDER value, log whether
+- On startup: log "Meridian API starting", log the LLM_PROVIDER value, log whether
   LICENCE_KEY is set (do not log the key value itself)
 
 deps.py must provide:

@@ -17,7 +17,7 @@ from api.deps import Tenant, get_db, get_tenant
 from api.services.rbac import require_permission
 
 router = APIRouter(prefix="/api/v1", tags=["systems"])
-logger = logging.getLogger("vantax.systems")
+logger = logging.getLogger("meridian.systems")
 
 
 # ── Request / Response models ────────────────────────────────────────────────

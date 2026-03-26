@@ -89,7 +89,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 3. Edit `.env` with your configuration:
    - `DB_PASSWORD` — PostgreSQL password
    - `MINIO_SECRET_KEY` — MinIO password
-   - `LICENCE_KEY` — issued from the Vantax portal
+   - `LICENCE_KEY` — issued from the Meridian HQ
    - `LLM_PROVIDER` — `ollama` (default), `ollama_cloud` (dev), or `anthropic`
    - `SAP_CONNECTOR` — `rfc` (default), `ctypes`, `odata`, or `mock` (see [docs/sap-connector.md](docs/sap-connector.md))
 
@@ -193,4 +193,4 @@ and configure `SMTP_HOST` for email relay. No outbound internet required.
 
 ## Licence
 
-Commercial software. Licence keys issued via the [Vantax Portal](https://portal.dqagent.vantax.co.za).
+Commercial software. Licence keys issued via the [Meridian HQ](https://portal.meridian.vantax.co.za).

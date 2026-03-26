@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker")
+logger = logging.getLogger("meridian.worker")
 
 
 def _get_sync_engine():
@@ -26,7 +26,7 @@ def _get_minio_client():
 
     return Minio(
         endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
-        access_key=os.getenv("MINIO_ACCESS_KEY", "vantax"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "meridian"),
         secret_key=os.getenv("MINIO_SECRET_KEY", ""),
         secure=False,
     )
@@ -64,7 +64,7 @@ def run_checks(self, version_id: str, tenant_id: str, parquet_path: str):
         # Step 3: Download parquet from MinIO
         minio_client = _get_minio_client()
         import os
-        bucket = os.getenv("MINIO_BUCKET_UPLOADS", "vantax-uploads")
+        bucket = os.getenv("MINIO_BUCKET_UPLOADS", "meridian-uploads")
         response = minio_client.get_object(bucket, parquet_path)
         parquet_bytes = response.read()
         response.close()

@@ -5,7 +5,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 
-logger = logging.getLogger("vantax.llm")
+logger = logging.getLogger("meridian.llm")
 
 
 def get_llm():

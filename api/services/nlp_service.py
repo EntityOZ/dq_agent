@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.nlp")
+logger = logging.getLogger("meridian.nlp")
 
 INTENT_SYSTEM_PROMPT = (
     "You are a data quality assistant for SAP systems. "
@@ -35,7 +35,7 @@ INTENT_SYSTEM_PROMPT = (
 )
 
 ANSWER_SYSTEM_PROMPT = (
-    "You are Vantax, a data quality assistant for SAP systems. "
+    "You are Meridian, a data quality assistant for SAP systems. "
     "Given the retrieved data context below, answer the user's question conversationally "
     "in 2-3 sentences maximum. Be specific with numbers. "
     "If the data includes a list, also output a structured JSON array under the key 'data'. "

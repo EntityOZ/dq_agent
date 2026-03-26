@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker.cleaning")
+logger = logging.getLogger("meridian.worker.cleaning")
 
 
 def _get_sync_engine():
@@ -30,7 +30,7 @@ def _get_minio_client():
     from minio import Minio
     return Minio(
         endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
-        access_key=os.getenv("MINIO_ACCESS_KEY", "vantax"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "meridian"),
         secret_key=os.getenv("MINIO_SECRET_KEY", ""),
         secure=False,
     )
@@ -45,7 +45,7 @@ def run_cleaning(self, version_id: str, tenant_id: str, object_type: str, parque
         # Load parquet from MinIO
         import os
         minio_client = _get_minio_client()
-        bucket = os.getenv("MINIO_BUCKET_UPLOADS", "vantax-uploads")
+        bucket = os.getenv("MINIO_BUCKET_UPLOADS", "meridian-uploads")
         response = minio_client.get_object(bucket, parquet_path)
         parquet_bytes = response.read()
         response.close()

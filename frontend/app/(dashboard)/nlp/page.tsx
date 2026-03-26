@@ -50,8 +50,8 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 const CHART_COLOURS = [
-  "#00D4AA", "#2563EB", "#E2E8F0", "#EA580C", "#DC2626",
-  "#16A34A", "#4A5568", "#7C3AED",
+  "#0D5639", "#4BA87A", "#1E7A52", "#EA580C", "#DC2626",
+  "#6366F1", "#4A5568", "#7C3AED",
 ];
 
 function NlpChart({
@@ -100,7 +100,7 @@ function NlpChart({
           <Line
             type="monotone"
             dataKey={valueKey}
-            stroke="#00D4AA"
+            stroke="#0D5639"
             strokeWidth={2}
             dot={{ r: 3 }}
           />
@@ -115,7 +115,7 @@ function NlpChart({
         <XAxis dataKey={labelKey} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} />
         <Tooltip />
-        <Bar dataKey={valueKey} fill="#00D4AA" radius={[4, 4, 0, 0]} />
+        <Bar dataKey={valueKey} fill="#0D5639" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -172,7 +172,7 @@ export default function NlpPage() {
 
   return (
     <div className="flex h-[calc(100vh-100px)] flex-col">
-      <h1 className="mb-4 text-2xl font-bold">Ask AI</h1>
+      <h1 className="mb-4 text-2xl font-bold">Ask Meridian</h1>
 
       {/* Messages */}
       <ScrollArea className="flex-1 rounded-lg border border-black/[0.08] bg-white/[0.70] p-4">

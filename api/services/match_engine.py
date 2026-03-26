@@ -24,7 +24,7 @@ from thefuzz import fuzz
 
 from api.services.ai_semantic_matcher import compute_semantic_score
 
-logger = logging.getLogger("vantax.match_engine")
+logger = logging.getLogger("meridian.match_engine")
 
 
 # ── Scorers ──────────────────────────────────────────────────────────────────

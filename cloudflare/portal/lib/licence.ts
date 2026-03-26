@@ -1,5 +1,5 @@
 const LICENCE_WORKER_URL =
-  process.env.LICENCE_WORKER_URL || "https://licence.dqagent.vantax.co.za";
+  process.env.LICENCE_WORKER_URL || "https://licence.meridian.vantax.co.za";
 const ADMIN_SECRET = process.env.LICENCE_ADMIN_SECRET || "";
 
 interface LicenceStatus {

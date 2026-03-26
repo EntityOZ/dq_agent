@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import Tenant, get_db, get_tenant
 
 router = APIRouter(prefix="/api/v1", tags=["writeback"])
-logger = logging.getLogger("vantax.writeback")
+logger = logging.getLogger("meridian.writeback")
 
 # BAPI mapping for ECC module write-back.
 # SuccessFactors modules use OData APIs (not RFC BAPIs) — excluded intentionally.

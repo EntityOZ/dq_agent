@@ -49,7 +49,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ─── Vantax Light Glassmorphism Theme ─── */
+/* ─── Meridian Light Glassmorphism Theme ─── */
 :root {
   /* Surfaces */
   --background: #F7F8FA;
@@ -59,15 +59,15 @@
   --popover: rgba(255,255,255,0.88);
   --popover-foreground: #1A1F36;
 
-  /* Accent — Vibrant Teal-Green */
-  --primary: #00D4AA;
+  /* Primary — Meridian Forest Green */
+  --primary: #0D5639;
   --primary-foreground: #FFFFFF;
   --secondary: rgba(0,0,0,0.05);
   --secondary-foreground: #4A5568;
   --muted: rgba(0,0,0,0.03);
   --muted-foreground: #6B7280;
-  --accent: rgba(0,212,170,0.10);
-  --accent-foreground: #00B894;
+  --accent: rgba(13,86,57,0.08);
+  --accent-foreground: #0B4A31;
 
   /* Status */
   --destructive: #EF4444;
@@ -75,12 +75,12 @@
   /* Borders & focus */
   --border: rgba(0,0,0,0.08);
   --input: rgba(0,0,0,0.06);
-  --ring: #00D4AA;
+  --ring: #0D5639;
 
-  /* Charts — deepened for light bg */
-  --chart-1: #00D4AA;
+  /* Charts — Meridian palette for light bg */
+  --chart-1: #0D5639;
   --chart-2: #FF8C42;
-  --chart-3: #16A34A;
+  --chart-3: #4BA87A;
   --chart-4: #6366F1;
   --chart-5: #EF4444;
 
@@ -90,31 +90,32 @@
   /* Sidebar */
   --sidebar: rgba(255,255,255,0.75);
   --sidebar-foreground: #4A5568;
-  --sidebar-primary: #00D4AA;
+  --sidebar-primary: #0D5639;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(0,212,170,0.10);
-  --sidebar-accent-foreground: #00B894;
+  --sidebar-accent: rgba(13,86,57,0.08);
+  --sidebar-accent-foreground: #0B4A31;
   --sidebar-border: rgba(0,0,0,0.06);
-  --sidebar-ring: #00D4AA;
+  --sidebar-ring: #0D5639;
 
-  /* ─── Vantax Direct Tokens ─── */
-  --vx-bg-base: #F7F8FA;
-  --vx-bg-card: rgba(255,255,255,0.70);
-  --vx-bg-card-hover: rgba(255,255,255,0.85);
-  --vx-border: rgba(0,0,0,0.08);
-  --vx-teal-bright: #00D4AA;
-  --vx-teal-mid: #00B894;
-  --vx-teal-dim: rgba(0,212,170,0.10);
-  --vx-blue-bright: #6366F1;
-  --vx-blue-mid: #4F46E5;
-  --vx-amber: #EA580C;
-  --vx-red: #EF4444;
-  --vx-green: #16A34A;
-  --vx-text-primary: #1A1F36;
-  --vx-text-secondary: #4A5568;
-  --vx-text-tertiary: #6B7280;
-  --vx-sidebar-bg: rgba(255,255,255,0.75);
-  --vx-sidebar-text: #4A5568;
+  /* ─── Meridian Direct Tokens ─── */
+  --mn-bg-base: #F7F8FA;
+  --mn-bg-card: rgba(255,255,255,0.70);
+  --mn-bg-card-hover: rgba(255,255,255,0.85);
+  --mn-border: rgba(0,0,0,0.08);
+  --mn-green-dark: #0D5639;
+  --mn-green-mid: #1E7A52;
+  --mn-green-light: #4BA87A;
+  --mn-green-dim: rgba(13,86,57,0.08);
+  --mn-blue-bright: #6366F1;
+  --mn-blue-mid: #4F46E5;
+  --mn-amber: #EA580C;
+  --mn-red: #EF4444;
+  --mn-teal: #4BA87A;
+  --mn-text-primary: #1A1F36;
+  --mn-text-secondary: #4A5568;
+  --mn-text-tertiary: #6B7280;
+  --mn-sidebar-bg: rgba(255,255,255,0.75);
+  --mn-sidebar-text: #4A5568;
 
   /* ─── Glass Tokens ─── */
   --glass-bg: rgba(255,255,255,0.70);
@@ -176,9 +177,9 @@
 /* ─── Gradient Mesh Background ─── */
 .vx-mesh-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(0,212,170,0.06), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 85% 15%, rgba(99,102,241,0.05), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 50% 90%, rgba(234,88,12,0.03), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(13,86,57,0.05), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 15%, rgba(99,102,241,0.04), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 90%, rgba(75,168,122,0.04), transparent 50%),
     #F7F8FA;
   background-attachment: fixed;
 }
@@ -235,12 +236,12 @@
 }
 
 .vx-glow {
-  box-shadow: 0 0 16px rgba(0,212,170,0.20), 0 0 0 1px rgba(0,212,170,0.10);
+  box-shadow: 0 0 16px rgba(13,86,57,0.20), 0 0 0 1px rgba(13,86,57,0.12);
 }
 
 .vx-glass-pill {
-  background: rgba(0,212,170,0.15);
-  border: 1px solid rgba(0,212,170,0.25);
+  background: rgba(13,86,57,0.10);
+  border: 1px solid rgba(13,86,57,0.20);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 12px;
@@ -305,13 +306,13 @@
 
 /* ─── Selection ─── */
 ::selection {
-  background: rgba(0,212,170,0.25);
+  background: rgba(13,86,57,0.18);
   color: #1A1F36;
 }
 
 /* ─── Focus ring ─── */
 :focus-visible {
-  outline: 2px solid #00D4AA;
+  outline: 2px solid #0D5639;
   outline-offset: 2px;
   border-radius: 4px;
 }

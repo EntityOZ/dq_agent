@@ -13,18 +13,18 @@ export default function LicenceErrorPage() {
           Licence Invalid or Expired
         </h1>
         <Alert variant="destructive">
-          <AlertTitle>Your Vantax licence is invalid or has expired.</AlertTitle>
+          <AlertTitle>Your Meridian licence is invalid or has expired.</AlertTitle>
           <AlertDescription className="mt-2">
-            Please contact your administrator or visit the Vantax portal to
+            Please contact your administrator or visit the Meridian HQ portal to
             renew your licence.
           </AlertDescription>
         </Alert>
         <a
-          href="https://portal.dqagent.vantax.co.za"
+          href="https://meridian-hq.vantax.co.za"
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Button variant="outline">Go to Vantax Portal</Button>
+          <Button variant="outline">Go to Meridian HQ</Button>
         </a>
       </div>
     </div>

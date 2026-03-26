@@ -12,7 +12,7 @@ import yaml
 
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.ai_column_matcher")
+logger = logging.getLogger("meridian.ai_column_matcher")
 
 RULES_DIR = Path(__file__).parent.parent.parent / "checks" / "rules"
 CATEGORIES = ["ecc", "successfactors", "warehouse"]

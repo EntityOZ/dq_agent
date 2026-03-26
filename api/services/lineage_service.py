@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger("vantax.lineage")
+logger = logging.getLogger("meridian.lineage")
 
 
 def _node(id: str, label: str, node_type: str, data: Optional[dict] = None) -> dict:

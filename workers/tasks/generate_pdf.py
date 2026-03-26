@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker.pdf")
+logger = logging.getLogger("meridian.worker.pdf")
 
 # Template directory — resolve from project root
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "templates")
@@ -33,7 +33,7 @@ def _get_minio_client():
 
     return Minio(
         endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
-        access_key=os.getenv("MINIO_ACCESS_KEY", "vantax"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "meridian"),
         secret_key=os.getenv("MINIO_SECRET_KEY", ""),
         secure=False,
     )
@@ -195,7 +195,7 @@ def generate_pdf(self, version_id: str, tenant_id: str):
         ).write_pdf()
 
         # Step 4: Store PDF in MinIO
-        bucket = os.getenv("MINIO_BUCKET_REPORTS", "vantax-reports")
+        bucket = os.getenv("MINIO_BUCKET_REPORTS", "meridian-reports")
         object_path = f"reports/{tenant_id}/{version_id}.pdf"
 
         minio_client = _get_minio_client()

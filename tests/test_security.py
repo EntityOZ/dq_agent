@@ -1,4 +1,4 @@
-"""Security tests for Vantax API — covers all fixes from the security review.
+"""Security tests for Meridian API — covers all fixes from the security review.
 
 Tests are structured to avoid triggering the module-level asyncpg engine import
 in api.deps (which requires an async driver not present in the test environment).

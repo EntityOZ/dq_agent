@@ -27,7 +27,7 @@ from api.services.survivorship import (
 )
 from api.services.ai_survivorship import propose_field_winner
 
-logger = logging.getLogger("vantax.golden_record_engine")
+logger = logging.getLogger("meridian.golden_record_engine")
 
 # Default confidence threshold — records below this go to pending_review
 CONFIDENCE_THRESHOLD = 0.85

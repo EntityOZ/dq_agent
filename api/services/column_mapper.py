@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger("vantax.column_mapper")
+logger = logging.getLogger("meridian.column_mapper")
 
 RULES_DIR = Path(__file__).parent.parent.parent / "checks" / "rules"
 CATEGORIES = ["ecc", "successfactors", "warehouse"]

@@ -14,7 +14,7 @@ from agents.prompts import ANALYST_SYSTEM, ANALYST_USER_TEMPLATE
 from agents.state import AgentState
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.agents.analyst")
+logger = logging.getLogger("meridian.agents.analyst")
 
 MAX_FINDINGS_PER_CALL = 50
 

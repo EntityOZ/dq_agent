@@ -2,7 +2,7 @@
 
 ## Step 1: Obtain a Licence Key
 
-1. Visit [portal.dqagent.vantax.co.za](https://portal.dqagent.vantax.co.za)
+1. Visit [portal.meridian.vantax.co.za](https://portal.meridian.vantax.co.za)
 2. Create an account and subscribe to a plan
 3. Copy your licence key from the dashboard
 

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vantax — SAP Data Quality Agent",
+  title: "Meridian — SAP Data Quality Agent",
   description: "Analyse and improve SAP data quality for S/4HANA migration",
 };
 

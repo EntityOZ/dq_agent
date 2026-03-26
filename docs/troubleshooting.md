@@ -19,8 +19,8 @@
 
 **Solutions:**
 - Verify `LICENCE_KEY` in `.env`
-- Check outbound connectivity: `curl -s https://licence.dqagent.vantax.co.za/status?key=YOUR_KEY`
-- Visit [portal.dqagent.vantax.co.za](https://portal.dqagent.vantax.co.za) to check licence status
+- Check outbound connectivity: `curl -s https://licence.meridian.vantax.co.za/status?key=YOUR_KEY`
+- Visit [portal.meridian.vantax.co.za](https://portal.meridian.vantax.co.za) to check licence status
 - For air-gapped: verify `LICENCE_FILE` path and JSON format
 
 ### "Database migration failed"
@@ -50,7 +50,7 @@
 **Solutions:**
 - Check worker logs for WeasyPrint errors: `docker compose logs worker | grep -i weasyprint`
 - Verify MinIO is accessible: `docker compose ps minio`
-- Check the reports bucket exists: `docker compose exec minio mc ls local/vantax-reports/`
+- Check the reports bucket exists: `docker compose exec minio mc ls local/meridian-reports/`
 
 ### "Upload fails with 422"
 

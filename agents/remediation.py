@@ -14,7 +14,7 @@ from agents.prompts import REMEDIATION_SYSTEM, REMEDIATION_USER_TEMPLATE
 from agents.state import AgentState
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.agents.remediation")
+logger = logging.getLogger("meridian.agents.remediation")
 
 
 def _trim_finding_for_remediation(finding: dict) -> dict:

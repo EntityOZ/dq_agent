@@ -10,7 +10,7 @@ from api.deps import Tenant, get_db, get_tenant
 from db.schema import Finding, Report
 
 router = APIRouter(prefix="/api/v1", tags=["findings"])
-logger = logging.getLogger("vantax.findings")
+logger = logging.getLogger("meridian.findings")
 
 
 @router.get("/findings")

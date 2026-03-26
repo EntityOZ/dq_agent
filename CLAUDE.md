@@ -28,9 +28,9 @@ contracts, SAP sync engine, and a governance dashboard.
 ### Two zones, hard boundary between them
 
 **Zone 1 — Cloudflare (your infra, no SAP data)**
-- `dqagent.vantax.co.za` — marketing site on Cloudflare Pages
-- `portal.dqagent.vantax.co.za` — Vantax portal on Cloudflare Pages (Next.js, licence mgmt, billing)
-- `licence.dqagent.vantax.co.za` — licence server on Cloudflare Workers + KV
+- `meridian.vantax.co.za` — marketing site on Cloudflare Pages
+- `portal.meridian.vantax.co.za` — Meridian HQ on Cloudflare Pages (Next.js, licence mgmt, billing)
+- `licence.meridian.vantax.co.za` — licence server on Cloudflare Workers + KV
 - Stripe handles billing — annual licence fees, per-module add-ons, enterprise tiers in ZAR
 
 **Zone 2 — Customer container stack (their infra, all SAP data)**
@@ -43,7 +43,7 @@ contracts, SAP sync engine, and a governance dashboard.
 - WeasyPrint + Jinja2 — PDF generation inside Celery workers
 
 ### The only outbound calls from the customer stack
-1. Licence ping to `licence.dqagent.vantax.co.za` — key + machine fingerprint only, no data payload
+1. Licence ping to `licence.meridian.vantax.co.za` — key + machine fingerprint only, no data payload
 2. Image pull from GHCR — only when customer explicitly runs `update.sh`
 
 Everything else is internal. The LLM never sees raw SAP data — only aggregated findings JSON
@@ -264,7 +264,7 @@ vantax/
 │   │   ├── src/index.test.ts        ← test suite
 │   │   ├── wrangler.toml
 │   │   └── vitest.config.ts
-│   └── portal/                      ← Vantax portal (Next.js on Pages)
+│   └── portal/                      ← Meridian HQ (Next.js on Pages)
 │       ├── app/
 │       │   ├── page.tsx             ← marketing landing
 │       │   ├── dashboard/           ← org overview
@@ -812,12 +812,12 @@ REDIS_URL=redis://redis:6379/0
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=vantax
 MINIO_SECRET_KEY=
-MINIO_BUCKET_UPLOADS=vantax-uploads
-MINIO_BUCKET_REPORTS=vantax-reports
+MINIO_BUCKET_UPLOADS=meridian-uploads
+MINIO_BUCKET_REPORTS=meridian-reports
 
 # Licence
-LICENCE_KEY=                                 # issued by Vantax portal
-LICENCE_SERVER_URL=https://licence.dqagent.vantax.co.za
+LICENCE_KEY=                                 # issued by Meridian HQ
+LICENCE_SERVER_URL=https://licence.meridian.vantax.co.za
 LICENCE_FILE=                                # alternative: offline licence (air-gapped)
 
 # Notifications
@@ -1026,7 +1026,7 @@ A customer can:
 14. Configure daily/weekly email digests and Teams webhook notifications
 15. Manage users with RBAC (admin, steward, analyst, viewer roles)
 16. Write back corrections to SAP for all 11 ECC modules via BAPI
-17. The Vantax portal shows their licence status and allows module add-ons via Stripe
+17. The Meridian HQ shows their licence status and allows module add-ons via Stripe
 
 At no point does any SAP data leave their server.
 
