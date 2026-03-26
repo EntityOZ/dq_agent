@@ -40,6 +40,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://meridian:test@localhost:5432/meridian_test
           DATABASE_URL_SYNC: postgresql://meridian:test@localhost:5432/meridian_test
+          PYTHONPATH: "."
         run: alembic upgrade head
       - name: Run tests
         env:
