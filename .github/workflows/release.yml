@@ -1,0 +1,139 @@
+name: Build & Push Production Images
+
+on:
+  push:
+    tags: ['v*']         # Triggered by version tags: v1.0.0, v1.1.0, etc.
+  workflow_dispatch:     # Manual trigger for Ollama or ad-hoc builds
+    inputs:
+      build_ollama:
+        description: 'Build Ollama image (large — run only when model changes)'
+        required: false
+        default: 'false'
+        type: boolean
+      ollama_model:
+        description: 'Ollama model tag (e.g. qwen2.5:14b-q4_K_M)'
+        required: false
+        default: 'qwen2.5:14b-q4_K_M'
+
+env:
+  REGISTRY: docker.io
+  ORG: meridianplatform
+
+jobs:
+  # ─── Build API, Frontend, Worker images ────────────────────────────────────
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: api
+            dockerfile: docker/Dockerfile.api.prod
+            context: .
+          - image: frontend
+            dockerfile: docker/Dockerfile.frontend.prod
+            context: .
+          - image: worker
+            dockerfile: docker/Dockerfile.worker.prod
+            context: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME:-latest}" >> $GITHUB_OUTPUT
+
+      - name: Build and push ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.ORG }}/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}
+            ${{ env.ORG }}/${{ matrix.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── Also push to GHCR (internal use / dev) ────────────────────────────────
+  push-ghcr:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [api, frontend, worker]
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub (to pull source)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME:-latest}" >> $GITHUB_OUTPUT
+
+      - name: Re-tag and push to GHCR
+        run: |
+          docker pull ${{ env.ORG }}/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}
+          docker tag \
+            ${{ env.ORG }}/${{ matrix.image }}:${{ steps.version.outputs.VERSION }} \
+            ghcr.io/entityoz/meridian/meridian-${{ matrix.image }}:${{ steps.version.outputs.VERSION }}
+          docker tag \
+            ${{ env.ORG }}/${{ matrix.image }}:${{ steps.version.outputs.VERSION }} \
+            ghcr.io/entityoz/meridian/meridian-${{ matrix.image }}:latest
+          docker push ghcr.io/entityoz/meridian/meridian-${{ matrix.image }}:${{ steps.version.outputs.VERSION }}
+          docker push ghcr.io/entityoz/meridian/meridian-${{ matrix.image }}:latest
+
+  # ─── Build Ollama image (manual trigger only — large build) ────────────────
+  build-ollama:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_ollama == 'true'
+    strategy:
+      matrix:
+        model:
+          - 'qwen2.5:14b-q4_K_M'
+          - 'qwen2.5:7b-q5_K_M'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Ollama (${{ matrix.model }})
+        run: |
+          MODEL_TAG=$(echo "${{ matrix.model }}" | tr ':' '-' | tr '.' '-')
+          docker build \
+            -f docker/Dockerfile.ollama \
+            --build-arg MODEL_NAME=${{ matrix.model }} \
+            -t ${{ env.ORG }}/ollama:${MODEL_TAG} \
+            -t ${{ env.ORG }}/ollama:latest \
+            .
+          docker push ${{ env.ORG }}/ollama:${MODEL_TAG}

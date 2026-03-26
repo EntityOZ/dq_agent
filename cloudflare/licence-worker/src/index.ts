@@ -30,6 +30,8 @@ interface Env {
   LICENCE_KV: KVNamespace;
   DB: D1Database;
   LICENCE_ADMIN_SECRET: string;
+  /** RSA-PKCS8 private key PEM for offline JWT signing (set as Worker secret) */
+  OFFLINE_JWT_PRIVATE_KEY?: string;
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -257,6 +259,112 @@ const TIER_MODULES: Record<string, string[]> = {
     "wm_interface", "cross_system_integration",
   ],
 };
+
+// ─── Offline Token Generation ─────────────────────────────────────────────────
+
+/**
+ * Generate a signed RS256 JWT for air-gapped (offline) licence deployments.
+ * The token embeds the full licence manifest so the customer backend can verify
+ * it locally using the corresponding public key baked into the Docker image.
+ *
+ * Requires OFFLINE_JWT_PRIVATE_KEY Worker secret to be set (RSA PKCS#8 PEM).
+ */
+async function handleGenerateOfflineToken(
+  tenantId: string,
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const authErr = requireAdmin(request, env);
+  if (authErr) return authErr;
+
+  if (!env.OFFLINE_JWT_PRIVATE_KEY) {
+    return json(
+      { error: "not_configured", message: "OFFLINE_JWT_PRIVATE_KEY secret is not set" },
+      503
+    );
+  }
+
+  const row = await env.DB.prepare("SELECT * FROM tenants WHERE id = ?")
+    .bind(tenantId)
+    .first<TenantRow>();
+  if (!row) return json({ error: "not_found" }, 404);
+
+  const body = (await request.json().catch(() => ({}))) as { expiryDays?: number };
+  const expiryDays = Math.min(Math.max(Number(body.expiryDays) || 365, 1), 1095);
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + expiryDays * 86400;
+  const expiresAt = new Date(exp * 1000).toISOString();
+
+  // Fetch rules for this manifest
+  const rulesResult = await env.DB.prepare(
+    "SELECT * FROM rules WHERE enabled = 1 ORDER BY module, category"
+  ).all<RuleRow>();
+  const rules = (rulesResult.results || []).map(parseRule);
+
+  // Fetch field mappings
+  const mappingsResult = await env.DB.prepare(
+    "SELECT * FROM field_mappings WHERE tenant_id = ?"
+  )
+    .bind(tenantId)
+    .all<FieldMappingRow>();
+  const fieldMappings = (mappingsResult.results || []).map(parseFieldMapping);
+
+  const payload = {
+    iss: "meridian-hq",
+    sub: tenantId,
+    iat: now,
+    exp,
+    tenant_id: tenantId,
+    enabled_modules: JSON.parse(row.enabled_modules || "[]") as string[],
+    enabled_menu_items: JSON.parse(row.enabled_menu_items || "[]") as string[],
+    features: JSON.parse(row.features || "{}") as TenantFeatures,
+    llm_config: JSON.parse(row.llm_config || "{}") as LlmConfig,
+    rules,
+    field_mappings: fieldMappings,
+  };
+
+  // Sign JWT using Web Crypto RS256
+  const keyPem = env.OFFLINE_JWT_PRIVATE_KEY.trim();
+  const pemBody = keyPem
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const keyDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    keyDer.buffer,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const encode = (obj: unknown) =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const headerB64 = encode(header);
+  const payloadB64 = encode(payload);
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  const sigBuf = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(signingInput)
+  );
+  const sig = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  const token = `${signingInput}.${sig}`;
+
+  return json({ token, expiresAt, expiryDays });
+}
 
 // ─── Licence Validation ───────────────────────────────────────────────────────
 
@@ -1048,6 +1156,9 @@ export default {
 
         if (sub === "/regenerate-key" && method === "POST") {
           return await handleRegenerateKey(tenantId, request, env);
+        }
+        if (sub === "/offline-token" && method === "POST") {
+          return await handleGenerateOfflineToken(tenantId, request, env);
         }
         if (sub === "/field-mappings") {
           if (method === "GET") return await handleGetTenantFieldMappings(tenantId, request, env);

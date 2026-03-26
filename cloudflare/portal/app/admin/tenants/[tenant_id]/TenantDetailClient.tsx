@@ -154,6 +154,12 @@ export default function TenantDetailClient({ tenant: initialTenant }: { tenant: 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
+  // Offline token generation
+  const [offlineTokenExpiry, setOfflineTokenExpiry] = useState("365");
+  const [offlineToken, setOfflineToken] = useState<string | null>(null);
+  const [offlineTokenExpires, setOfflineTokenExpires] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+
   const showMsg = (m: string) => {
     setMessage(m);
     setTimeout(() => setMessage(""), 4000);
@@ -591,6 +597,102 @@ export default function TenantDetailClient({ tenant: initialTenant }: { tenant: 
             );
           })}
         </div>
+      </div>
+
+      {/* Offline Licence Token */}
+      <div
+        className="rounded-lg p-5 space-y-4"
+        style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-white">Offline Licence Token</h2>
+          <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+            For air-gapped deployments that cannot reach the licence server.
+            The customer sets <code className="font-mono">MERIDIAN_LICENCE_MODE=offline</code> and{" "}
+            <code className="font-mono">MERIDIAN_LICENCE_TOKEN=&lt;token&gt;</code> in their .env.
+          </p>
+        </div>
+        <div className="flex items-end gap-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium" style={{ color: "var(--muted)" }}>
+              Token validity (days)
+            </label>
+            <input
+              type="number"
+              min={30}
+              max={1095}
+              value={offlineTokenExpiry}
+              onChange={(e) => setOfflineTokenExpiry(e.target.value)}
+              className="w-24 rounded-md px-3 py-1.5 text-sm text-white outline-none"
+              style={{ background: "var(--background)", border: "1px solid var(--border)" }}
+            />
+          </div>
+          <button
+            onClick={async () => {
+              setGeneratingToken(true);
+              setOfflineToken(null);
+              try {
+                const r = await fetch(`/api/admin/tenants/${tenant.id}/offline-token`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ expiryDays: parseInt(offlineTokenExpiry, 10) || 365 }),
+                });
+                if (r.ok) {
+                  const d = await r.json();
+                  setOfflineToken(d.token);
+                  setOfflineTokenExpires(d.expiresAt);
+                } else {
+                  showMsg("Failed to generate offline token");
+                }
+              } finally {
+                setGeneratingToken(false);
+              }
+            }}
+            disabled={generatingToken}
+            className="rounded-md px-4 py-1.5 text-sm text-white disabled:opacity-50 transition-colors"
+            style={{ background: "var(--primary)" }}
+          >
+            {generatingToken ? "Generating…" : "Generate Token"}
+          </button>
+        </div>
+        {offlineToken && (
+          <div className="space-y-2">
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              Expires: {offlineTokenExpires ? new Date(offlineTokenExpires).toLocaleString("en-ZA") : "—"}
+            </p>
+            <textarea
+              readOnly
+              rows={4}
+              value={offlineToken}
+              className="w-full rounded-md px-3 py-2 text-xs font-mono text-white outline-none resize-none"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)" }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigator.clipboard.writeText(offlineToken)}
+                className="rounded px-3 py-1 text-xs transition-colors"
+                style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+              >
+                Copy Token
+              </button>
+              <button
+                onClick={() => {
+                  const snippet =
+                    `MERIDIAN_LICENCE_MODE=offline\nMERIDIAN_LICENCE_TOKEN=${offlineToken}\n`;
+                  const blob = new Blob([snippet], { type: "text/plain" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `meridian-offline-licence-${tenant.id.slice(0, 8)}.env`;
+                  a.click();
+                }}
+                className="rounded px-3 py-1 text-xs transition-colors"
+                style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+              >
+                Download .env snippet
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
