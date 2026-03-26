@@ -110,16 +110,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS — origins configurable via MERIDIAN_CORS_ORIGINS (comma-separated)
-_raw_origins = os.getenv(
-    "MERIDIAN_CORS_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000",
-)
-_cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
+# CORS — origins configurable via CORS_ORIGINS env var (comma-separated)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

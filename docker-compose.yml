@@ -17,7 +17,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_PASSWORD}
       - MINIO_BUCKET_UPLOADS=${MINIO_BUCKET_UPLOADS:-meridian-uploads}
       - MINIO_BUCKET_REPORTS=${MINIO_BUCKET_REPORTS:-meridian-reports}
-      - MERIDIAN_CORS_ORIGINS=${MERIDIAN_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000}
       - LICENCE_KEY=${LICENCE_KEY:-}
       - LICENCE_SERVER_URL=${LICENCE_SERVER_URL:-https://licence.meridian.vantax.co.za}
       - LICENCE_FILE=${LICENCE_FILE:-}

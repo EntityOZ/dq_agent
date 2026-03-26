@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -42,6 +43,16 @@ class Settings(BaseSettings):
     smtp_user: Optional[str] = None
     smtp_password: Optional[str] = None
     smtp_from: str = "noreply@meridian.local"
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:3000", "http://frontend:3000"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v  # type: ignore[return-value]
 
     # Auth
     clerk_secret_key: Optional[str] = None
