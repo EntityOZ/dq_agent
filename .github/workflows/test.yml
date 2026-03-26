@@ -10,8 +10,8 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: vantax_test
-          POSTGRES_USER: vantax
+          POSTGRES_DB: meridian_test
+          POSTGRES_USER: meridian
           POSTGRES_PASSWORD: test
         ports:
           - 5432:5432
@@ -38,19 +38,19 @@ jobs:
         run: pip install -r api/requirements.txt
       - name: Run migrations
         env:
-          DATABASE_URL: postgresql+asyncpg://vantax:test@localhost:5432/vantax_test
-          DATABASE_URL_SYNC: postgresql://vantax:test@localhost:5432/vantax_test
+          DATABASE_URL: postgresql+asyncpg://meridian:test@localhost:5432/meridian_test
+          DATABASE_URL_SYNC: postgresql://meridian:test@localhost:5432/meridian_test
         run: alembic upgrade head
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://vantax:test@localhost:5432/vantax_test
-          DATABASE_URL_SYNC: postgresql://vantax:test@localhost:5432/vantax_test
+          DATABASE_URL: postgresql+asyncpg://meridian:test@localhost:5432/meridian_test
+          DATABASE_URL_SYNC: postgresql://meridian:test@localhost:5432/meridian_test
           REDIS_URL: redis://localhost:6379/0
           LLM_PROVIDER: ollama_cloud
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           AUTH_MODE: local
           MINIO_ENDPOINT: localhost:9000
-          MINIO_ACCESS_KEY: vantax
+          MINIO_ACCESS_KEY: meridian
           MINIO_SECRET_KEY: testing
         run: pytest tests/ -v --tb=short -q
 

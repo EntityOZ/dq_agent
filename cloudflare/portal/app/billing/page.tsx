@@ -237,7 +237,7 @@ export default async function BillingPage() {
                   <p className="text-xs text-[var(--muted)]">{description}</p>
                   {!enabled && (
                     <a
-                      href="https://portal.vantax.co.za/upgrade"
+                      href="https://meridian-hq.vantax.co.za/upgrade"
                       className="mt-1 inline-block text-xs text-[var(--primary)] hover:underline"
                     >
                       Upgrade to enable
@@ -255,7 +255,7 @@ export default async function BillingPage() {
         <>
           <h2 className="text-lg font-semibold text-white">Choose a Plan</h2>
           <p className="text-[var(--muted)]">
-            Select a plan to get started with Vantax SAP Data Quality Agent.
+            Select a plan to get started with Meridian SAP Data Quality Agent.
           </p>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

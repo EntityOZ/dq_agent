@@ -1,5 +1,5 @@
 """
-Vantax SAP Data Quality & MDM Platform — SAP System Emulator Seed Script
+Meridian SAP Data Quality & MDM Platform — SAP System Emulator Seed Script
 =========================================================================
 Entity Oz (Pty) Ltd | March 2026
 
@@ -68,7 +68,7 @@ log = logging.getLogger("meridian_seed")
 NOW = datetime.now(timezone.utc)
 TENANT_ID = None  # Set via CLI or default
 DRY_RUN = False
-DB_URL = os.getenv("DATABASE_URL", "postgresql://vantax:vantax@localhost:5432/vantax")
+DB_URL = os.getenv("DATABASE_URL", "postgresql://meridian:meridian@localhost:5432/meridian")
 
 # DAMA DMBOK dimension weights (configurable per tenant in prod)
 DAMA_WEIGHTS = {
@@ -481,7 +481,7 @@ class EmulatedSAPConnection:
     """
     Emulates the SAP connector for seeding purposes.
 
-    In production, Vantax uses:
+    In production, Meridian uses:
         from sap import get_connector
         with get_connector() as conn:
             conn.connect(params)
@@ -1232,7 +1232,7 @@ def generate_users() -> list[dict]:
 
 
 def generate_nlp_examples() -> list[dict]:
-    """Pre-seed NLP query examples for the 'Ask Vantax' interface."""
+    """Pre-seed NLP query examples for the 'Ask Meridian' interface."""
     return [
         {"query": "What is the current DQS for Business Partner?", "intent": "dqs_lookup", "module_filter": "BP"},
         {"query": "Show me all critical findings in Material Master", "intent": "finding_search", "module_filter": "MM"},
@@ -1307,7 +1307,7 @@ def generate_relationships() -> list[dict]:
 def run_seed(tenant_id: str, db_url: str, dry_run: bool = False) -> dict:
     """
     Main seed orchestrator. Emulates full SAP connectivity and populates
-    every Vantax feature with realistic data.
+    every Meridian feature with realistic data.
 
     Returns a summary dict with counts for all seeded entities.
     """
@@ -1546,7 +1546,7 @@ def run_seed(tenant_id: str, db_url: str, dry_run: bool = False) -> dict:
 
 def _persist_to_database(db_url: str, tenant_id: str, payload: dict) -> None:
     """
-    Insert seed data into the Vantax PostgreSQL database.
+    Insert seed data into the Meridian PostgreSQL database.
     Matches actual schema from Alembic migrations.
     Uses ON CONFLICT guards for idempotent re-runs (Celery-style).
     Sets app.tenant_id for RLS compliance.
@@ -1999,12 +1999,12 @@ def _persist_to_database(db_url: str, tenant_id: str, payload: dict) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Vantax SAP Emulator Seed Script — generates realistic SAP data across 12 modules",
+        description="Meridian SAP Emulator Seed Script — generates realistic SAP data across 12 modules",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python seed_sap_emulator.py --dry-run
-  python seed_sap_emulator.py --tenant-id abc123 --db-url postgresql://vantax:pw@localhost/vantax
+  python seed_sap_emulator.py --tenant-id abc123 --db-url postgresql://meridian:pw@localhost/meridian
   DATABASE_URL=postgresql://... python seed_sap_emulator.py
         """,
     )

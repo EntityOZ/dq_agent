@@ -14,7 +14,7 @@ export default async function HomePage() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white">Meridian HQ</h1>
         <p className="mt-2 text-[var(--muted)]">
-          Sign in to manage your Vantax licence
+          Sign in to manage your Meridian licence
         </p>
       </div>
       <SignIn routing="hash" />

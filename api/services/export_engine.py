@@ -270,7 +270,7 @@ class ExportEngine:
                 "EDI_DC40": {
                     "IDOCTYP": idoc_type,
                     "MESTYP": "CHANGE",
-                    "SNDPOR": "VANTAX",
+                    "SNDPOR": "MERIDIAN",
                     "SNDPRT": "LS",
                     "RCVPOR": "SAP",
                     "RCVPRT": "LS",
