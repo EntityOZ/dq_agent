@@ -9,11 +9,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import Tenant, get_db, get_tenant
-from api.services.rbac import require_permission
+from api.services.rbac import require_permission, VALID_ROLES
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
-
-VALID_ROLES = {"admin", "steward", "analyst", "approver", "auditor", "viewer"}
 
 
 def _row_to_dict(row) -> dict:
