@@ -26,6 +26,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { sendNlpQuery } from "@/lib/api/contracts";
+import { useLicence } from "@/hooks/use-licence";
 import type { NlpResponse } from "@/types/api";
 
 /* ─── Types ─── */
@@ -95,6 +96,7 @@ function NlpChart({ chartType, data }: { chartType: "bar" | "line" | "pie"; data
 
 /* ─── Main component ─── */
 export function AskMeridian() {
+  const { isFeatureEnabled } = useLicence();
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [input, setInput] = useState("");
@@ -163,6 +165,8 @@ export function AskMeridian() {
     setInput("");
     mutation.mutate(q);
   }, [input, mutation]);
+
+  if (!isFeatureEnabled("ask_meridian")) return null;
 
   return (
     <>

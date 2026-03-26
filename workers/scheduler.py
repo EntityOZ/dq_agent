@@ -903,4 +903,8 @@ celery_app.conf.beat_schedule = {
         "task": "workers.tasks.ai_health_narrative.generate_health_narrative",
         "schedule": crontab(hour=4, minute=15, day_of_week=1),  # 04:15 UTC Monday = 06:15 SAST (offset from daily_digest)
     },
+    "licence-revalidation-every-6h": {
+        "task": "revalidate_licence",
+        "schedule": crontab(minute=0, hour="*/6"),  # Every 6 hours — keeps manifest fresh
+    },
 }

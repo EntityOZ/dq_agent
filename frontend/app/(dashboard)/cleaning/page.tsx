@@ -37,6 +37,7 @@ import {
   type CleaningQueueItem,
   type ExportFormat,
 } from "@/lib/api/cleaning";
+import { useLicence } from "@/hooks/use-licence";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 20;
@@ -59,6 +60,8 @@ function confidenceColor(c: number): string {
 }
 
 export default function CleaningPage() {
+  const { isFeatureEnabled } = useLicence();
+  const exportEnabled = isFeatureEnabled("export_reports");
   const queryClient = useQueryClient();
   const [objectType, setObjectType] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -159,7 +162,12 @@ export default function CleaningPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Cleaning Workbench</h1>
-        <Button onClick={() => setExportOpen(true)} variant="outline">
+        <Button
+          onClick={() => setExportOpen(true)}
+          variant="outline"
+          disabled={!exportEnabled}
+          title={!exportEnabled ? "Not included in your current licence" : undefined}
+        >
           <Download className="mr-2 h-4 w-4" /> Export
         </Button>
       </div>

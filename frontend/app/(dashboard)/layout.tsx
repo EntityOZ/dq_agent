@@ -54,6 +54,7 @@ import {
 import "@/app/sidebar-responsive.css";
 import { AskMeridian } from "@/components/ask-meridian";
 import { useRole } from "@/hooks/use-role";
+import { useLicence } from "@/hooks/use-licence";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
@@ -239,6 +240,7 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   permission?: string;
+  licenceKey?: string; // menu item key in licence manifest
 }
 
 interface NavGroup {
@@ -250,18 +252,18 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: "Analyse",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/upload", label: "Import", icon: Upload },
-      { href: "/findings", label: "Findings", icon: AlertTriangle },
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/run-sync", label: "Run Sync", icon: Play },
+      { href: "/", label: "Dashboard", icon: LayoutDashboard, licenceKey: "dashboard" },
+      { href: "/upload", label: "Import", icon: Upload, licenceKey: "import" },
+      { href: "/findings", label: "Findings", icon: AlertTriangle, licenceKey: "findings" },
+      { href: "/analytics", label: "Analytics", icon: BarChart3, licenceKey: "analytics" },
+      { href: "/run-sync", label: "Run Sync", icon: Play, licenceKey: "sync" },
     ],
   },
   {
     group: "Report",
     items: [
-      { href: "/reports", label: "Reports", icon: FileText },
-      { href: "/versions", label: "Versions", icon: GitCompareArrows },
+      { href: "/reports", label: "Reports", icon: FileText, licenceKey: "reports" },
+      { href: "/versions", label: "Versions", icon: GitCompareArrows, licenceKey: "versions" },
     ],
   },
   {
@@ -269,14 +271,14 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/golden-records", label: "Golden Records", icon: Database },
       { href: "/glossary", label: "Glossary", icon: BookOpen },
-      { href: "/contracts", label: "Contracts", icon: FileCheck2 },
+      { href: "/contracts", label: "Contracts", icon: FileCheck2, licenceKey: "contracts" },
       { href: "/relationships", label: "Relationships", icon: Network },
     ],
   },
   {
     group: "Steward",
     items: [
-      { href: "/stewardship", label: "Workbench", icon: ClipboardList },
+      { href: "/stewardship", label: "Workbench", icon: ClipboardList, licenceKey: "stewardship" },
       { href: "/ai/rules", label: "AI Rules", icon: BrainCircuit, permission: "review_ai_rules" },
       { href: "/exceptions", label: "Exceptions", icon: ShieldAlert },
       { href: "/cleaning", label: "Cleaning", icon: Eraser },
@@ -295,16 +297,20 @@ const NAV_GROUPS: NavGroup[] = [
 const ROLES_WITH_AI_RULES = ["admin", "steward", "ai_reviewer"];
 
 // Settings sub-nav items (admin-only)
+import { Key } from "lucide-react";
+
 interface SettingsNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   permission: string;
+  licenceKey?: string;
 }
 
 const SETTINGS_SUB_NAV: SettingsNavItem[] = [
-  { href: "/settings/rules", label: "Rules Engine", icon: Sliders, permission: "manage_rules" },
-  { href: "/settings/field-mapping", label: "Field Mapping", icon: Map, permission: "manage_field_mappings" },
+  { href: "/settings/rules", label: "Rules Engine", icon: Sliders, permission: "manage_rules", licenceKey: "rules_engine" },
+  { href: "/settings/field-mapping", label: "Field Mapping", icon: Map, permission: "manage_field_mappings", licenceKey: "field_mapping" },
+  { href: "/settings/licence", label: "Licence", icon: Key, permission: "view", licenceKey: "licence" },
 ];
 
 /*
@@ -325,14 +331,17 @@ function SidebarNav({
   onNavClick?: () => void;
 }) {
   const { can } = useRole();
+  const { isMenuItemEnabled } = useLicence();
 
   return (
     <nav className="flex flex-col gap-5">
       {NAV_GROUPS.map(({ group, items }) => {
         const visibleItems = items.filter((item) => {
           if (item.permission === "review_ai_rules") {
-            return ROLES_WITH_AI_RULES.includes(userRole);
+            if (!ROLES_WITH_AI_RULES.includes(userRole)) return false;
           }
+          // Check licence: item must be enabled in manifest
+          if (item.licenceKey && !isMenuItemEnabled(item.licenceKey)) return false;
           return true;
         });
         if (visibleItems.length === 0) return null;
@@ -408,7 +417,9 @@ function SidebarNav({
         {/* Admin-only settings sub-items (only shown expanded + admin role) */}
         {!collapsed && (
           <div className="mt-0.5 ml-3 flex flex-col gap-0.5">
-            {SETTINGS_SUB_NAV.filter((item) => can(item.permission)).map(
+            {SETTINGS_SUB_NAV.filter(
+              (item) => can(item.permission) && (!item.licenceKey || isMenuItemEnabled(item.licenceKey))
+            ).map(
               ({ href, label, icon: Icon }) => {
                 const active = pathname.startsWith(href);
                 return (
