@@ -59,5 +59,12 @@ CREATE TABLE IF NOT EXISTS field_mappings (
 
 beforeAll(async () => {
   const db = (env as unknown as { DB: D1Database }).DB;
-  await db.exec(SCHEMA);
+  // D1 exec() only accepts one statement at a time
+  const statements = SCHEMA
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  for (const stmt of statements) {
+    await db.exec(stmt);
+  }
 });

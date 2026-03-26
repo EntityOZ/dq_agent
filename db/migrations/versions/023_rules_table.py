@@ -105,6 +105,15 @@ def _seed_yaml_rules(op) -> None:
     import yaml  # PyYAML is already in requirements (used by check runner)
 
     dev_tenant = "00000000-0000-0000-0000-000000000001"
+    conn = op.get_bind()
+
+    # Skip seeding if dev tenant doesn't exist (CI, fresh installs, etc.)
+    result = conn.execute(
+        sa.text("SELECT 1 FROM tenants WHERE id = :tid"), {"tid": dev_tenant}
+    )
+    if not result.fetchone():
+        print("[migration 023] Dev tenant not found — skipping YAML rule seed")
+        return
 
     # Locate the checks/rules directory relative to this migration file
     base = os.path.dirname(__file__)
@@ -116,7 +125,6 @@ def _seed_yaml_rules(op) -> None:
         "warehouse": "warehouse",
     }
 
-    conn = op.get_bind()
     inserted = 0
     skipped = 0
 
