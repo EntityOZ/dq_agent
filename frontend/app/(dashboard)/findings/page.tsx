@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Network } from "lucide-react";
+import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Network, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -328,16 +329,24 @@ function FindingsContent() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Findings</h1>
-        {moduleSummaries.length > 0 && (
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={expandAll}>
-              Expand all
+        <div className="flex items-center gap-2">
+          {moduleSummaries.length > 0 && (
+            <>
+              <Button variant="ghost" size="sm" onClick={expandAll}>
+                Expand all
+              </Button>
+              <Button variant="ghost" size="sm" onClick={collapseAll}>
+                Collapse all
+              </Button>
+            </>
+          )}
+          <Link href="/run-sync">
+            <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Play className="h-3.5 w-3.5" />
+              Run Sync
             </Button>
-            <Button variant="ghost" size="sm" onClick={collapseAll}>
-              Collapse all
-            </Button>
-          </div>
-        )}
+          </Link>
+        </div>
       </div>
 
       {/* Filter bar */}

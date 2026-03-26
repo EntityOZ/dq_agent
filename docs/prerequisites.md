@@ -52,7 +52,7 @@ If you do not have a GPU, set `LLM_PROVIDER=ollama_cloud` or
 
 | Destination | Purpose | When |
 |---|---|---|
-| `licence.dqagent.vantax.co.za` (443) | Licence validation | Startup + every 24h |
+| `licence.meridian.vantax.co.za` (443) | Licence validation | Startup + every 24h |
 | `ghcr.io` (443) | Docker image pulls | Install + updates only |
 
 No inbound ports are required from the internet.

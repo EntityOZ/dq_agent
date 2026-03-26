@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    image: ghcr.io/entityoz/meridian/meridian-api:latest
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment: &api-env
@@ -9,16 +9,17 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:70b}
       - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - DATABASE_URL=postgresql+asyncpg://vantax:${DB_PASSWORD}@db:5432/vantax
-      - DATABASE_URL_SYNC=postgresql://vantax:${DB_PASSWORD}@db:5432/vantax
+      - DATABASE_URL=postgresql+asyncpg://meridian:${DB_PASSWORD}@db:5432/meridian
+      - DATABASE_URL_SYNC=postgresql://meridian:${DB_PASSWORD}@db:5432/meridian
       - REDIS_URL=redis://redis:6379/0
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-vantax}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-meridian}
       - MINIO_SECRET_KEY=${MINIO_PASSWORD}
-      - MINIO_BUCKET_UPLOADS=${MINIO_BUCKET_UPLOADS:-vantax-uploads}
-      - MINIO_BUCKET_REPORTS=${MINIO_BUCKET_REPORTS:-vantax-reports}
+      - MINIO_BUCKET_UPLOADS=${MINIO_BUCKET_UPLOADS:-meridian-uploads}
+      - MINIO_BUCKET_REPORTS=${MINIO_BUCKET_REPORTS:-meridian-reports}
+      - MERIDIAN_CORS_ORIGINS=${MERIDIAN_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000}
       - LICENCE_KEY=${LICENCE_KEY:-}
-      - LICENCE_SERVER_URL=${LICENCE_SERVER_URL:-https://licence.dqagent.vantax.co.za}
+      - LICENCE_SERVER_URL=${LICENCE_SERVER_URL:-https://licence.meridian.vantax.co.za}
       - LICENCE_FILE=${LICENCE_FILE:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL:-}
@@ -35,7 +36,7 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -48,7 +49,7 @@ services:
       - 8.8.4.4
 
   worker:
-    image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    image: ghcr.io/entityoz/meridian/meridian-api:latest
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
@@ -61,7 +62,7 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "celery", "-A", "workers.celery_app", "inspect", "ping", "--timeout", "5"]
@@ -74,14 +75,14 @@ services:
       - 8.8.4.4
 
   frontend:
-    image: ghcr.io/entityoz/dq_agent/vantax-frontend:latest
+    image: ghcr.io/entityoz/meridian/meridian-frontend:latest
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://api:8000
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://0.0.0.0:3000"]
@@ -95,14 +96,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=vantax
-      - POSTGRES_USER=vantax
+      - POSTGRES_DB=meridian
+      - POSTGRES_USER=meridian
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vantax"]
+      test: ["CMD-SHELL", "pg_isready -U meridian"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -113,7 +114,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -128,7 +129,7 @@ services:
   #   volumes:
   #     - ollama_models:/root/.ollama
   #   networks:
-  #     - vantax-net
+  #     - meridian-net
   #   deploy:
   #     resources:
   #       reservations:
@@ -149,12 +150,12 @@ services:
     volumes:
       - minio_data:/data
     environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-vantax}
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-meridian}
       - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
     ports:
       - "9002:9001"
     networks:
-      - vantax-net
+      - meridian-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -170,5 +171,5 @@ volumes:
   minio_data:
 
 networks:
-  vantax-net:
+  meridian-net:
     driver: bridge

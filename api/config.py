@@ -11,22 +11,22 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
 
     # Database
-    database_url: str = "postgresql+asyncpg://vantax:password@db:5432/vantax"
-    database_url_sync: str = "postgresql://vantax:password@db:5432/vantax"
+    database_url: str = "postgresql+asyncpg://meridian:password@db:5432/meridian"
+    database_url_sync: str = "postgresql://meridian:password@db:5432/meridian"
 
     # Redis
     redis_url: str = "redis://redis:6379/0"
 
     # MinIO
     minio_endpoint: str = "minio:9000"
-    minio_access_key: str = "vantax"
+    minio_access_key: str = "meridian"
     minio_secret_key: str = ""
-    minio_bucket_uploads: str = "vantax-uploads"
-    minio_bucket_reports: str = "vantax-reports"
+    minio_bucket_uploads: str = "meridian-uploads"
+    minio_bucket_reports: str = "meridian-reports"
 
     # Licence
     licence_key: Optional[str] = None
-    licence_server_url: str = "https://licence.dqagent.vantax.co.za"
+    licence_server_url: str = "https://licence.meridian.vantax.co.za"
     licence_file: Optional[str] = None
     licence_mode: str = "online"  # online | offline
     licence_file_path: Optional[str] = None
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: Optional[str] = None
     smtp_password: Optional[str] = None
-    smtp_from: str = "noreply@vantax.local"
+    smtp_from: str = "noreply@meridian.local"
 
     # Auth
     clerk_secret_key: Optional[str] = None

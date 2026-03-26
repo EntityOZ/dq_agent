@@ -14,7 +14,7 @@ import pandas as pd
 
 from .base import BAPICall, SAPConnectionParams, SAPConnector, SAPConnectorError
 
-logger = logging.getLogger("vantax.sap.rfc")
+logger = logging.getLogger("meridian.sap.rfc")
 
 
 class RFCConnector(SAPConnector):

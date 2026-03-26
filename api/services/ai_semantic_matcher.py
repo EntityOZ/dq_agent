@@ -21,7 +21,7 @@ import redis
 from api.utils.pii_fields import sanitise_for_prompt
 from api.utils.llm_logger import log_llm_call
 
-logger = logging.getLogger("vantax.ai_semantic_matcher")
+logger = logging.getLogger("meridian.ai_semantic_matcher")
 
 _CACHE_TTL = 7 * 24 * 60 * 60  # 7 days in seconds
 _MAX_BATCH_SIZE = 50

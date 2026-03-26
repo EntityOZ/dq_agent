@@ -22,7 +22,7 @@ from api.deps import Tenant, get_db, get_tenant
 from api.services.rbac import require_permission, _get_user_role
 
 router = APIRouter(prefix="/api/v1", tags=["glossary"])
-logger = logging.getLogger("vantax.glossary")
+logger = logging.getLogger("meridian.glossary")
 
 
 # ── Request/Response models ──────────────────────────────────────────────────

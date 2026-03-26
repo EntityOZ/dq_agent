@@ -9,7 +9,7 @@ from api.deps import Tenant, get_tenant
 from api.services.ai_column_matcher import detect_module_and_match
 
 router = APIRouter(prefix="/api/v1", tags=["upload"])
-logger = logging.getLogger("vantax.upload_match")
+logger = logging.getLogger("meridian.upload_match")
 
 
 class MatchRequest(BaseModel):

@@ -1,6 +1,6 @@
 """Abstract SAP connector interface.
 
-All SAP connectivity in Vantax goes through this interface.
+All SAP connectivity in Meridian goes through this interface.
 No production code outside sap/ may import pyrfc, pyodata, or ctypes directly.
 """
 

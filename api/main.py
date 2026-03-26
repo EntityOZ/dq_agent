@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -29,14 +30,15 @@ from api.routes.glossary import router as glossary_router
 from api.routes.relationships import router as relationships_router
 from api.routes.stewardship import router as stewardship_router
 from api.routes.mdm_metrics import router as mdm_metrics_router
+from api.routes.sync_trigger import router as sync_trigger_router
 
-logger = logging.getLogger("vantax")
+logger = logging.getLogger("meridian")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Vantax API starting")
+    logger.info("Meridian API starting")
     logger.info(f"LLM_PROVIDER: {settings.llm_provider}")
     logger.info(f"LICENCE_KEY: {'set' if settings.licence_key else 'not set'}")
 
@@ -88,7 +90,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Vantax API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Meridian API", version="1.0.0", lifespan=lifespan)
 
 # Security headers middleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -105,10 +107,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS — allow frontend origin
+# CORS — origins configurable via MERIDIAN_CORS_ORIGINS (comma-separated)
+_raw_origins = os.getenv(
+    "MERIDIAN_CORS_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000",
+)
+_cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -144,3 +152,4 @@ app.include_router(glossary_router)
 app.include_router(relationships_router)
 app.include_router(stewardship_router)
 app.include_router(mdm_metrics_router)
+app.include_router(sync_trigger_router)

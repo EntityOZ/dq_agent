@@ -12,7 +12,7 @@ from typing import Any
 
 import pandas as pd
 
-logger = logging.getLogger("vantax.ai_sync_quality")
+logger = logging.getLogger("meridian.ai_sync_quality")
 
 MAX_ANOMALY_FLAGS = 10
 

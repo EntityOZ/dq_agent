@@ -14,7 +14,7 @@ from api.config import settings
 from db.schema import Report
 
 router = APIRouter(prefix="/api/v1", tags=["reports"])
-logger = logging.getLogger("vantax.reports")
+logger = logging.getLogger("meridian.reports")
 
 
 @router.get("/reports/{version_id}/download")
@@ -49,6 +49,6 @@ async def download_report(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="vantax_dq_report_{version_id}.pdf"'
+            "Content-Disposition": f'attachment; filename="meridian_dq_report_{version_id}.pdf"'
         },
     )

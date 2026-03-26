@@ -19,7 +19,7 @@ from agents.report_agent import report_node
 from agents.state import AgentState
 from api.config import settings
 
-logger = logging.getLogger("vantax.agents.orchestrator")
+logger = logging.getLogger("meridian.agents.orchestrator")
 
 
 def _should_continue(state: AgentState) -> str:

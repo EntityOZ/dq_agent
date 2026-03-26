@@ -13,7 +13,7 @@ from agents.prompts import READINESS_SYSTEM, READINESS_USER_TEMPLATE
 from agents.state import AgentState
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.agents.readiness")
+logger = logging.getLogger("meridian.agents.readiness")
 
 
 def compute_readiness_status(composite_score: float, critical_count: int) -> str:

@@ -201,12 +201,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <a
-                  href="https://portal.dqagent.vantax.co.za"
+                  href="https://meridian-hq.vantax.co.za"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
-                  Manage licence on Vantax Portal
+                  Manage licence on Meridian HQ
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </CardContent>
@@ -815,7 +815,7 @@ function BillingTab({
               <AlertDescription className="flex items-center justify-between">
                 <span>Upgrade your licence to unlock additional features.</span>
                 <a
-                  href="https://portal.vantax.co.za/upgrade"
+                  href="https://meridian-hq.vantax.co.za/upgrade"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
@@ -909,7 +909,7 @@ function BillingTab({
                   </Button>
                 )}
                 <a
-                  href="https://portal.vantax.co.za/billing"
+                  href="https://meridian-hq.vantax.co.za/billing"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"

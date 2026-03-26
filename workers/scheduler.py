@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.scheduler")
+logger = logging.getLogger("meridian.scheduler")
 
 SAST = timezone(timedelta(hours=2))
 
@@ -350,7 +350,7 @@ def _create_stripe_invoice(session: Session, tenant_id: str, billing: dict) -> s
                 customer=stripe_customer_id,
                 amount=int(base_fee * 100),  # Stripe uses cents
                 currency="zar",
-                description="Vantax Monthly Base Fee",
+                description="Meridian Monthly Base Fee",
             )
 
         # Add tier line items
@@ -371,7 +371,7 @@ def _create_stripe_invoice(session: Session, tenant_id: str, billing: dict) -> s
                     amount=int(amount * 100),
                     currency="zar",
                     description=(
-                        f"Vantax Exception Processing — {label} "
+                        f"Meridian Exception Processing — {label} "
                         f"({count} items × R{tier_prices[tier_num]:.2f} = R{amount:.2f})"
                     ),
                 )

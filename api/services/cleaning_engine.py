@@ -22,7 +22,7 @@ from api.services.standardisers import (
     validate_sa_id,
 )
 
-logger = logging.getLogger("vantax.cleaning")
+logger = logging.getLogger("meridian.cleaning")
 
 # Column name patterns — includes SAP technical field names so detection works
 # with both mapped (friendly) names and raw SAP TABLE.FIELD names.

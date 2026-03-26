@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.ai_triage")
+logger = logging.getLogger("meridian.ai_triage")
 
 MAX_TOKENS = 800
 BATCH_SIZE = 50

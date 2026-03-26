@@ -14,7 +14,7 @@ from checks.types.cross_field_check import CrossFieldCheck
 from checks.types.referential_check import ReferentialCheck
 from checks.types.freshness_check import FreshnessCheck
 
-logger = logging.getLogger("vantax.checks")
+logger = logging.getLogger("meridian.checks")
 
 REGISTRY: dict[str, type[BaseCheck]] = {
     "null_check": NullCheck,

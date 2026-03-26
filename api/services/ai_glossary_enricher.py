@@ -16,7 +16,7 @@ from api.config import settings
 from api.utils.llm_logger import log_llm_call
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.ai_glossary_enricher")
+logger = logging.getLogger("meridian.ai_glossary_enricher")
 
 RATE_LIMIT_KEY = "glossary_enrich:{tenant_id}:count"
 RATE_LIMIT_MAX = 20  # calls per hour per tenant

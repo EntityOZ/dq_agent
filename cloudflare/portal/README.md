@@ -1,7 +1,7 @@
-# Vantax Portal
+# Meridian HQ
 
 Licence management and billing portal for Vantax DQ Agent customers.
-Deployed to Cloudflare Pages at `portal.dqagent.vantax.co.za`.
+Deployed to Cloudflare Pages at `portal.meridian.vantax.co.za`.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Licence Worker
-LICENCE_WORKER_URL=https://licence.dqagent.vantax.co.za
+LICENCE_WORKER_URL=https://licence.meridian.vantax.co.za
 LICENCE_ADMIN_SECRET=<same secret configured in the licence worker>
 ```
 
@@ -45,7 +45,7 @@ Save the generated price IDs and configure them in the portal environment.
 Create a webhook endpoint in the Stripe dashboard pointing to:
 
 ```
-https://portal.dqagent.vantax.co.za/api/webhooks/stripe
+https://portal.meridian.vantax.co.za/api/webhooks/stripe
 ```
 
 Subscribe to these events:

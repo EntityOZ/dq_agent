@@ -12,8 +12,8 @@ data:
   DATABASE_URL_SYNC: "postgresql://{{ .Values.postgres.user }}:$(DB_PASSWORD)@{{ include "vantax.fullname" . }}-postgres:5432/{{ .Values.postgres.database }}"
   REDIS_URL: "redis://{{ include "vantax.fullname" . }}-redis:6379/0"
   MINIO_ENDPOINT: "{{ include "vantax.fullname" . }}-minio:9000"
-  MINIO_ACCESS_KEY: "vantax"
-  MINIO_BUCKET_UPLOADS: "vantax-uploads"
-  MINIO_BUCKET_REPORTS: "vantax-reports"
+  MINIO_ACCESS_KEY: "meridian"
+  MINIO_BUCKET_UPLOADS: "meridian-uploads"
+  MINIO_BUCKET_REPORTS: "meridian-reports"
   LICENCE_SERVER_URL: {{ .Values.licence.serverUrl | quote }}
   AUTH_MODE: {{ .Values.auth.mode | quote }}

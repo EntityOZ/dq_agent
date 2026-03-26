@@ -37,7 +37,6 @@ import {
   GitMerge,
   ShieldAlert,
   BarChart3,
-  MessageSquareText,
   FileCheck2,
   Server,
   RefreshCw,
@@ -47,9 +46,11 @@ import {
   Network,
   Eraser,
   BrainCircuit,
+  Play,
   type LucideIcon,
 } from "lucide-react";
 import "@/app/sidebar-responsive.css";
+import { AskMeridian } from "@/components/ask-meridian";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
@@ -85,7 +86,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/match-rules": "Match Rules",
   "/findings": "Findings",
   "/analytics": "Analytics",
-  "/nlp": "Ask Vantax",
+  "/run-sync": "Run Sync",
   "/reports": "Reports",
   "/versions": "Versions",
   "/settings": "Settings",
@@ -98,7 +99,7 @@ function getPageTitle(pathname: string): string {
   for (const [path, title] of Object.entries(PAGE_TITLES)) {
     if (pathname.startsWith(path + "/")) return title;
   }
-  return "Vantax";
+  return "Meridian";
 }
 
 /* ─── Notification bell ─── */
@@ -248,7 +249,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/upload", label: "Import", icon: Upload },
       { href: "/findings", label: "Findings", icon: AlertTriangle },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/nlp", label: "Ask AI", icon: MessageSquareText },
+      { href: "/run-sync", label: "Run Sync", icon: Play },
     ],
   },
   {
@@ -345,7 +346,7 @@ function SidebarNav({
                         : "mx-1 px-3 py-2"
                     } ${
                       active
-                        ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(0,212,170,0.10)]"
+                        ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(13,86,57,0.15)]"
                         : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
                     }`}
                   >
@@ -376,7 +377,7 @@ function SidebarNav({
               : "mx-1 px-3 py-2"
           } ${
             pathname.startsWith("/settings")
-              ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(0,212,170,0.10)]"
+              ? "bg-primary/[0.15] text-primary border border-primary/25 shadow-[0_0_12px_rgba(13,86,57,0.15)]"
               : "text-[#6B7280] hover:bg-black/[0.04] hover:text-foreground border border-transparent"
           }`}
         >
@@ -400,14 +401,14 @@ export default function DashboardLayout({
 
   // Persist sidebar collapse preference
   useEffect(() => {
-    const saved = localStorage.getItem("vx_sidebar_collapsed");
+    const saved = localStorage.getItem("mn_sidebar_collapsed");
     if (saved === "true") setCollapsed(true);
   }, []);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem("vx_sidebar_collapsed", String(next));
+      localStorage.setItem("mn_sidebar_collapsed", String(next));
       return next;
     });
   }, []);
@@ -441,7 +442,7 @@ export default function DashboardLayout({
         : "bg-muted-foreground";
   const licencePulse = licence?.valid === true ? "animate-[vx-pulse-dot_2s_ease-in-out_infinite]" : "";
 
-  const userRole = (typeof window !== "undefined" && localStorage.getItem("vx_demo_role")) || "admin";
+  const userRole = (typeof window !== "undefined" && localStorage.getItem("mn_demo_role")) || "admin";
   const pageTitle = getPageTitle(pathname);
 
   return (
@@ -467,13 +468,12 @@ export default function DashboardLayout({
         {/* Logo */}
         <div data-sidebar-header className={`flex h-16 shrink-0 items-center border-b border-black/[0.06] ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-[0_0_16px_rgba(0,212,170,0.25)]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-[0_0_16px_rgba(13,86,57,0.30)]">
               <ShieldCheck className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
             {!collapsed && (
               <div data-sidebar-label className="flex items-baseline gap-1">
-                <span className="font-display text-[17px] font-bold text-foreground">Vantax</span>
-                <span className="font-display text-[17px] font-bold text-primary">MDM</span>
+                <span className="font-display text-[17px] font-bold text-foreground">Meridian</span>
               </div>
             )}
           </Link>
@@ -573,6 +573,9 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Ask Meridian — floating chat bubble + drawer */}
+      <AskMeridian />
     </div>
   );
 }

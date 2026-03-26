@@ -12,7 +12,7 @@ import secrets
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-logger = logging.getLogger("vantax.credential_store")
+logger = logging.getLogger("meridian.credential_store")
 
 # 96-bit nonce for AES-GCM
 _NONCE_LENGTH = 12

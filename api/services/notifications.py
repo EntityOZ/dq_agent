@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("vantax.notifications")
+logger = logging.getLogger("meridian.notifications")
 
 
 async def create_notification(

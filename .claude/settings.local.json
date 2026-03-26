@@ -23,7 +23,15 @@
       "Bash(find .next -name *.css -exec grep -l lg: {})",
       "Bash(2)",
       "Bash(cd:*)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(docker exec:*)",
+      "Bash(docker run:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Skill(update-config)",
+      "Bash(powershell -Command \"[System.Console]::Beep\\(800, 300\\)\")",
+      "Bash(powershell -Command \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\Windows Notify Email.wav'\\).PlaySync\\(\\)\")",
+      "Bash(npm update:*)"
     ]
   }
 }

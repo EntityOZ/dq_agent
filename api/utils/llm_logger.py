@@ -7,7 +7,7 @@ import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("vantax.llm_logger")
+logger = logging.getLogger("meridian.llm_logger")
 
 
 def _get_sync_engine():

@@ -14,7 +14,7 @@ from api.services.column_mapper import apply_column_mapping, get_required_fields
 from api.services.storage import upload_file as minio_upload
 
 router = APIRouter(prefix="/api/v1", tags=["upload"])
-logger = logging.getLogger("vantax.upload")
+logger = logging.getLogger("meridian.upload")
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 _CHUNK_SIZE = 8 * 1024  # 8 KB

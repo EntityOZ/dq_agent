@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker.run_sync")
+logger = logging.getLogger("meridian.worker.run_sync")
 
 
 def _get_sync_engine():
@@ -34,7 +34,7 @@ def _get_minio_client():
     from minio import Minio
     return Minio(
         endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
-        access_key=os.getenv("MINIO_ACCESS_KEY", "vantax"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "meridian"),
         secret_key=os.getenv("MINIO_SECRET_KEY", ""),
         secure=False,
     )
@@ -218,7 +218,7 @@ def run_sync(self, profile_id: str, tenant_id: str):
     parquet_path = f"staging/{tenant_id}/{file_id}.parquet"
 
     from api.services.storage import upload_file as minio_upload
-    bucket = os.getenv("MINIO_BUCKET_UPLOADS", "vantax-uploads")
+    bucket = os.getenv("MINIO_BUCKET_UPLOADS", "meridian-uploads")
     minio_upload(bucket, parquet_path, parquet_bytes, "application/octet-stream")
 
     # Step 7: Create analysis_versions record

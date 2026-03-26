@@ -13,7 +13,7 @@ from agents.prompts import REPORT_EXECUTIVE_SUMMARY_PROMPT
 from agents.state import AgentState
 from llm.provider import get_llm
 
-logger = logging.getLogger("vantax.agents.report")
+logger = logging.getLogger("meridian.agents.report")
 
 
 def _compute_overall_status(readiness_scores: dict) -> str:

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker")
+logger = logging.getLogger("meridian.worker")
 
 
 def _get_sync_engine():

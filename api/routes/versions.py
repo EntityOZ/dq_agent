@@ -11,7 +11,7 @@ from api.deps import Tenant, get_db, get_tenant
 from db.schema import AnalysisVersion
 
 router = APIRouter(prefix="/api/v1", tags=["versions"])
-logger = logging.getLogger("vantax.versions")
+logger = logging.getLogger("meridian.versions")
 
 
 class VersionResponse(BaseModel):

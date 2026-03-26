@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.ai_health_narrative")
+logger = logging.getLogger("meridian.ai_health_narrative")
 
 SAST = timezone(timedelta(hours=2))
 

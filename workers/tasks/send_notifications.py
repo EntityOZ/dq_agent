@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker.notifications")
+logger = logging.getLogger("meridian.worker.notifications")
 
 RESEND_API_URL = "https://api.resend.com/emails"
 
@@ -144,17 +144,17 @@ def _check_trigger(trigger: str, config: dict, version_data: dict, session: Sess
 
 def _build_email_content(config: dict, version_data: dict, trigger: str) -> tuple[str, str]:
     """Build subject and HTML body for notification email."""
-    tenant_name = config.get("tenant_name", "Vantax")
+    tenant_name = config.get("tenant_name", "Meridian")
     critical_count = version_data.get("critical_count", 0)
     overall_dqs = version_data.get("overall_dqs", 0)
 
     if trigger == "critical_found":
-        subject = f"Vantax DQ Alert — {critical_count} Critical findings"
+        subject = f"Meridian DQ Alert — {critical_count} Critical findings"
     elif trigger.startswith("scheduled_"):
         from datetime import date
-        subject = f"Vantax {trigger.replace('scheduled_', '').title()} DQ Summary — {date.today()}"
+        subject = f"Meridian {trigger.replace('scheduled_', '').title()} DQ Summary — {date.today()}"
     else:
-        subject = "Vantax Data Quality Alert"
+        subject = "Meridian Data Quality Alert"
 
     # Build HTML body
     findings_html = ""
@@ -173,7 +173,7 @@ def _build_email_content(config: dict, version_data: dict, trigger: str) -> tupl
     body = f"""
     <html>
     <body style="font-family:Arial,sans-serif;color:#333">
-      <h2 style="color:#0F6E56">Vantax Data Quality Report — {tenant_name}</h2>
+      <h2 style="color:#0F6E56">Meridian Data Quality Report — {tenant_name}</h2>
       <p>{executive_summary}</p>
       <table style="margin:16px 0">
         <tr><td><strong>Overall DQS:</strong></td><td>{overall_dqs}</td></tr>
@@ -183,7 +183,7 @@ def _build_email_content(config: dict, version_data: dict, trigger: str) -> tupl
        '<tr><th style="padding:4px 8px;border:1px solid #ddd">Check</th><th style="padding:4px 8px;border:1px solid #ddd">Module</th><th style="padding:4px 8px;border:1px solid #ddd">Message</th><th style="padding:4px 8px;border:1px solid #ddd">Affected</th></tr>' +
        findings_html + '</table>' if findings_html else ''}
       <p style="color:#666;font-size:12px;margin-top:24px">
-        This is an automated report from Vantax SAP Data Quality Agent.
+        This is an automated report from Meridian SAP Data Quality Agent.
       </p>
     </body>
     </html>
@@ -199,7 +199,7 @@ def _send_email_smtp(recipient: str, subject: str, body: str):
     from email.mime.text import MIMEText
 
     msg = MIMEMultipart()
-    msg["From"] = os.getenv("SMTP_FROM", "noreply@vantax.local")
+    msg["From"] = os.getenv("SMTP_FROM", "noreply@meridian.local")
     msg["To"] = recipient
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "html"))
@@ -230,7 +230,7 @@ def _send_email_resend(recipient: str, subject: str, body: str):
                 "Content-Type": "application/json",
             },
             json={
-                "from": "Vantax DQ Agent <notifications@dqagent.vantax.co.za>",
+                "from": "Meridian DQ Agent <notifications@meridian.vantax.co.za>",
                 "to": [recipient],
                 "subject": subject,
                 "html": body,
@@ -280,7 +280,7 @@ def _send_teams_card(config: dict, version_data: dict):
                             "type": "TextBlock",
                             "size": "Large",
                             "weight": "Bolder",
-                            "text": f"Vantax DQ Alert — {version_data.get('critical_count', 0)} Critical findings",
+                            "text": f"Meridian DQ Alert — {version_data.get('critical_count', 0)} Critical findings",
                         },
                         {
                             "type": "TextBlock",

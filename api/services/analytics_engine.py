@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-logger = logging.getLogger("vantax.analytics")
+logger = logging.getLogger("meridian.analytics")
 
 
 # ── Predictive Analytics ─────────────────────────────────────────────────────

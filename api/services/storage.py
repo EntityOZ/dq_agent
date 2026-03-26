@@ -6,7 +6,7 @@ from minio import Minio
 
 from api.config import settings
 
-logger = logging.getLogger("vantax.storage")
+logger = logging.getLogger("meridian.storage")
 
 
 def get_minio_client() -> Minio:

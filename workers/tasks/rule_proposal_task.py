@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 
-logger = logging.getLogger("vantax.worker.rule_proposal_task")
+logger = logging.getLogger("meridian.worker.rule_proposal_task")
 
 
 def _get_sync_engine():
