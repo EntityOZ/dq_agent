@@ -112,3 +112,5 @@ xxhash==3.6.0
 zopfli==0.4.1
 zstandard==0.25.0
 scikit-learn>=1.4.0
+jellyfish>=1.0.0
+thefuzz>=0.22.0
