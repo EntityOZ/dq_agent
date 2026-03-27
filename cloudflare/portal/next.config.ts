@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  experimental: {
-    runtime: "edge",
-  },
-};
+// Cloudflare Pages deployment — edge runtime is set per-route, not globally
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
