@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { provisionLicence, revokeLicence } from "@/lib/licence";
