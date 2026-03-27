@@ -32,7 +32,7 @@ A centralised Cloudflare control plane (**Meridian HQ**) handles licencing, bill
 │  │  • Stripe billing    │  │  field mappings          │  │
 │  │  • Analytics dash    │  │                          │  │
 │  │                      │  │  Cloudflare D1 database  │  │
-│  │  Auth: Clerk         │  │                          │  │
+│  │  Auth: CF Access     │  │                          │  │
 │  │  Domain:             │  │  Domain:                 │  │
 │  │  meridian-hq.        │  │  licence.meridian.       │  │
 │  │  vantax.co.za        │  │  vantax.co.za            │  │

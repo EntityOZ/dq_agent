@@ -1,7 +1,5 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard" },
@@ -14,15 +12,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) redirect("/sign-in");
-
-  const isAdmin =
-    (sessionClaims?.publicMetadata as { is_meridian_admin?: boolean })
-      ?.is_meridian_admin === true;
-  if (!isAdmin) redirect("/dashboard");
-
-  const user = await currentUser();
+  const h = await headers();
+  const adminEmail =
+    h.get("cf-access-authenticated-user-email") ??
+    (process.env.NODE_ENV === "development"
+      ? (process.env.DEV_ADMIN_EMAIL ?? "dev@meridian.local")
+      : null);
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -65,10 +60,18 @@ export default async function AdminLayout({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: "var(--muted)" }}>
-            {user?.emailAddresses[0]?.emailAddress}
-          </span>
-          <UserButton />
+          {adminEmail && (
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              {adminEmail}
+            </span>
+          )}
+          <a
+            href="/cdn-cgi/access/logout"
+            className="rounded px-2 py-1 text-xs transition-colors"
+            style={{ color: "var(--muted)" }}
+          >
+            Sign out
+          </a>
         </div>
       </header>
 

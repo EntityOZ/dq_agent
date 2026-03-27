@@ -12,7 +12,7 @@
  *   { token: string, expiresAt: string, envSnippet: string }
  */
 
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 const WORKER_URL =
@@ -23,10 +23,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ tenant_id: string }> }
 ) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId || !(sessionClaims?.publicMetadata as Record<string, unknown>)?.is_meridian_admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const authErr = requireAdmin(req);
+  if (authErr) return authErr;
 
   const { tenant_id } = await params;
   const body = await req.json().catch(() => ({}));

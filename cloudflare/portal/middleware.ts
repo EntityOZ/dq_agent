@@ -1,28 +1,16 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-]);
-
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
-
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+/**
+ * Cloudflare Access blocks unauthenticated requests before they reach this
+ * app, so this middleware is a defence-in-depth safety net only.
+ */
+export function middleware(request: NextRequest) {
+  const email = request.headers.get("cf-access-authenticated-user-email");
+  if (!email && process.env.NODE_ENV !== "development") {
+    return new NextResponse("Unauthorized", { status: 401 });
   }
-
-  if (isAdminRoute(request)) {
-    const { sessionClaims } = await auth();
-    const isAdmin = (sessionClaims?.publicMetadata as { is_meridian_admin?: boolean })
-      ?.is_meridian_admin === true;
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-  }
-});
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
