@@ -50,3 +50,12 @@ async def get_tenant(request: Request) -> Tenant:
     # Phase 4 will implement JWT extraction via Clerk
     # For now, return dev tenant as fallback
     return _DEV_TENANT
+
+
+# Aliases used by newer routes
+get_session = get_db
+
+
+async def get_tenant_id(tenant: Tenant = Depends(get_tenant)) -> uuid.UUID:
+    """Return just the tenant UUID — convenience alias for routes that need only the ID."""
+    return tenant.id
