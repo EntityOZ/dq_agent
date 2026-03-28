@@ -66,8 +66,11 @@ class AnalysisVersion(Base):
         String(20), nullable=False, server_default="pending"
     )
 
+    config_match_summary = Column(JSONB, nullable=True)
+
     tenant = relationship("Tenant", back_populates="versions")
     findings = relationship("Finding", back_populates="version")
+    config_matches = relationship("ConfigMatch", back_populates="version")
 
 
 class Finding(Base):
@@ -106,6 +109,44 @@ class Finding(Base):
     __table_args__ = (
         Index("ix_findings_tenant_version", "tenant_id", "version_id"),
         Index("ix_findings_tenant_module_severity", "tenant_id", "module", "severity"),
+    )
+
+
+class ConfigMatch(Base):
+    __tablename__ = "config_matches"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("analysis_versions.id"),
+        nullable=False,
+    )
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False
+    )
+    module = Column(Text, nullable=False)
+    check_id = Column(Text, nullable=False)
+    record_key = Column(Text, nullable=True)
+    field = Column(Text, nullable=True)
+    actual_value = Column(Text, nullable=True)
+    std_rule_expectation = Column(Text, nullable=True)
+    classification = Column(Text, nullable=False)
+    config_evidence = Column(Text, nullable=True)
+    recommended_action = Column(Text, nullable=True)
+    sap_tcode = Column(Text, nullable=True)
+    fix_priority = Column(Integer, nullable=True, server_default="2")
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    version = relationship("AnalysisVersion", back_populates="config_matches")
+
+    __table_args__ = (
+        Index("ix_config_matches_version", "version_id", "tenant_id"),
+        Index("ix_config_matches_classification", "tenant_id", "classification"),
+        Index("ix_config_matches_module", "tenant_id", "module"),
     )
 
 
