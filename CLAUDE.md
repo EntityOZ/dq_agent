@@ -179,7 +179,7 @@ meridian/
 | Tier | Provider | What ships to customer |
 |------|---------|----------------------|
 | **Tier 1** | Cloud API | No Ollama. `LLM_PROVIDER=anthropic` or `azure_openai` + API key |
-| **Tier 2** | Bundled Ollama | `meridianplatform/ollama:<model-tag>` pre-baked image |
+| **Tier 2** | Bundled Ollama | `meridianplatform/ollama:qwen3.5:9b-instruct` pre-baked image |
 | **Tier 3** | BYOLLM | No Ollama. `LLM_PROVIDER=custom` + customer's own endpoint URL |
 
 ### LLM provider abstraction (`llm/provider.py`)
@@ -250,7 +250,7 @@ allowed  = svc.is_analysis_allowed() # True if valid or within grace
   --customer acme-corp \
   --licence-key MRDX-XXXX-XXXX-XXXX \
   --version v1.2.0 \
-  --model qwen2.5:14b-q4_K_M \
+  --model qwen3.5:9b-instruct \
   --domain https://meridian.acme.com
 ```
 
@@ -258,7 +258,7 @@ Output: `deployments/acme-corp/` — pre-built images only, no source code.
 
 ### Air-gapped
 ```bash
-./scripts/export-images.sh v1.2.0 --tier 2 --model qwen2-5-14b-q4-K-M
+./scripts/export-images.sh v1.2.0 --tier 2 --model qwen3-5-9b-instruct
 # On server: docker load < meridian-v1.2.0.tar.gz && docker compose up -d
 ```
 
@@ -396,7 +396,7 @@ MERIDIAN_CORS_ORIGINS=http://localhost:3000
 # LLM
 LLM_PROVIDER=ollama              # ollama | ollama_cloud | anthropic | azure_openai | custom
 OLLAMA_BASE_URL=http://llm:11434
-OLLAMA_MODEL=qwen2.5:14b-q4_K_M
+OLLAMA_MODEL=qwen3.5:9b-instruct
 OLLAMA_API_KEY=                  # ollama_cloud only
 ANTHROPIC_API_KEY=               # anthropic only
 ANTHROPIC_MODEL=claude-sonnet-4-6

@@ -5,7 +5,7 @@
 
 FROM ollama/ollama:latest
 
-ARG MODEL_NAME=qwen2.5:14b-q4_K_M
+ARG MODEL_NAME=qwen3.5:9b-instruct
 ENV MODEL_NAME=${MODEL_NAME}
 
 # Pull the model at build time so customers don't need internet access

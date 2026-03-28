@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # LLM
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://llm:11434"
-    ollama_model: str = "llama3.1:70b"
+    ollama_model: str = "qwen3.5:9b-instruct"
     ollama_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
 

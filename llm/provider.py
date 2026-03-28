@@ -25,7 +25,7 @@ def get_llm() -> Any:
         # Fully local — default for Tier 2 customer deployments
         return ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL", "http://llm:11434"),
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:3b-instruct-q4_K_M"),
+            model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b-instruct"),
             temperature=0.1,
             num_predict=8192,
             format="json",
