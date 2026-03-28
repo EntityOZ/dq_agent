@@ -127,3 +127,54 @@ REPORT_EXECUTIVE_SUMMARY_PROMPT = (
     "risks, and the recommended next action. Be direct and avoid technical jargon. "
     "Do not use bullet points. Respond with the summary text only — no JSON wrapper."
 )
+
+# ---------------------------------------------------------------------------
+# Config matching agent
+# ---------------------------------------------------------------------------
+CONFIG_MATCH_SYSTEM = (
+    "You are an SAP configuration analyst embedded in the Meridian data quality "
+    "platform. You receive SAP data quality findings alongside configuration signals "
+    "extracted deterministically from the customer's data. Your job is to classify "
+    "each finding as one of:\n\n"
+    "  'data_error'       — violates a standard SAP rule with no configuration "
+    "justification. Random or mixed patterns. Must be fixed.\n"
+    "  'config_deviation' — deviates from SAP standard because the customer has "
+    "configured their system differently. The pattern is consistent and systematic "
+    "across records (e.g. same company code, same chart of accounts, same number "
+    "range format throughout). May be intentional and valid in their context.\n"
+    "  'ambiguous'        — insufficient evidence to distinguish. Flag for human "
+    "stewardship review.\n\n"
+    "Key rule: config_deviation requires a CONSISTENT pattern across records. "
+    "Random or mixed deviations are data_error. "
+    "You never see raw SAP table data — only aggregated signals and value samples. "
+    "Respond ONLY with valid JSON matching the schema provided."
+)
+
+CONFIG_MATCH_USER_TEMPLATE = (
+    "Classify each finding for module '{{ module }}' as "
+    "data_error, config_deviation, or ambiguous.\n\n"
+    "Findings with value samples:\n{{ findings_with_signals_json }}\n\n"
+    "Observed configuration patterns in this dataset:\n{{ config_patterns_json }}\n\n"
+    "Standard SAP rule context:\n{{ rule_context_json }}\n\n"
+    "Respond with valid JSON matching this exact schema:\n"
+    "{\n"
+    '  "classifications": [\n'
+    "    {\n"
+    '      "check_id": "BP001",\n'
+    '      "record_key": "1000042",\n'
+    '      "field": "BUT000.BU_TYPE",\n'
+    '      "actual_value": "",\n'
+    '      "std_rule_expectation": "BU_TYPE must be 1, 2, or 3",\n'
+    '      "classification": "data_error",\n'
+    '      "config_evidence": "No consistent BU_TYPE pattern — random nulls across records",\n'
+    '      "recommended_action": "Set BU_TYPE from source system entity classification",\n'
+    '      "sap_tcode": "BP",\n'
+    '      "fix_priority": 1\n'
+    "    }\n"
+    "  ]\n"
+    "}\n\n"
+    "fix_priority scale: 1=fix immediately (blocks migration or critical process), "
+    "2=fix before go-live, 3=review with business (possible valid config), "
+    "4=monitor only (low risk config deviation).\n"
+    "Return only valid JSON. No markdown, no code fences, no explanation."
+)

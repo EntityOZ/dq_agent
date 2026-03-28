@@ -136,6 +136,8 @@ async def run_graph(version_id: str, tenant_id: str) -> AgentState:
         "remediations": {},
         "readiness_scores": {},
         "report": None,
+        "config_matches": [],
+        "config_match_summary": {},
         "error": None,
     }
 

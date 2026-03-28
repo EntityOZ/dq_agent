@@ -41,5 +41,18 @@ class AgentState(TypedDict):
     report: dict | None
     # The fully assembled report JSON
 
+    # Populated by config_matching_agent
+    config_matches: list[dict]
+    # Each dict: {
+    #   module, check_id, record_key, field, actual_value,
+    #   std_rule_expectation, classification, config_evidence,
+    #   recommended_action, sap_tcode, fix_priority
+    # }
+    # classification is one of: "data_error" | "config_deviation" | "ambiguous"
+
+    config_match_summary: dict
+    # {total_records_assessed, data_errors, config_deviations,
+    #  ambiguous, modules_with_deviations: list[str]}
+
     # Set by any node on non-recoverable error
     error: str | None
