@@ -1,6 +1,6 @@
-"""LangGraph orchestrator — wires four sub-agents into a StateGraph.
+"""LangGraph orchestrator — wires five sub-agents into a StateGraph.
 
-Graph: analyst → remediation → readiness → report → END
+Graph: analyst → config_matching → remediation → readiness → report_agent → END
 Each node checks for errors and routes to END if state["error"] is set.
 """
 
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from agents.analyst import analyst_node
+from agents.config_matching import config_matching_node
 from agents.readiness import readiness_node
 from agents.remediation import remediation_node
 from agents.report_agent import report_node
@@ -33,16 +34,18 @@ def _should_continue(state: AgentState) -> str:
 _graph_builder = StateGraph(AgentState)
 
 _graph_builder.add_node("analyst", analyst_node)
+_graph_builder.add_node("config_matching", config_matching_node)
 _graph_builder.add_node("remediation", remediation_node)
 _graph_builder.add_node("readiness", readiness_node)
-_graph_builder.add_node("report", report_node)
+_graph_builder.add_node("report_agent", report_node)
 
 _graph_builder.set_entry_point("analyst")
 
-_graph_builder.add_conditional_edges("analyst", _should_continue, {"continue": "remediation", "end": END})
+_graph_builder.add_conditional_edges("analyst", _should_continue, {"continue": "config_matching", "end": END})
+_graph_builder.add_conditional_edges("config_matching", _should_continue, {"continue": "remediation", "end": END})
 _graph_builder.add_conditional_edges("remediation", _should_continue, {"continue": "readiness", "end": END})
-_graph_builder.add_conditional_edges("readiness", _should_continue, {"continue": "report", "end": END})
-_graph_builder.add_conditional_edges("report", _should_continue, {"continue": END, "end": END})
+_graph_builder.add_conditional_edges("readiness", _should_continue, {"continue": "report_agent", "end": END})
+_graph_builder.add_conditional_edges("report_agent", _should_continue, {"continue": END, "end": END})
 
 graph = _graph_builder.compile()
 

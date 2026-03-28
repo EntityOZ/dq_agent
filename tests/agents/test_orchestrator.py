@@ -37,6 +37,8 @@ def _make_initial_state():
         "remediations": [],
         "readiness_scores": {},
         "report": None,
+        "config_matches": [],
+        "config_match_summary": {},
         "error": None,
     }
 
@@ -75,15 +77,35 @@ VALID_READINESS = json.dumps({
 EXEC_SUMMARY = "Assessment shows conditional readiness. Critical BP data gaps must be resolved before migration."
 
 
+VALID_CONFIG_MATCHES = json.dumps({
+    "classifications": [
+        {
+            "check_id": "BP001",
+            "record_key": "",
+            "field": "BU_TYPE",
+            "actual_value": "",
+            "std_rule_expectation": "BP type is mandatory",
+            "classification": "data_error",
+            "config_evidence": "No config signal found",
+            "recommended_action": "Populate BU_TYPE via transaction BP",
+            "sap_tcode": "BP",
+            "fix_priority": 1,
+        }
+    ]
+})
+
+
 @patch("agents.report_agent.get_llm")
 @patch("agents.readiness.get_llm")
 @patch("agents.remediation.get_llm")
+@patch("agents.config_matching.get_llm")
 @patch("agents.analyst.get_llm")
-def test_graph_full_run(mock_analyst_llm, mock_rem_llm, mock_ready_llm, mock_report_llm):
-    """Full mock of all four sub-agents — graph runs to END, state is complete."""
+def test_graph_full_run(mock_analyst_llm, mock_config_llm, mock_rem_llm, mock_ready_llm, mock_report_llm):
+    """Full mock of all five sub-agents — graph runs to END, state is complete."""
     # Configure mocks
     for mock_fn, response in [
         (mock_analyst_llm, VALID_ROOT_CAUSES),
+        (mock_config_llm, VALID_CONFIG_MATCHES),
         (mock_rem_llm, VALID_REMEDIATIONS),
         (mock_ready_llm, VALID_READINESS),
         (mock_report_llm, EXEC_SUMMARY),
