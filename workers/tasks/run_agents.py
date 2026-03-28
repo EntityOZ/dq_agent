@@ -133,6 +133,90 @@ def run_agents(self, version_id: str, tenant_id: str):
 
             logger.info(f"Updated {total_updated} findings with remediation text")
 
+        # Block A — Persist config_matches rows
+        config_matches = final_state.get("config_matches", [])
+        if config_matches:
+            with Session(engine) as session:
+                session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                for match in config_matches:
+                    session.execute(
+                        text("""
+                            INSERT INTO config_matches (
+                                id, version_id, tenant_id, module, check_id,
+                                record_key, field, actual_value, std_rule_expectation,
+                                classification, config_evidence, recommended_action,
+                                sap_tcode, fix_priority
+                            ) VALUES (
+                                gen_random_uuid(), :version_id, :tenant_id, :module, :check_id,
+                                :record_key, :field, :actual_value, :std_rule_expectation,
+                                :classification, :config_evidence, :recommended_action,
+                                :sap_tcode, :fix_priority
+                            )
+                            ON CONFLICT DO NOTHING
+                        """),
+                        {
+                            "version_id": version_id,
+                            "tenant_id": tenant_id,
+                            "module": match.get("module", ""),
+                            "check_id": match.get("check_id", ""),
+                            "record_key": match.get("record_key"),
+                            "field": match.get("field"),
+                            "actual_value": str(match.get("actual_value", ""))[:500],
+                            "std_rule_expectation": match.get("std_rule_expectation"),
+                            "classification": match.get("classification", "ambiguous"),
+                            "config_evidence": match.get("config_evidence"),
+                            "recommended_action": match.get("recommended_action"),
+                            "sap_tcode": match.get("sap_tcode"),
+                            "fix_priority": int(match.get("fix_priority", 2)),
+                        }
+                    )
+                session.commit()
+            logger.info(f"Persisted {len(config_matches)} config match records for version={version_id}")
+
+        # Block B — Persist config_match_summary and cross-reference fix_priority
+        config_match_summary = final_state.get("config_match_summary", {})
+        remediations = final_state.get("remediations", {})
+
+        # Cross-reference: if a check_id is in fix_sequence top 3 AND has data_error
+        # classifications, upgrade its fix_priority to 1
+        if config_matches and remediations:
+            fix_sequence = remediations.get("fix_sequence", [])
+            urgent_check_ids = {
+                s["check_id"] for s in fix_sequence
+                if s.get("sequence", 99) <= 3
+            }
+            if urgent_check_ids:
+                with Session(engine) as session:
+                    session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+                    for cid in urgent_check_ids:
+                        session.execute(
+                            text("""
+                                UPDATE config_matches
+                                SET fix_priority = 1
+                                WHERE version_id = :vid AND tenant_id = :tid
+                                  AND check_id = :cid AND classification = 'data_error'
+                            """),
+                            {"vid": version_id, "tid": tenant_id, "cid": cid}
+                        )
+                    session.commit()
+                logger.info(f"Upgraded fix_priority to 1 for {len(urgent_check_ids)} urgent check IDs")
+
+        with Session(engine) as session:
+            session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
+            session.execute(
+                text("""
+                    UPDATE analysis_versions
+                    SET config_match_summary = CAST(:summary AS jsonb)
+                    WHERE id = :vid AND tenant_id = :tid
+                """),
+                {
+                    "vid": version_id,
+                    "tid": tenant_id,
+                    "summary": json.dumps(config_match_summary),
+                }
+            )
+            session.commit()
+
         # Update status to agents_complete
         with Session(engine) as session:
             session.execute(text(f"SET app.tenant_id = '{tenant_id}'"))
