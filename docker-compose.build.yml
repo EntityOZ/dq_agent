@@ -7,12 +7,16 @@ services:
       context: .
       dockerfile: Dockerfile.api
       args:
-        INSTALL_PYRFC: "true"
+        # pyrfc requires the proprietary SAP NW RFC SDK — not available in CI/CD.
+        # Set to true only in environments where the SDK is pre-installed.
+        INSTALL_PYRFC: "false"
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile.api
+      args:
+        INSTALL_PYRFC: "false"
 
   frontend:
     build:
@@ -20,5 +24,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-local}
     environment:
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}

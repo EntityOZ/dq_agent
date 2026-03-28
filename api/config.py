@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     smtp_from: str = "noreply@meridian.local"
 
+    # CORS — comma-separated string, e.g. http://localhost:3000,http://myhost:3000
+    # Stored as str to avoid pydantic-settings v2 JSON-parsing issues with list fields.
+    # main.py splits this into a list when configuring CORSMiddleware.
+    cors_origins: str = "http://localhost:3000,http://frontend:3000"
+
     # Auth
     clerk_secret_key: Optional[str] = None
     auth_mode: str = "local"

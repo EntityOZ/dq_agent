@@ -314,10 +314,16 @@ _STANDARD_FIELDS: list[tuple[str, str, str, str]] = [
 
 def _seed_standard_fields(op) -> None:
     """Insert standard SAP field definitions for the dev tenant."""
-    import json
-
     dev_tenant = "00000000-0000-0000-0000-000000000001"
     conn = op.get_bind()
+
+    # Skip seeding if dev tenant doesn't exist (CI, fresh installs, etc.)
+    result = conn.execute(
+        sa.text("SELECT 1 FROM tenants WHERE id = :tid"), {"tid": dev_tenant}
+    )
+    if not result.fetchone():
+        print("[migration 024] Dev tenant not found — skipping field mapping seed")
+        return
 
     for module, standard_field, standard_label, data_type in _STANDARD_FIELDS:
         conn.execute(
