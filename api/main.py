@@ -34,6 +34,7 @@ from api.routes.sync_trigger import router as sync_trigger_router
 from api.routes.rules import router as rules_router
 from api.routes.field_mappings import router as field_mappings_router
 from api.routes.licence import router as licence_router
+from api.routes.config_matches import router as config_matches_router
 
 logger = logging.getLogger("meridian")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -162,3 +163,4 @@ app.include_router(sync_trigger_router)
 app.include_router(rules_router)
 app.include_router(field_mappings_router)
 app.include_router(licence_router)
+app.include_router(config_matches_router)
