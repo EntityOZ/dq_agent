@@ -4,7 +4,6 @@ All tests use mocked pyrfc to avoid needing a real SAP system.
 """
 
 import logging
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,13 +21,10 @@ def mock_pyrfc():
 
 @pytest.fixture
 def client():
-    """Create a test client with mocked dependencies."""
-    # Reset rate limiter between tests
-    from api.routes import connect
-    connect._rate_limit.clear()
-
-    from api.main import app
-    return TestClient(app)
+    """Create a test client with mocked Redis rate limiter."""
+    with patch("api.routes.connect._check_rfc_rate_limit"):
+        from api.main import app
+        yield TestClient(app)
 
 
 @pytest.fixture
@@ -208,53 +204,34 @@ class TestLargeTableParsing:
 class TestRateLimiting:
     """5. Rate limiting blocks a second call within 5 minutes from same tenant."""
 
-    def test_second_call_blocked(self, client, sap_request_body):
-        mock_module = MagicMock()
-        mock_conn = MagicMock()
-        mock_module.Connection.return_value = mock_conn
-        mock_conn.call.return_value = _make_rfc_result(5)
+    def test_second_call_blocked(self):
+        """When Redis INCR returns count > 1, request is rate-limited."""
+        from fastapi import HTTPException
+        from api.routes.connect import _check_rfc_rate_limit
 
-        with patch.dict("sys.modules", {"pyrfc": mock_module}):
-            with patch("api.routes.connect.apply_column_mapping", side_effect=lambda df, m: df):
-                with patch("api.routes.connect.minio_upload"):
-                    with patch("api.routes.connect.create_version") as mock_version:
-                        mock_v = MagicMock()
-                        mock_v.id = "test-version-id"
-                        mock_version.return_value = mock_v
-                        with patch("api.routes.connect.run_checks") as mock_checks:
-                            mock_checks.delay.return_value = MagicMock(id="job-1")
+        mock_redis_conn = MagicMock()
+        mock_redis_conn.incr.return_value = 2
+        mock_redis_conn.ttl.return_value = 250
 
-                            # First call succeeds
-                            resp1 = client.post("/api/v1/connect", json=sap_request_body)
-                            assert resp1.status_code == 200
+        mock_redis_mod = MagicMock()
+        mock_redis_mod.Redis.from_url.return_value = mock_redis_conn
 
-                            # Second call within 5 minutes should be rate-limited
-                            resp2 = client.post("/api/v1/connect", json=sap_request_body)
-                            assert resp2.status_code == 429
-                            assert "rate_limited" in resp2.text
+        with patch.dict("sys.modules", {"redis": mock_redis_mod}):
+            with pytest.raises(HTTPException) as exc_info:
+                _check_rfc_rate_limit("test-tenant-id")
+            assert exc_info.value.status_code == 429
+            assert "rate_limited" in str(exc_info.value.detail)
 
-    def test_call_allowed_after_rate_limit_expires(self, client, sap_request_body):
-        """After the 5-minute window, a new call should be allowed."""
-        from api.routes import connect
+    def test_call_allowed_on_first_request(self):
+        """When Redis INCR returns 1, request is allowed (no exception)."""
+        from api.routes.connect import _check_rfc_rate_limit
 
-        # Simulate a past call by setting timestamp 6 minutes ago
-        tenant_key = "00000000-0000-0000-0000-000000000001"
-        connect._rate_limit[tenant_key] = time.time() - 360  # 6 minutes ago
+        mock_redis_conn = MagicMock()
+        mock_redis_conn.incr.return_value = 1
 
-        mock_module = MagicMock()
-        mock_conn = MagicMock()
-        mock_module.Connection.return_value = mock_conn
-        mock_conn.call.return_value = _make_rfc_result(5)
+        mock_redis_mod = MagicMock()
+        mock_redis_mod.Redis.from_url.return_value = mock_redis_conn
 
-        with patch.dict("sys.modules", {"pyrfc": mock_module}):
-            with patch("api.routes.connect.apply_column_mapping", side_effect=lambda df, m: df):
-                with patch("api.routes.connect.minio_upload"):
-                    with patch("api.routes.connect.create_version") as mock_version:
-                        mock_v = MagicMock()
-                        mock_v.id = "test-version-id"
-                        mock_version.return_value = mock_v
-                        with patch("api.routes.connect.run_checks") as mock_checks:
-                            mock_checks.delay.return_value = MagicMock(id="job-1")
-                            response = client.post("/api/v1/connect", json=sap_request_body)
-
-        assert response.status_code == 200
+        with patch.dict("sys.modules", {"redis": mock_redis_mod}):
+            _check_rfc_rate_limit("test-tenant-id")  # should not raise
+            mock_redis_conn.expire.assert_called_once()

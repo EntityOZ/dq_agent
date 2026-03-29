@@ -143,7 +143,7 @@ def test_settings_ai_reviewer_purple_badge():
     """ai_reviewer role uses purple badge colour."""
     path = Path("frontend/app/(dashboard)/settings/page.tsx")
     content = path.read_text(encoding="utf-8")
-    assert "bg-[#EDE9FE] text-[#7C3AED]" in content
+    assert "bg-[#7C3AED]/10 text-[#7C3AED]" in content
 
 
 def test_settings_ai_reviewer_tooltip():

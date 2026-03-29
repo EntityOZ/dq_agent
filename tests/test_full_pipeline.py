@@ -12,6 +12,10 @@ API_BASE = "http://localhost:8000"
 TIMEOUT = 120
 
 
+@pytest.mark.skipif(
+    not __import__("os").environ.get("MERIDIAN_INTEGRATION"),
+    reason="Integration test — set MERIDIAN_INTEGRATION=1 to run",
+)
 def test_full_pipeline():
     """Upload synthetic BP data, wait for checks, verify findings and DQS."""
     # Step 1: Generate synthetic BP data

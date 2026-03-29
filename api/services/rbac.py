@@ -37,7 +37,7 @@ PERMISSIONS: dict[str, set[str]] = {
         "view", "upload", "analyse", "approve", "apply", "export",
         "ai_feedback", "trigger_ai", "view_ai_confidence", "trigger_sync",
     },
-    "viewer": {"view", "view_ai_confidence"},
+    "viewer": {"view"},
 
     # ── Legacy roles (backward compat) ────────────────────────────────────
     "steward": {

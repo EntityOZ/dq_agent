@@ -256,6 +256,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/upload", label: "Import", icon: Upload, licenceKey: "import" },
       { href: "/findings", label: "Findings", icon: AlertTriangle, licenceKey: "findings" },
       { href: "/analytics", label: "Analytics", icon: BarChart3, licenceKey: "analytics" },
+      { href: "/nlp", label: "Ask AI", icon: BrainCircuit, licenceKey: "nlp" },
       { href: "/run-sync", label: "Run Sync", icon: Play, licenceKey: "sync" },
     ],
   },
