@@ -1,3 +1,7 @@
 name = "vantax-portal"
-pages_build_output_dir = "out"
-compatibility_date = "2024-01-01"
+pages_build_output_dir = ".open-next/assets"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NEXTJS_ENV = "production"

@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:worker": "opennextjs-cloudflare build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "npm run build && wrangler pages deploy .vercel/output/static"
+    "deploy": "npm run build:worker && wrangler pages deploy",
+    "preview": "npm run build:worker && wrangler pages dev"
   },
   "dependencies": {
     "@stripe/stripe-js": "^5.5.0",
@@ -17,6 +19,7 @@
     "stripe": "^17.7.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.18.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
