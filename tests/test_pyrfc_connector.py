@@ -94,8 +94,20 @@ class TestPasswordMasking:
 
         with patch.dict("sys.modules", {"pyrfc": mock_module}):
             with caplog.at_level(logging.DEBUG):
-                response = client.post("/api/v1/connect", json=sap_request_body)
+                with patch("sap.base.get_connector") as mock_get_connector:
+                    mock_connector = MagicMock()
+                    mock_connector.__enter__ = MagicMock(return_value=mock_connector)
+                    mock_connector.__exit__ = MagicMock(return_value=None)
+                    mock_get_connector.return_value = mock_connector
+                    mock_connector.connect.side_effect = Exception(
+                        f"Could not connect to host 10.0.0.1 with passwd={password}"
+                    )
+                    response = client.post("/api/v1/connect", json=sap_request_body)
 
+        self._check_password_masked(response, password, caplog)
+
+    def _check_password_masked(self, response, password, caplog):
+        """Helper to check password masking in response and logs."""
         assert response.status_code == 422
         assert password not in response.text
         for record in caplog.records:
