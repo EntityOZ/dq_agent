@@ -58,5 +58,12 @@ CREATE INDEX IF NOT EXISTS idx_field_mappings_tenant ON field_mappings(tenant_id
 `;
 
 beforeAll(async () => {
-  await (env.DB as D1Database).exec(SCHEMA);
+  const db = env.DB as D1Database;
+  const statements = SCHEMA
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  for (const stmt of statements) {
+    await db.exec(stmt);
+  }
 });
