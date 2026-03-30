@@ -37,9 +37,9 @@ jobs:
       - name: Build
         working-directory: cloudflare/portal
         run: npm run build:worker
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Workers
         working-directory: cloudflare/portal
-        run: npx wrangler pages deploy .open-next --commit-dirty=true
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
