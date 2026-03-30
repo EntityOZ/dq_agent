@@ -64,6 +64,6 @@ beforeAll(async () => {
     .map(s => s.trim())
     .filter(s => s.length > 0);
   for (const stmt of statements) {
-    await db.exec(stmt);
+    await db.prepare(stmt).run();
   }
 });
