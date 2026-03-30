@@ -47,4 +47,3 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: vantax-portal
           directory: cloudflare/portal/.open-next/assets
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
