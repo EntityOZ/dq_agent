@@ -27,8 +27,14 @@ services:
       - LICENCE_FILE=${LICENCE_FILE:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL:-}
-      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-}
       - AUTH_MODE=${AUTH_MODE:-local}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@meridian.local}
       - SENTRY_DSN=${SENTRY_DSN:-}
     volumes:
       - ./api:/app/api
@@ -60,8 +66,7 @@ services:
     command: sh -c "npm install --include=dev && npm run dev"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_AUTH_MODE=local
-      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+      - NEXT_PUBLIC_AUTH_MODE=${AUTH_MODE:-local}
       - PORT=3000
       - HOSTNAME=0.0.0.0
     ports:
