@@ -39,6 +39,7 @@ class Tenant(Base):
         server_default=text("now()"),
     )
 
+    jwt_secret = Column(Text, nullable=True)
     default_role = Column(Text, nullable=True, server_default="analyst")
 
     versions = relationship("AnalysisVersion", back_populates="tenant")
@@ -540,6 +541,7 @@ class User(Base):
     name = Column(Text, nullable=False)
     role = Column(Text, nullable=False, server_default="analyst")
     permissions = Column(JSONB, nullable=True)
+    password_hash = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, server_default="true")
     last_login = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(

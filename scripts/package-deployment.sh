@@ -276,7 +276,29 @@ ${START_CMD}
 docker compose exec api alembic upgrade head
 \`\`\`
 
-## 6. Verify Health
+## 6. Create Admin User
+
+Create your first admin account:
+\`\`\`bash
+docker compose exec api python scripts/manage_users.py create \\
+    --email admin@company.com \\
+    --name "Admin User" \\
+    --password "YourSecurePassword" \\
+    --role admin
+\`\`\`
+
+You can manage users later with:
+\`\`\`bash
+# List users
+docker compose exec api python scripts/manage_users.py list
+
+# Reset a password
+docker compose exec api python scripts/manage_users.py reset-password \\
+    --email admin@company.com \\
+    --password "NewPassword"
+\`\`\`
+
+## 7. Verify Health
 
 \`\`\`bash
 curl http://localhost:8000/health

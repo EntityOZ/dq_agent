@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback } from "react";
-import { User, Bell, Menu, X, ChevronLeft, ChevronRight, Search, Download } from "lucide-react";
+import { User, Bell, Menu, X, ChevronLeft, ChevronRight, Search, Download, LogOut } from "lucide-react";
 
 const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
 
@@ -17,10 +17,58 @@ const ClerkUserButton = dynamic(
 );
 
 function LocalUserButton() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  const initials = user
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "?";
+
+  const handleSignOut = () => {
+    setOpen(false);
+    logout();
+    router.push("/sign-in");
+  };
+
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-      DU
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            title="Account"
+            aria-label="Account"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+          />
+        }
+      >
+        {initials}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-60 overflow-hidden rounded-2xl p-0 shadow-xl" sideOffset={8}>
+        {user && (
+          <div className="border-b border-black/[0.06] px-4 py-3">
+            <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+          </div>
+        )}
+        <div className="p-1.5">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-black/[0.04] hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -52,6 +100,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import "@/app/sidebar-responsive.css";
+import { useAuth } from "@/context/auth-context";
 import { AskMeridian } from "@/components/ask-meridian";
 import { useRole } from "@/hooks/use-role";
 import { useLicence } from "@/hooks/use-licence";
@@ -449,6 +498,28 @@ function SidebarNav({
   );
 }
 
+/* ─── Auth guard (local mode) ─── */
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/sign-in");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (!user) return null;
+  return <>{children}</>;
+}
+
 /* ─── Main layout ─── */
 export default function DashboardLayout({
   children,
@@ -505,7 +576,7 @@ export default function DashboardLayout({
   const { role: userRole } = useRole();
   const pageTitle = getPageTitle(pathname);
 
-  return (
+  const content = (
     <div className="flex h-screen overflow-hidden vx-mesh-bg">
       {/* ── Mobile backdrop ── */}
       {sidebarOpen && (
@@ -638,4 +709,9 @@ export default function DashboardLayout({
       <AskMeridian />
     </div>
   );
+
+  if (isLocalAuth) {
+    return <AuthGuard>{content}</AuthGuard>;
+  }
+  return content;
 }

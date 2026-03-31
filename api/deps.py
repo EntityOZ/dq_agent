@@ -2,13 +2,24 @@ import uuid
 from typing import AsyncGenerator
 
 from fastapi import Depends, Request
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from api.config import settings
 
 engine = create_async_engine(settings.database_url, echo=False)
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+# Lazy-initialised sync engine for local auth endpoints
+_sync_engine = None
+
+
+def get_sync_engine_or_create():
+    """Return a sync SQLAlchemy engine, creating it on first call."""
+    global _sync_engine
+    if _sync_engine is None:
+        _sync_engine = create_engine(settings.database_url_sync, echo=False)
+    return _sync_engine
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

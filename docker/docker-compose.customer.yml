@@ -65,6 +65,8 @@ services:
     ports:
       - "3000:3000"
     env_file: .env
+    environment:
+      - NEXT_PUBLIC_AUTH_MODE=${AUTH_MODE:-local}
     depends_on:
       - api
     networks:

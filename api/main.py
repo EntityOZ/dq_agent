@@ -88,6 +88,21 @@ async def lifespan(app: FastAPI):
                     logger.info("Dev tenant created")
                 else:
                     logger.info("Dev tenant exists")
+
+                # Ensure jwt_secret exists on the dev tenant for local auth
+                secret_row = await session.execute(
+                    text("SELECT jwt_secret FROM tenants WHERE id = '00000000-0000-0000-0000-000000000001'")
+                )
+                if not secret_row.scalar():
+                    from api.services.local_auth import generate_jwt_secret
+                    await session.execute(
+                        text(
+                            "UPDATE tenants SET jwt_secret = :secret WHERE id = '00000000-0000-0000-0000-000000000001'"
+                        ),
+                        {"secret": generate_jwt_secret()},
+                    )
+                    await session.commit()
+                    logger.info("Dev tenant jwt_secret generated")
         except Exception as e:
             logger.warning(f"Dev tenant init failed: {e}")
 
@@ -129,6 +144,11 @@ app.add_middleware(LicenceMiddleware)
 # Tenant middleware — resolves tenant_id and sets Postgres RLS context
 app.add_middleware(TenantMiddleware)
 
+# Local auth middleware — JWT verification when AUTH_MODE=local
+if settings.auth_mode == "local":
+    from api.middleware.local_auth import LocalAuthMiddleware
+    app.add_middleware(LocalAuthMiddleware)
+
 # Register routers
 app.include_router(health_router)
 app.include_router(upload_router)
@@ -159,3 +179,6 @@ app.include_router(rules_router)
 app.include_router(field_mappings_router)
 app.include_router(licence_router)
 app.include_router(config_matches_router)
+
+from api.routes.auth import router as auth_router
+app.include_router(auth_router)
