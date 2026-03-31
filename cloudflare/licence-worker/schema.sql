@@ -50,7 +50,20 @@ CREATE TABLE IF NOT EXISTS field_mappings (
     UNIQUE(tenant_id, module, standard_field)
 );
 
+CREATE TABLE IF NOT EXISTS tenant_users (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    email TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',  -- admin | analyst | viewer
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(tenant_id, email)
+);
+
 CREATE INDEX IF NOT EXISTS idx_tenants_key_hash ON tenants(licence_key_hash);
 CREATE INDEX IF NOT EXISTS idx_rules_module ON rules(module);
 CREATE INDEX IF NOT EXISTS idx_rules_category ON rules(category);
 CREATE INDEX IF NOT EXISTS idx_field_mappings_tenant ON field_mappings(tenant_id, module);
+CREATE INDEX IF NOT EXISTS idx_tenant_users_tenant ON tenant_users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_users_email ON tenant_users(email);

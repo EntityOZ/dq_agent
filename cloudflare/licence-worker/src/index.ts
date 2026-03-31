@@ -1,35 +1,44 @@
 /**
  * Meridian Licence Worker — Cloudflare Worker
  *
- * Endpoints:
- *   POST /api/licence/validate       — validate key, return full manifest
- *   GET  /api/licence/heartbeat      — health check
+ * Public endpoints:
+ *   POST /api/licence/validate            — validate key, return full manifest
+ *   GET  /api/licence/heartbeat           — health check
  *   POST /api/licence/field-mappings/sync — receive field mapping updates from customer
  *
- * Admin endpoints (require X-Admin-Secret):
- *   GET    /api/admin/tenants               — list tenants
- *   POST   /api/admin/tenants               — create tenant + generate key
- *   GET    /api/admin/tenants/:id           — get tenant detail
- *   PUT    /api/admin/tenants/:id           — full update
- *   PATCH  /api/admin/tenants/:id           — partial update (status, expiry, modules…)
- *   DELETE /api/admin/tenants/:id           — delete tenant
- *   POST   /api/admin/tenants/:id/regenerate-key — regenerate licence key
- *   GET    /api/admin/tenants/:id/field-mappings — get field mappings for tenant
- *   GET    /api/admin/analytics             — HQ dashboard stats
+ * Auth:
+ *   POST /api/admin/login                 — email + password → JWT
  *
- *   GET    /api/admin/rules                 — list rules
- *   POST   /api/admin/rules                 — create rule
- *   GET    /api/admin/rules/:id             — get rule
- *   PUT    /api/admin/rules/:id             — update rule
- *   PATCH  /api/admin/rules/:id             — partial update (enable/disable)
- *   DELETE /api/admin/rules/:id             — delete rule
- *   POST   /api/admin/rules/import          — bulk import rules from JSON array
+ * Admin endpoints (require Authorization: Bearer <jwt>):
+ *   GET    /api/admin/analytics
+ *   GET    /api/admin/tenants
+ *   POST   /api/admin/tenants
+ *   GET    /api/admin/tenants/:id
+ *   PUT    /api/admin/tenants/:id
+ *   PATCH  /api/admin/tenants/:id
+ *   DELETE /api/admin/tenants/:id
+ *   POST   /api/admin/tenants/:id/regenerate-key
+ *   POST   /api/admin/tenants/:id/offline-token
+ *   GET    /api/admin/tenants/:id/field-mappings
+ *   PUT    /api/admin/tenants/:id/field-mappings
+ *   GET    /api/admin/rules
+ *   POST   /api/admin/rules
+ *   POST   /api/admin/rules/import
+ *   GET    /api/admin/rules/:id
+ *   PUT    /api/admin/rules/:id
+ *   PATCH  /api/admin/rules/:id
+ *   DELETE /api/admin/rules/:id
  */
 
 interface Env {
   LICENCE_KV: KVNamespace;
   DB: D1Database;
-  LICENCE_ADMIN_SECRET: string;
+  /** Admin login email — set via wrangler secret put ADMIN_EMAIL */
+  ADMIN_EMAIL: string;
+  /** SHA-256 hex of the admin password — set via wrangler secret put ADMIN_PASSWORD_HASH */
+  ADMIN_PASSWORD_HASH: string;
+  /** HMAC-SHA-256 signing secret for admin JWTs — set via wrangler secret put JWT_SECRET */
+  JWT_SECRET: string;
   /** RSA-PKCS8 private key PEM for offline JWT signing (set as Worker secret) */
   OFFLINE_JWT_PRIVATE_KEY?: string;
 }
@@ -98,6 +107,16 @@ interface FieldMappingRow {
   updated_at: string;
 }
 
+interface TenantUserRow {
+  id: string;
+  tenant_id: string;
+  email: string;
+  password_hash: string;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 function generateId(): string {
@@ -109,7 +128,6 @@ function generateId(): string {
 }
 
 function generateLicenceKey(): string {
-  // Format: MRDX-XXXX-XXXX-XXXX (uppercase hex segments)
   const seg = () => {
     const bytes = new Uint8Array(2);
     crypto.getRandomValues(bytes);
@@ -129,15 +147,18 @@ async function hashKey(key: string): Promise<string> {
     .join("");
 }
 
-function now(): string {
+function nowIso(): string {
   return new Date().toISOString();
 }
 
-function cors(response: Response): Response {
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+
+function cors(response: Response, origin?: string): Response {
   const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Origin", origin || "*");
   headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type, X-Admin-Secret");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  headers.set("Access-Control-Allow-Credentials", "true");
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -150,13 +171,94 @@ function json<T>(data: T, status = 200): Response {
   );
 }
 
-function requireAdmin(request: Request, env: Env): Response | null {
-  const secret = request.headers.get("X-Admin-Secret");
-  if (!secret || secret !== env.LICENCE_ADMIN_SECRET) {
-    return json({ error: "unauthorized", message: "Invalid or missing admin secret" }, 401);
+// ─── JWT (HMAC-SHA256) ────────────────────────────────────────────────────────
+
+function b64url(data: string): string {
+  return btoa(data).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function b64urlDecode(s: string): string {
+  return atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+}
+
+async function signJwt(payload: Record<string, unknown>, secret: string): Promise<string> {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(payload));
+  const signingInput = `${header}.${body}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return `${signingInput}.${sigB64}`;
+}
+
+async function verifyJwt(
+  token: string,
+  secret: string
+): Promise<Record<string, unknown> | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [headerB64, payloadB64, sigB64] = parts;
+  const signingInput = `${headerB64}.${payloadB64}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+  let sigBytes: Uint8Array;
+  try {
+    sigBytes = Uint8Array.from(b64urlDecode(sigB64), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    sigBytes,
+    new TextEncoder().encode(signingInput)
+  );
+  if (!valid) return null;
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(b64urlDecode(payloadB64));
+  } catch {
+    return null;
+  }
+  if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+  return payload;
+}
+
+// ─── Admin Auth ───────────────────────────────────────────────────────────────
+
+async function requireAdmin(
+  request: Request,
+  env: Env
+): Promise<Response | null> {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return json({ error: "unauthorized", message: "Missing or invalid Authorization header" }, 401);
+  }
+  const token = authHeader.slice(7);
+  const payload = await verifyJwt(token, env.JWT_SECRET);
+  if (!payload) {
+    return json({ error: "unauthorized", message: "Invalid or expired token" }, 401);
   }
   return null;
 }
+
+// ─── Parsers ──────────────────────────────────────────────────────────────────
 
 function parseTenant(row: TenantRow) {
   return {
@@ -216,6 +318,8 @@ function daysRemaining(expiryDate: string): number {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
 const DEFAULT_MENU_ITEMS = [
   "dashboard", "findings", "versions", "analytics", "import", "sync",
   "reports", "stewardship", "contracts", "ask_meridian", "export",
@@ -234,14 +338,12 @@ const TIER_MODULES: Record<string, string[]> = {
   starter: [
     "business_partner", "material_master", "fi_gl", "accounts_payable",
     "accounts_receivable", "asset_accounting", "mm_purchasing",
-    "plant_maintenance", "production_planning", "sd_customer_master",
-    "sd_sales_orders",
+    "plant_maintenance", "production_planning", "sd_customer_master", "sd_sales_orders",
   ],
   professional: [
     "business_partner", "material_master", "fi_gl", "accounts_payable",
     "accounts_receivable", "asset_accounting", "mm_purchasing",
-    "plant_maintenance", "production_planning", "sd_customer_master",
-    "sd_sales_orders",
+    "plant_maintenance", "production_planning", "sd_customer_master", "sd_sales_orders",
     "employee_central", "compensation", "benefits", "payroll_integration",
     "performance_goals", "succession_planning", "recruiting_onboarding",
     "learning_management", "time_attendance",
@@ -249,8 +351,7 @@ const TIER_MODULES: Record<string, string[]> = {
   enterprise: [
     "business_partner", "material_master", "fi_gl", "accounts_payable",
     "accounts_receivable", "asset_accounting", "mm_purchasing",
-    "plant_maintenance", "production_planning", "sd_customer_master",
-    "sd_sales_orders",
+    "plant_maintenance", "production_planning", "sd_customer_master", "sd_sales_orders",
     "employee_central", "compensation", "benefits", "payroll_integration",
     "performance_goals", "succession_planning", "recruiting_onboarding",
     "learning_management", "time_attendance",
@@ -260,21 +361,49 @@ const TIER_MODULES: Record<string, string[]> = {
   ],
 };
 
+// ─── Auth Handler ─────────────────────────────────────────────────────────────
+
+async function handleLogin(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as {
+    email?: string;
+    password?: string;
+  };
+
+  if (!body.email || !body.password) {
+    return json({ error: "bad_request", message: "email and password are required" }, 400);
+  }
+
+  if (body.email !== env.ADMIN_EMAIL) {
+    return json({ error: "unauthorized", message: "Invalid credentials" }, 401);
+  }
+
+  const passwordHash = await hashKey(body.password);
+  if (passwordHash !== env.ADMIN_PASSWORD_HASH) {
+    return json({ error: "unauthorized", message: "Invalid credentials" }, 401);
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const token = await signJwt(
+    {
+      sub: body.email,
+      role: "admin",
+      iat: nowSec,
+      exp: nowSec + 8 * 60 * 60, // 8 hours
+    },
+    env.JWT_SECRET
+  );
+
+  return json({ token, expiresIn: 8 * 60 * 60 });
+}
+
 // ─── Offline Token Generation ─────────────────────────────────────────────────
 
-/**
- * Generate a signed RS256 JWT for air-gapped (offline) licence deployments.
- * The token embeds the full licence manifest so the customer backend can verify
- * it locally using the corresponding public key baked into the Docker image.
- *
- * Requires OFFLINE_JWT_PRIVATE_KEY Worker secret to be set (RSA PKCS#8 PEM).
- */
 async function handleGenerateOfflineToken(
   tenantId: string,
   request: Request,
   env: Env
 ): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   if (!env.OFFLINE_JWT_PRIVATE_KEY) {
@@ -292,17 +421,15 @@ async function handleGenerateOfflineToken(
   const body = (await request.json().catch(() => ({}))) as { expiryDays?: number };
   const expiryDays = Math.min(Math.max(Number(body.expiryDays) || 365, 1), 1095);
 
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + expiryDays * 86400;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = nowSec + expiryDays * 86400;
   const expiresAt = new Date(exp * 1000).toISOString();
 
-  // Fetch rules for this manifest
   const rulesResult = await env.DB.prepare(
     "SELECT * FROM rules WHERE enabled = 1 ORDER BY module, category"
   ).all<RuleRow>();
   const rules = (rulesResult.results || []).map(parseRule);
 
-  // Fetch field mappings
   const mappingsResult = await env.DB.prepare(
     "SELECT * FROM field_mappings WHERE tenant_id = ?"
   )
@@ -313,7 +440,7 @@ async function handleGenerateOfflineToken(
   const payload = {
     iss: "meridian-hq",
     sub: tenantId,
-    iat: now,
+    iat: nowSec,
     exp,
     tenant_id: tenantId,
     enabled_modules: JSON.parse(row.enabled_modules || "[]") as string[],
@@ -324,7 +451,6 @@ async function handleGenerateOfflineToken(
     field_mappings: fieldMappings,
   };
 
-  // Sign JWT using Web Crypto RS256
   const keyPem = env.OFFLINE_JWT_PRIVATE_KEY.trim();
   const pemBody = keyPem
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
@@ -340,14 +466,10 @@ async function handleGenerateOfflineToken(
     ["sign"]
   );
 
-  const header = { alg: "RS256", typ: "JWT" };
   const encode = (obj: unknown) =>
-    btoa(JSON.stringify(obj))
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
+    btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 
-  const headerB64 = encode(header);
+  const headerB64 = encode({ alg: "RS256", typ: "JWT" });
   const payloadB64 = encode(payload);
   const signingInput = `${headerB64}.${payloadB64}`;
 
@@ -361,9 +483,7 @@ async function handleGenerateOfflineToken(
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
 
-  const token = `${signingInput}.${sig}`;
-
-  return json({ token, expiresAt, expiryDays });
+  return json({ token: `${signingInput}.${sig}`, expiresAt, expiryDays });
 }
 
 // ─── Licence Validation ───────────────────────────────────────────────────────
@@ -377,33 +497,24 @@ async function handleValidate(request: Request, env: Env): Promise<Response> {
   }
 
   const keyHash = await hashKey(licenceKey);
-
-  // Look up in D1
-  const row = await env.DB.prepare(
-    "SELECT * FROM tenants WHERE licence_key_hash = ?"
-  )
+  const row = await env.DB.prepare("SELECT * FROM tenants WHERE licence_key_hash = ?")
     .bind(keyHash)
     .first<TenantRow>();
 
   if (!row) {
-    // Fallback to legacy KV store
-    const kv = await env.LICENCE_KV.get(`licence:${licenceKey}`, "json") as {
+    // Fallback to legacy KV
+    const kv = (await env.LICENCE_KV.get(`licence:${licenceKey}`, "json")) as {
       modules: string[];
       features: string[];
       expiresAt: string;
       tenantId: string;
       active: boolean;
     } | null;
-    if (!kv || !kv.active) {
-      return json({ valid: false, reason: "invalid_key" }, 403);
-    }
-    if (new Date(kv.expiresAt) < new Date()) {
-      return json({ valid: false, reason: "expired" }, 403);
-    }
-    // Log ping to KV
+    if (!kv || !kv.active) return json({ valid: false, reason: "invalid_key" }, 403);
+    if (new Date(kv.expiresAt) < new Date()) return json({ valid: false, reason: "expired" }, 403);
     await env.LICENCE_KV.put(
       `ping:${licenceKey}`,
-      JSON.stringify({ lastSeen: now(), machineFingerprint }),
+      JSON.stringify({ lastSeen: nowIso(), machineFingerprint }),
       { expirationTtl: 90 * 24 * 60 * 60 }
     );
     return json({
@@ -434,33 +545,23 @@ async function handleValidate(request: Request, env: Env): Promise<Response> {
   if (expired && !inGrace) {
     return json({ valid: false, reason: "expired" }, 403);
   }
-
   if (expired && inGrace) {
-    // Within 7-day grace period — return 402 with grace info
     return json(
-      {
-        valid: false,
-        reason: "expired_grace",
-        grace_period_ends: gracePeriodEnd.toISOString(),
-        tenant_id: row.id,
-      },
+      { valid: false, reason: "expired_grace", grace_period_ends: gracePeriodEnd.toISOString(), tenant_id: row.id },
       402
     );
   }
 
-  // Update last ping
   await env.DB.prepare(
     "UPDATE tenants SET last_ping = ?, machine_fingerprint = ?, updated_at = ? WHERE id = ?"
   )
-    .bind(now(), machineFingerprint || null, now(), row.id)
+    .bind(nowIso(), machineFingerprint || null, nowIso(), row.id)
     .run();
 
   const enabledModules = JSON.parse(row.enabled_modules || "[]") as string[];
-
-  // Fetch rules for enabled modules
-  const placeholders = enabledModules.map(() => "?").join(",");
   let rules: ReturnType<typeof parseRule>[] = [];
   if (enabledModules.length > 0) {
+    const placeholders = enabledModules.map(() => "?").join(",");
     const rulesResult = await env.DB.prepare(
       `SELECT * FROM rules WHERE enabled = 1 AND module IN (${placeholders}) ORDER BY module, id`
     )
@@ -469,13 +570,11 @@ async function handleValidate(request: Request, env: Env): Promise<Response> {
     rules = (rulesResult.results || []).map(parseRule);
   }
 
-  // Fetch field mappings for this tenant
   const mappingsResult = await env.DB.prepare(
     "SELECT * FROM field_mappings WHERE tenant_id = ? ORDER BY module, standard_field"
   )
     .bind(row.id)
     .all<FieldMappingRow>();
-  const fieldMappings = (mappingsResult.results || []).map(parseFieldMapping);
 
   return json({
     valid: true,
@@ -489,18 +588,14 @@ async function handleValidate(request: Request, env: Env): Promise<Response> {
     enabled_menu_items: JSON.parse(row.enabled_menu_items || "[]") as string[],
     features: JSON.parse(row.features || "{}") as TenantFeatures,
     rules,
-    field_mappings: fieldMappings,
+    field_mappings: (mappingsResult.results || []).map(parseFieldMapping),
     llm_config: JSON.parse(row.llm_config || "{}") as LlmConfig,
   });
 }
 
-// ─── Heartbeat ────────────────────────────────────────────────────────────────
-
 function handleHeartbeat(): Response {
-  return json({ status: "ok", ts: now() });
+  return json({ status: "ok", ts: nowIso() });
 }
-
-// ─── Field Mapping Sync (from customer backend) ───────────────────────────────
 
 async function handleFieldMappingSync(request: Request, env: Env): Promise<Response> {
   const body = (await request.json()) as {
@@ -524,21 +619,17 @@ async function handleFieldMappingSync(request: Request, env: Env): Promise<Respo
   const tenant = await env.DB.prepare("SELECT id FROM tenants WHERE licence_key_hash = ?")
     .bind(keyHash)
     .first<{ id: string }>();
+  if (!tenant) return json({ error: "unauthorized", message: "Invalid licence key" }, 401);
 
-  if (!tenant) {
-    return json({ error: "unauthorized", message: "Invalid licence key" }, 401);
-  }
-
-  // Check self-service is enabled for this tenant
   const features = await env.DB.prepare("SELECT features FROM tenants WHERE id = ?")
     .bind(tenant.id)
     .first<{ features: string }>();
   const featureObj = JSON.parse(features?.features || "{}") as TenantFeatures;
   if (!featureObj.field_mapping_self_service) {
-    return json({ error: "forbidden", message: "Field mapping self-service is not enabled for this tenant" }, 403);
+    return json({ error: "forbidden", message: "Field mapping self-service is not enabled" }, 403);
   }
 
-  const ts = now();
+  const ts = nowIso();
   let upserted = 0;
   for (const m of mappings) {
     await env.DB.prepare(`
@@ -552,15 +643,9 @@ async function handleFieldMappingSync(request: Request, env: Env): Promise<Respo
         updated_at = excluded.updated_at
     `)
       .bind(
-        generateId(),
-        tenant.id,
-        m.module,
-        m.standard_field,
-        m.customer_field,
-        m.customer_label || null,
-        m.is_mapped ? 1 : 0,
-        m.notes || null,
-        ts
+        generateId(), tenant.id, m.module, m.standard_field,
+        m.customer_field, m.customer_label || null, m.is_mapped ? 1 : 0,
+        m.notes || null, ts
       )
       .run();
     upserted++;
@@ -569,10 +654,54 @@ async function handleFieldMappingSync(request: Request, env: Env): Promise<Respo
   return json({ synced: upserted, tenant_id: tenant.id });
 }
 
+// ─── Admin: Analytics ────────────────────────────────────────────────────────
+
+async function handleAdminAnalytics(request: Request, env: Env): Promise<Response> {
+  const authErr = await requireAdmin(request, env);
+  if (authErr) return authErr;
+
+  const allTenantsResult = await env.DB.prepare(
+    "SELECT status, tier, expiry_date FROM tenants"
+  ).all<{ status: string; tier: string; expiry_date: string }>();
+  const rows = allTenantsResult.results || [];
+  const total = rows.length;
+
+  const byStatus = rows.reduce<Record<string, number>>((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const byTier = rows.reduce<Record<string, number>>((acc, r) => {
+    acc[r.tier] = (acc[r.tier] || 0) + 1;
+    return acc;
+  }, {});
+
+  const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  const expiringResult = await env.DB.prepare(
+    "SELECT id, company_name, expiry_date, tier, status FROM tenants WHERE status = 'active' AND expiry_date <= ? ORDER BY expiry_date ASC LIMIT 10"
+  )
+    .bind(thirtyDaysLater)
+    .all<{ id: string; company_name: string; expiry_date: string; tier: string; status: string }>();
+
+  const recentPingsResult = await env.DB.prepare(
+    "SELECT id, company_name, last_ping, status FROM tenants WHERE last_ping IS NOT NULL ORDER BY last_ping DESC LIMIT 10"
+  ).all<{ id: string; company_name: string; last_ping: string; status: string }>();
+
+  return json({
+    total,
+    by_status: byStatus,
+    by_tier: byTier,
+    expiring_soon: expiringResult.results || [],
+    recent_activity: recentPingsResult.results || [],
+  });
+}
+
 // ─── Admin: Tenants ───────────────────────────────────────────────────────────
 
 async function handleListTenants(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const url = new URL(request.url);
@@ -584,21 +713,13 @@ async function handleListTenants(request: Request, env: Env): Promise<Response> 
   const params: string[] = [];
   const conditions: string[] = [];
 
-  if (status) {
-    conditions.push("status = ?");
-    params.push(status);
-  }
-  if (tier) {
-    conditions.push("tier = ?");
-    params.push(tier);
-  }
+  if (status) { conditions.push("status = ?"); params.push(status); }
+  if (tier) { conditions.push("tier = ?"); params.push(tier); }
   if (search) {
     conditions.push("(LOWER(company_name) LIKE ? OR LOWER(contact_email) LIKE ?)");
     params.push(`%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`);
   }
-  if (conditions.length > 0) {
-    query += " WHERE " + conditions.join(" AND ");
-  }
+  if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
   query += " ORDER BY created_at DESC";
 
   const result = await env.DB.prepare(query).bind(...params).all<TenantRow>();
@@ -606,7 +727,7 @@ async function handleListTenants(request: Request, env: Env): Promise<Response> 
 }
 
 async function handleCreateTenant(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as {
@@ -619,6 +740,11 @@ async function handleCreateTenant(request: Request, env: Env): Promise<Response>
     features?: Partial<TenantFeatures>;
     llm_config?: Partial<LlmConfig>;
     status?: string;
+    admin_user?: {
+      email: string;
+      password: string;
+      role?: string;
+    };
   };
 
   if (!body.company_name || !body.contact_email || !body.expiry_date) {
@@ -630,7 +756,7 @@ async function handleCreateTenant(request: Request, env: Env): Promise<Response>
   const keyHash = await hashKey(licenceKey);
   const keySuffix = licenceKey.slice(-4);
   const id = generateId();
-  const ts = now();
+  const ts = nowIso();
 
   const enabledModules = body.enabled_modules || TIER_MODULES[tier] || TIER_MODULES.starter;
   const enabledMenuItems = body.enabled_menu_items || DEFAULT_MENU_ITEMS;
@@ -642,40 +768,49 @@ async function handleCreateTenant(request: Request, env: Env): Promise<Response>
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
     .bind(
-      id,
-      body.company_name,
-      body.contact_email,
-      keyHash,
-      keySuffix,
-      tier,
-      body.status || "trial",
-      body.expiry_date,
-      JSON.stringify(enabledModules),
-      JSON.stringify(enabledMenuItems),
-      JSON.stringify(features),
-      JSON.stringify(llmConfig),
-      ts,
-      ts
+      id, body.company_name, body.contact_email, keyHash, keySuffix,
+      tier, body.status || "trial", body.expiry_date,
+      JSON.stringify(enabledModules), JSON.stringify(enabledMenuItems),
+      JSON.stringify(features), JSON.stringify(llmConfig), ts, ts
     )
     .run();
+
+  // Create admin user if provided
+  if (body.admin_user?.email && body.admin_user?.password) {
+    const userId = generateId();
+    const passwordHash = await hashKey(body.admin_user.password);
+    await env.DB.prepare(`
+      INSERT INTO tenant_users (id, tenant_id, email, password_hash, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+      .bind(
+        userId, id, body.admin_user.email, passwordHash,
+        body.admin_user.role || "admin", ts, ts
+      )
+      .run();
+  }
 
   return json({ id, licence_key: licenceKey, company_name: body.company_name, tier, status: body.status || "trial" }, 201);
 }
 
 async function handleGetTenant(tenantId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const row = await env.DB.prepare("SELECT * FROM tenants WHERE id = ?")
     .bind(tenantId)
     .first<TenantRow>();
-
   if (!row) return json({ error: "not_found" }, 404);
   return json(parseTenant(row));
 }
 
-async function handleUpdateTenant(tenantId: string, request: Request, env: Env, partial = false): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+async function handleUpdateTenant(
+  tenantId: string,
+  request: Request,
+  env: Env,
+  partial = false
+): Promise<Response> {
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as Partial<{
@@ -706,25 +841,17 @@ async function handleUpdateTenant(tenantId: string, request: Request, env: Env, 
   if (body.enabled_modules !== undefined) { fields.push("enabled_modules = ?"); values.push(JSON.stringify(body.enabled_modules)); }
   if (body.enabled_menu_items !== undefined) { fields.push("enabled_menu_items = ?"); values.push(JSON.stringify(body.enabled_menu_items)); }
   if (body.features !== undefined) {
-    const merged = partial
-      ? { ...JSON.parse(existing.features || "{}"), ...body.features }
-      : body.features;
-    fields.push("features = ?");
-    values.push(JSON.stringify(merged));
+    const merged = partial ? { ...JSON.parse(existing.features || "{}"), ...body.features } : body.features;
+    fields.push("features = ?"); values.push(JSON.stringify(merged));
   }
   if (body.llm_config !== undefined) {
-    const merged = partial
-      ? { ...JSON.parse(existing.llm_config || "{}"), ...body.llm_config }
-      : body.llm_config;
-    fields.push("llm_config = ?");
-    values.push(JSON.stringify(merged));
+    const merged = partial ? { ...JSON.parse(existing.llm_config || "{}"), ...body.llm_config } : body.llm_config;
+    fields.push("llm_config = ?"); values.push(JSON.stringify(merged));
   }
 
   if (fields.length === 0) return json({ error: "bad_request", message: "No fields to update" }, 400);
 
-  fields.push("updated_at = ?");
-  values.push(now());
-  values.push(tenantId);
+  fields.push("updated_at = ?"); values.push(nowIso()); values.push(tenantId);
 
   await env.DB.prepare(`UPDATE tenants SET ${fields.join(", ")} WHERE id = ?`)
     .bind(...values)
@@ -737,7 +864,7 @@ async function handleUpdateTenant(tenantId: string, request: Request, env: Env, 
 }
 
 async function handleDeleteTenant(tenantId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const row = await env.DB.prepare("SELECT id FROM tenants WHERE id = ?")
@@ -751,7 +878,7 @@ async function handleDeleteTenant(tenantId: string, request: Request, env: Env):
 }
 
 async function handleRegenerateKey(tenantId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const row = await env.DB.prepare("SELECT id FROM tenants WHERE id = ?")
@@ -763,15 +890,17 @@ async function handleRegenerateKey(tenantId: string, request: Request, env: Env)
   const newHash = await hashKey(newKey);
   const newSuffix = newKey.slice(-4);
 
-  await env.DB.prepare("UPDATE tenants SET licence_key_hash = ?, licence_key_suffix = ?, updated_at = ? WHERE id = ?")
-    .bind(newHash, newSuffix, now(), tenantId)
+  await env.DB.prepare(
+    "UPDATE tenants SET licence_key_hash = ?, licence_key_suffix = ?, updated_at = ? WHERE id = ?"
+  )
+    .bind(newHash, newSuffix, nowIso(), tenantId)
     .run();
 
   return json({ licence_key: newKey, tenant_id: tenantId });
 }
 
 async function handleGetTenantFieldMappings(tenantId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const url = new URL(request.url);
@@ -786,7 +915,7 @@ async function handleGetTenantFieldMappings(tenantId: string, request: Request, 
 }
 
 async function handleUpsertTenantFieldMappings(tenantId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as {
@@ -802,7 +931,7 @@ async function handleUpsertTenantFieldMappings(tenantId: string, request: Reques
     }>;
   };
 
-  const ts = now();
+  const ts = nowIso();
   let upserted = 0;
   for (const m of body.mappings || []) {
     await env.DB.prepare(`
@@ -818,17 +947,9 @@ async function handleUpsertTenantFieldMappings(tenantId: string, request: Reques
         updated_at = excluded.updated_at
     `)
       .bind(
-        generateId(),
-        tenantId,
-        m.module,
-        m.standard_field,
-        m.standard_label || null,
-        m.customer_field || null,
-        m.customer_label || null,
-        m.data_type || "string",
-        m.is_mapped ? 1 : 0,
-        m.notes || null,
-        ts
+        generateId(), tenantId, m.module, m.standard_field, m.standard_label || null,
+        m.customer_field || null, m.customer_label || null, m.data_type || "string",
+        m.is_mapped ? 1 : 0, m.notes || null, ts
       )
       .run();
     upserted++;
@@ -836,55 +957,10 @@ async function handleUpsertTenantFieldMappings(tenantId: string, request: Reques
   return json({ upserted });
 }
 
-// ─── Admin: Analytics ────────────────────────────────────────────────────────
-
-async function handleAdminAnalytics(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
-  if (authErr) return authErr;
-
-  const allTenantsResult = await env.DB.prepare("SELECT status, tier, expiry_date FROM tenants").all<{
-    status: string;
-    tier: string;
-    expiry_date: string;
-  }>();
-  const rows = allTenantsResult.results || [];
-  const total = rows.length;
-
-  const byStatus = rows.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const byTier = rows.reduce<Record<string, number>>((acc, r) => {
-    acc[r.tier] = (acc[r.tier] || 0) + 1;
-    return acc;
-  }, {});
-
-  const nowTs = Date.now();
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-  const expiringResult = await env.DB.prepare(
-    "SELECT id, company_name, expiry_date, tier, status FROM tenants WHERE status = 'active' AND expiry_date <= ? ORDER BY expiry_date ASC LIMIT 10"
-  )
-    .bind(new Date(nowTs + thirtyDays).toISOString().split("T")[0])
-    .all<{ id: string; company_name: string; expiry_date: string; tier: string; status: string }>();
-
-  const recentPingsResult = await env.DB.prepare(
-    "SELECT id, company_name, last_ping, status FROM tenants WHERE last_ping IS NOT NULL ORDER BY last_ping DESC LIMIT 10"
-  ).all<{ id: string; company_name: string; last_ping: string; status: string }>();
-
-  return json({
-    total,
-    by_status: byStatus,
-    by_tier: byTier,
-    expiring_soon: expiringResult.results || [],
-    recent_activity: recentPingsResult.results || [],
-  });
-}
-
 // ─── Admin: Rules ─────────────────────────────────────────────────────────────
 
 async function handleListRules(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const url = new URL(request.url);
@@ -901,7 +977,7 @@ async function handleListRules(request: Request, env: Env): Promise<Response> {
   if (category) { conditions.push("category = ?"); params.push(category); }
   if (module) { conditions.push("module = ?"); params.push(module); }
   if (severity) { conditions.push("severity = ?"); params.push(severity); }
-  if (enabled !== null) { conditions.push("enabled = ?"); params.push(enabled === "true" ? 1 : 0); }
+  if (enabled !== null && enabled !== "") { conditions.push("enabled = ?"); params.push(enabled === "true" ? 1 : 0); }
   if (search) { conditions.push("LOWER(name) LIKE ?"); params.push(`%${search.toLowerCase()}%`); }
 
   if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
@@ -912,7 +988,7 @@ async function handleListRules(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleCreateRule(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as {
@@ -932,24 +1008,16 @@ async function handleCreateRule(request: Request, env: Env): Promise<Response> {
   }
 
   const id = generateId();
-  const ts = now();
+  const ts = nowIso();
   await env.DB.prepare(`
     INSERT INTO rules (id, name, description, module, category, severity, enabled, conditions, thresholds, tags, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
     .bind(
-      id,
-      body.name,
-      body.description || null,
-      body.module,
-      body.category,
-      body.severity || "medium",
-      body.enabled !== false ? 1 : 0,
-      JSON.stringify(body.conditions || []),
-      JSON.stringify(body.thresholds || {}),
-      JSON.stringify(body.tags || []),
-      ts,
-      ts
+      id, body.name, body.description || null, body.module, body.category,
+      body.severity || "medium", body.enabled !== false ? 1 : 0,
+      JSON.stringify(body.conditions || []), JSON.stringify(body.thresholds || {}),
+      JSON.stringify(body.tags || []), ts, ts
     )
     .run();
 
@@ -958,7 +1026,7 @@ async function handleCreateRule(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleGetRule(ruleId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const row = await env.DB.prepare("SELECT * FROM rules WHERE id = ?").bind(ruleId).first<RuleRow>();
@@ -966,8 +1034,13 @@ async function handleGetRule(ruleId: string, request: Request, env: Env): Promis
   return json(parseRule(row));
 }
 
-async function handleUpdateRule(ruleId: string, request: Request, env: Env, partial = false): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+async function handleUpdateRule(
+  ruleId: string,
+  request: Request,
+  env: Env,
+  partial = false
+): Promise<Response> {
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as Partial<{
@@ -982,7 +1055,9 @@ async function handleUpdateRule(ruleId: string, request: Request, env: Env, part
     tags: string[];
   }>;
 
-  const existing = await env.DB.prepare("SELECT * FROM rules WHERE id = ?").bind(ruleId).first<RuleRow>();
+  const existing = await env.DB.prepare("SELECT * FROM rules WHERE id = ?")
+    .bind(ruleId)
+    .first<RuleRow>();
   if (!existing) return json({ error: "not_found" }, 404);
 
   const fields: string[] = [];
@@ -999,18 +1074,24 @@ async function handleUpdateRule(ruleId: string, request: Request, env: Env, part
   if (body.tags !== undefined) { fields.push("tags = ?"); values.push(JSON.stringify(body.tags)); }
 
   if (fields.length === 0) return json({ error: "bad_request", message: "No fields to update" }, 400);
-  fields.push("updated_at = ?"); values.push(now()); values.push(ruleId);
+  fields.push("updated_at = ?"); values.push(nowIso()); values.push(ruleId);
 
-  await env.DB.prepare(`UPDATE rules SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
-  const updated = await env.DB.prepare("SELECT * FROM rules WHERE id = ?").bind(ruleId).first<RuleRow>();
+  await env.DB.prepare(`UPDATE rules SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
+  const updated = await env.DB.prepare("SELECT * FROM rules WHERE id = ?")
+    .bind(ruleId)
+    .first<RuleRow>();
   return json(parseRule(updated!));
 }
 
 async function handleDeleteRule(ruleId: string, request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
-  const row = await env.DB.prepare("SELECT id FROM rules WHERE id = ?").bind(ruleId).first<{ id: string }>();
+  const row = await env.DB.prepare("SELECT id FROM rules WHERE id = ?")
+    .bind(ruleId)
+    .first<{ id: string }>();
   if (!row) return json({ error: "not_found" }, 404);
 
   await env.DB.prepare("DELETE FROM rules WHERE id = ?").bind(ruleId).run();
@@ -1018,7 +1099,7 @@ async function handleDeleteRule(ruleId: string, request: Request, env: Env): Pro
 }
 
 async function handleBulkImportRules(request: Request, env: Env): Promise<Response> {
-  const authErr = requireAdmin(request, env);
+  const authErr = await requireAdmin(request, env);
   if (authErr) return authErr;
 
   const body = (await request.json()) as {
@@ -1036,7 +1117,7 @@ async function handleBulkImportRules(request: Request, env: Env): Promise<Respon
     }>;
   };
 
-  const ts = now();
+  const ts = nowIso();
   let imported = 0;
   for (const r of body.rules || []) {
     const id = r.id || generateId();
@@ -1063,6 +1144,106 @@ async function handleBulkImportRules(request: Request, env: Env): Promise<Respon
   return json({ imported });
 }
 
+// ─── Tenant User Auth ─────────────────────────────────────────────────────────
+
+async function handleTenantUserLogin(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as {
+    email?: string;
+    password?: string;
+  };
+
+  if (!body.email || !body.password) {
+    return json({ error: "bad_request", message: "email and password are required" }, 400);
+  }
+
+  const passwordHash = await hashKey(body.password);
+  const user = await env.DB.prepare(
+    "SELECT id, tenant_id, email, role FROM tenant_users WHERE email = ? AND password_hash = ?"
+  )
+    .bind(body.email, passwordHash)
+    .first<{ id: string; tenant_id: string; email: string; role: string }>();
+
+  if (!user) {
+    return json({ error: "unauthorized", message: "Invalid credentials" }, 401);
+  }
+
+  // Get tenant info
+  const tenant = await env.DB.prepare("SELECT company_name, status FROM tenants WHERE id = ?")
+    .bind(user.tenant_id)
+    .first<{ company_name: string; status: string }>();
+
+  if (!tenant) {
+    return json({ error: "unauthorized", message: "Tenant not found" }, 401);
+  }
+
+  if (tenant.status === "suspended") {
+    return json({ error: "forbidden", message: "Tenant account is suspended" }, 403);
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const token = await signJwt(
+    {
+      sub: user.email,
+      tenant_id: user.tenant_id,
+      role: user.role,
+      iat: nowSec,
+      exp: nowSec + 8 * 60 * 60, // 8 hours
+    },
+    env.JWT_SECRET
+  );
+
+  return json({
+    token,
+    expiresIn: 8 * 60 * 60,
+    tenant_id: user.tenant_id,
+    company_name: tenant.company_name,
+  });
+}
+
+// ─── Licence Key Management ───────────────────────────────────────────────────
+
+async function handleGetLicenceKey(tenantId: string, request: Request, env: Env): Promise<Response> {
+  const authErr = await requireAdmin(request, env);
+  if (authErr) return authErr;
+
+  const row = await env.DB.prepare("SELECT licence_key_hash FROM tenants WHERE id = ?")
+    .bind(tenantId)
+    .first<{ licence_key_hash: string | null }>();
+
+  if (!row) return json({ error: "not_found" }, 404);
+  if (!row.licence_key_hash) {
+    return json({ error: "no_key", message: "This tenant has no active licence key" }, 404);
+  }
+
+  // For security, we can't retrieve the original key (it's hashed)
+  // Return a message that key exists but can't be shown
+  return json({
+    message: "Licence key exists but cannot be retrieved (hashed)",
+    has_key: true,
+    tenant_id: tenantId
+  });
+}
+
+async function handleDeleteLicenceKey(tenantId: string, request: Request, env: Env): Promise<Response> {
+  const authErr = await requireAdmin(request, env);
+  if (authErr) return authErr;
+
+  const row = await env.DB.prepare("SELECT id FROM tenants WHERE id = ?")
+    .bind(tenantId)
+    .first<{ id: string }>();
+
+  if (!row) return json({ error: "not_found" }, 404);
+
+  const ts = nowIso();
+  await env.DB.prepare(
+    "UPDATE tenants SET licence_key_hash = NULL, licence_key_suffix = NULL, updated_at = ? WHERE id = ?"
+  )
+    .bind(ts, tenantId)
+    .run();
+
+  return json({ deleted: true, tenant_id: tenantId });
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export default {
@@ -1076,7 +1257,15 @@ export default {
     const method = request.method;
 
     try {
-      // ── Public licence endpoints ──────────────────────────────────────────
+      // ── Public: auth ──────────────────────────────────────────────────────
+      if (method === "POST" && path === "/api/admin/login") {
+        return await handleLogin(request, env);
+      }
+      if (method === "POST" && path === "/api/tenant/login") {
+        return await handleTenantUserLogin(request, env);
+      }
+
+      // ── Public: licence ───────────────────────────────────────────────────
       if (method === "POST" && path === "/api/licence/validate") {
         return await handleValidate(request, env);
       }
@@ -1087,61 +1276,12 @@ export default {
         return await handleFieldMappingSync(request, env);
       }
 
-      // ── Legacy endpoints (backward compat) ────────────────────────────────
-      if (method === "POST" && path === "/validate") {
-        return await handleValidate(request, env);
-      }
-      if (method === "GET" && path === "/status") {
-        const key = url.searchParams.get("key") || "";
-        const keyHash = await hashKey(key);
-        const row = await env.DB.prepare("SELECT * FROM tenants WHERE licence_key_hash = ?")
-          .bind(keyHash).first<TenantRow>();
-        if (!row) return json({ valid: false }, 404);
-        const expired = new Date(row.expiry_date) < new Date();
-        return json({
-          valid: row.status === "active" && !expired,
-          expiresAt: row.expiry_date,
-          daysRemaining: daysRemaining(row.expiry_date),
-          modules: JSON.parse(row.enabled_modules || "[]"),
-          features: JSON.parse(row.features || "{}"),
-        });
-      }
-      if (method === "POST" && path === "/provision") {
-        const authErr = requireAdmin(request, env);
-        if (authErr) return authErr;
-        return await handleCreateTenant(request, env);
-      }
-      if (method === "POST" && path === "/revoke") {
-        const authErr = requireAdmin(request, env);
-        if (authErr) return authErr;
-        const body = (await request.json()) as { licenceKey: string };
-        const keyHash = await hashKey(body.licenceKey);
-        await env.DB.prepare("UPDATE tenants SET status = 'suspended', updated_at = ? WHERE licence_key_hash = ?")
-          .bind(now(), keyHash).run();
-        return json({ revoked: true });
-      }
-      if (method === "GET" && path === "/pings") {
-        const authErr = requireAdmin(request, env);
-        if (authErr) return authErr;
-        const result = await env.DB.prepare(
-          "SELECT id, company_name, last_ping, machine_fingerprint FROM tenants WHERE last_ping IS NOT NULL ORDER BY last_ping DESC LIMIT 50"
-        ).all<{ id: string; company_name: string; last_ping: string; machine_fingerprint: string }>();
-        return json({
-          pings: (result.results || []).map((r) => ({
-            tenantId: r.id,
-            companyName: r.company_name,
-            lastSeen: r.last_ping,
-            machineFingerprint: r.machine_fingerprint,
-          })),
-        });
-      }
-
-      // ── Admin: Analytics ──────────────────────────────────────────────────
+      // ── Admin: analytics ──────────────────────────────────────────────────
       if (method === "GET" && path === "/api/admin/analytics") {
         return await handleAdminAnalytics(request, env);
       }
 
-      // ── Admin: Tenants ────────────────────────────────────────────────────
+      // ── Admin: tenants ────────────────────────────────────────────────────
       if (method === "GET" && path === "/api/admin/tenants") {
         return await handleListTenants(request, env);
       }
@@ -1154,11 +1294,11 @@ export default {
         const tenantId = tenantMatch[1];
         const sub = tenantMatch[2] || "";
 
-        if (sub === "/regenerate-key" && method === "POST") {
-          return await handleRegenerateKey(tenantId, request, env);
-        }
-        if (sub === "/offline-token" && method === "POST") {
-          return await handleGenerateOfflineToken(tenantId, request, env);
+        if (sub === "/regenerate-key" && method === "POST") return await handleRegenerateKey(tenantId, request, env);
+        if (sub === "/offline-token" && method === "POST") return await handleGenerateOfflineToken(tenantId, request, env);
+        if (sub === "/licence-key") {
+          if (method === "GET") return await handleGetLicenceKey(tenantId, request, env);
+          if (method === "DELETE") return await handleDeleteLicenceKey(tenantId, request, env);
         }
         if (sub === "/field-mappings") {
           if (method === "GET") return await handleGetTenantFieldMappings(tenantId, request, env);
@@ -1172,16 +1312,10 @@ export default {
         }
       }
 
-      // ── Admin: Rules ──────────────────────────────────────────────────────
-      if (method === "GET" && path === "/api/admin/rules") {
-        return await handleListRules(request, env);
-      }
-      if (method === "POST" && path === "/api/admin/rules") {
-        return await handleCreateRule(request, env);
-      }
-      if (method === "POST" && path === "/api/admin/rules/import") {
-        return await handleBulkImportRules(request, env);
-      }
+      // ── Admin: rules ──────────────────────────────────────────────────────
+      if (method === "GET" && path === "/api/admin/rules") return await handleListRules(request, env);
+      if (method === "POST" && path === "/api/admin/rules") return await handleCreateRule(request, env);
+      if (method === "POST" && path === "/api/admin/rules/import") return await handleBulkImportRules(request, env);
 
       const ruleMatch = path.match(/^\/api\/admin\/rules\/([^/]+)$/);
       if (ruleMatch) {
