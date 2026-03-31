@@ -463,7 +463,7 @@ SENTRY_DSN=
 ## Development setup
 
 ```bash
-git clone https://github.com/EntityOZ/meridian.git && cd meridian
+git clone https://github.com/luketempleman/meridian.git && cd meridian
 cp .env.example .env
 # edit .env — set LLM_PROVIDER=ollama_cloud for dev
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d

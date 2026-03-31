@@ -9,7 +9,7 @@
 
 services:
   api:
-    image: ghcr.io/entityoz/meridian-api:{{VERSION}}
+    image: ghcr.io/luketempleman/meridian-api:{{VERSION}}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file: .env
@@ -34,7 +34,7 @@ services:
       - 8.8.4.4
 
   worker:
-    image: ghcr.io/entityoz/meridian-worker:{{VERSION}}
+    image: ghcr.io/luketempleman/meridian-worker:{{VERSION}}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file: .env
@@ -51,7 +51,7 @@ services:
       - 8.8.4.4
 
   beat:
-    image: ghcr.io/entityoz/meridian-worker:{{VERSION}}
+    image: ghcr.io/luketempleman/meridian-worker:{{VERSION}}
     command: ["celery", "-A", "workers.celery_app", "beat", "--loglevel=info"]
     env_file: .env
     depends_on:
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/entityoz/meridian-frontend:{{VERSION}}
+    image: ghcr.io/luketempleman/meridian-frontend:{{VERSION}}
     ports:
       - "3000:3000"
     env_file: .env

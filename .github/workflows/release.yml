@@ -17,9 +17,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/meridian
-
-jobs:
+      IMAGE_PREFIX: ghcr.io/luketempleman/meridian
   # ─── Build & Push to GHCR (FREE unlimited private repos) ───────────────────
   build-and-push:
     runs-on: ubuntu-latest

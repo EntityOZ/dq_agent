@@ -238,9 +238,9 @@ VERSION="latest"
 echo "Pulling Meridian images from GHCR (this may take several minutes)..."
 
 IMAGES=(
-    "ghcr.io/entityoz/meridian-api:${VERSION}"
-    "ghcr.io/entityoz/meridian-frontend:${VERSION}"
-    "ghcr.io/entityoz/meridian-worker:${VERSION}"
+    "ghcr.io/luketempleman/meridian-api:${VERSION}"
+    "ghcr.io/luketempleman/meridian-frontend:${VERSION}"
+    "ghcr.io/luketempleman/meridian-worker:${VERSION}"
 )
 
 # Add Ollama for Tier 2

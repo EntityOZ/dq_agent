@@ -6,7 +6,7 @@
 
 services:
   ollama:
-    image: ghcr.io/entityoz/meridian-ollama:{{MODEL_TAG}}
+    image: ghcr.io/luketempleman/meridian-ollama:{{MODEL_TAG}}
     volumes:
       - ollama_data:/root/.ollama
     networks:

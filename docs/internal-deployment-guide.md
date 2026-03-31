@@ -35,7 +35,7 @@ git push origin v1.2.0
 
 This triggers `.github/workflows/release.yml` which:
 - ✅ Builds production images from `docker/Dockerfile.*.prod`
-- ✅ Pushes to GHCR (`ghcr.io/entityoz/meridian-*`)
+- ✅ Pushes to GHCR (`ghcr.io/luketempleman/meridian-*`)
 - ✅ Images are automatically private
 - ✅ Uses GitHub's built-in authentication
 
@@ -112,7 +112,7 @@ Customers get access to pull images but **cannot see your source code**.
 
 1. Get customer's GitHub username
 2. For each package, grant read access:
-   - Go to https://github.com/orgs/EntityOZ/packages
+   - Go to https://github.com/luketempleman?tab=packages
    - Click on package (e.g., `meridian-api`)
    - **Package settings** → **Manage Actions access**
    - Click **Add repository or user**
@@ -233,17 +233,17 @@ On internet-connected machine:
 docker login ghcr.io
 
 # Pull images
-docker pull ghcr.io/entityoz/meridian-api:v1.2.0
-docker pull ghcr.io/entityoz/meridian-frontend:v1.2.0
-docker pull ghcr.io/entityoz/meridian-worker:v1.2.0
-docker pull ghcr.io/entityoz/meridian-ollama:qwen3-5-9b-instruct  # Tier 2
+docker pull ghcr.io/luketempleman/meridian-api:v1.2.0
+docker pull ghcr.io/luketempleman/meridian-frontend:v1.2.0
+docker pull ghcr.io/luketempleman/meridian-worker:v1.2.0
+docker pull ghcr.io/luketempleman/meridian-ollama:qwen3-5-9b-instruct  # Tier 2
 
 # Export
 docker save \
-  ghcr.io/entityoz/meridian-api:v1.2.0 \
-  ghcr.io/entityoz/meridian-frontend:v1.2.0 \
-  ghcr.io/entityoz/meridian-worker:v1.2.0 \
-  ghcr.io/entityoz/meridian-ollama:qwen3-5-9b-instruct \
+  ghcr.io/luketempleman/meridian-api:v1.2.0 \
+  ghcr.io/luketempleman/meridian-frontend:v1.2.0 \
+  ghcr.io/luketempleman/meridian-worker:v1.2.0 \
+  ghcr.io/luketempleman/meridian-ollama:qwen3-5-9b-instruct \
   -o meridian-images-v1.2.0.tar
 
 # Compress

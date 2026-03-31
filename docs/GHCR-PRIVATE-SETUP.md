@@ -23,7 +23,7 @@ Your Meridian deployment is now set up with **private GitHub Container Registry 
    git tag v1.2.0
    git push origin v1.2.0
    ```
-   → GitHub Actions builds and pushes to `ghcr.io/entityoz/meridian-*`
+   → GitHub Actions builds and pushes to `ghcr.io/luketempleman/meridian-*`
 
 2. **Grant customer access** (per deployment):
    - Customer provides GitHub username
@@ -84,7 +84,7 @@ Your Meridian deployment is now set up with **private GitHub Container Registry 
 # 1. Get customer's GitHub username (they send it to you)
 
 # 2. For EACH package, grant access:
-#    - Go to: https://github.com/orgs/EntityOZ/packages
+#    - Go to: https://github.com/luketempleman?tab=packages
 #    - Click package: meridian-api
 #    - Package settings → Manage Actions access
 #    - Add user → Enter username → Role: Read
@@ -103,14 +103,14 @@ Customer runs:
 docker login ghcr.io -u their-username
 # Enter their PAT
 
-docker pull ghcr.io/entityoz/meridian-api:latest
+docker pull ghcr.io/luketempleman/meridian-api:latest
 ```
 
 Success = access working ✓
 
 ### Revoke Customer Access
 
-1. Go to: https://github.com/orgs/EntityOZ/packages
+1. Go to: https://github.com/luketempleman?tab=packages
 2. Click package
 3. Package settings → Find user → Remove
 
@@ -130,12 +130,12 @@ git tag v1.0.1-test
 git push origin v1.0.1-test
 ```
 
-Watch: https://github.com/EntityOZ/meridian/actions
+Watch: https://github.com/luketempleman/meridian/actions
 
 ### 2. Verify Images
 
 Check packages appear:
-- https://github.com/orgs/EntityOZ/packages
+- https://github.com/luketempleman?tab=packages
 
 Should see:
 - `meridian-api:v1.0.1-test`
@@ -147,8 +147,8 @@ Should see:
 
 Grant your own GitHub username access and test pull:
 ```bash
-docker login ghcr.io -u YOUR_USERNAME
-docker pull ghcr.io/entityoz/meridian-api:v1.0.1-test
+docker login ghcr.io -u luketempleman
+docker pull ghcr.io/luketempleman/meridian-api:v1.0.1-test
 ```
 
 ### 4. Create First Customer Package

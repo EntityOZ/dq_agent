@@ -170,7 +170,7 @@ cat .env
 - **Check GitHub access**: Contact support@vantax.co.za to verify your GitHub username has been granted access
 - **Verify token permissions**: Personal Access Token must have `read:packages` scope
 - **Test login**: `echo $TOKEN | docker login ghcr.io -u USERNAME --password-stdin`
-- **Verify image access**: Try `docker pull ghcr.io/entityoz/meridian-api:latest`
+- **Verify image access**: Try `docker pull ghcr.io/luketempleman/meridian-api:latest`
 
 #### Database connection errors
 ```bash
@@ -197,10 +197,10 @@ For environments without internet access:
    docker login ghcr.io
 
    # Pull images
-   docker pull ghcr.io/entityoz/meridian-api:latest
-   docker pull ghcr.io/entityoz/meridian-frontend:latest
-   docker pull ghcr.io/entityoz/meridian-worker:latest
-   docker pull ghcr.io/entityoz/meridian-ollama:qwen3-5-9b-instruct  # Tier 2 only
+   docker pull ghcr.io/luketempleman/meridian-api:latest
+   docker pull ghcr.io/luketempleman/meridian-frontend:latest
+   docker pull ghcr.io/luketempleman/meridian-worker:latest
+   docker pull ghcr.io/luketempleman/meridian-ollama:qwen3-5-9b-instruct  # Tier 2 only
    
    # Export images
    docker save \
