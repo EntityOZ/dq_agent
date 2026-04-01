@@ -31,24 +31,26 @@ COPY agents/ agents/
 COPY checks/ checks/
 COPY templates/ templates/
 
-# Compile all Python source to .pyc bytecode
+# Compile all Python source to .pyc bytecode (exclude migrations - they must stay as .py)
 RUN python -m compileall -b -f \
-        api/ llm/ sap/ workers/ db/ agents/ checks/ \
+        api/ llm/ sap/ workers/ agents/ checks/ \
     && echo "Compilation complete"
 
-# Strip .py source files (keep __init__.py stubs for package discovery)
-RUN find . -name "*.py" ! -name "__init__.py" -delete && \
+# Strip .py source files (keep __init__.py and db/migrations/*.py for Alembic)
+RUN find . -path "./db/migrations" -prune -o -name "*.py" ! -name "__init__.py" -type f -delete && \
     find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Reduce __init__.py to empty stubs (removes any IP in module docstrings)
-RUN find . -name "__init__.py" -exec truncate -s 0 {} \;
+# But preserve db/migrations/__init__.py for Alembic
+RUN find . -path "./db/migrations" -prune -o -name "__init__.py" -type f -exec truncate -s 0 {} \;
 
 # === PRODUCTION STAGE ===
 FROM python:3.12-slim-bookworm
 
-# Install runtime system dependencies (WeasyPrint, curl for healthcheck)
+# Install runtime system dependencies (WeasyPrint, curl for healthcheck, postgresql-client for migrations)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    postgresql-client \
     libpango1.0-0 \
     libgdk-pixbuf-2.0-0 \
     libffi8 \
@@ -67,15 +69,19 @@ COPY --from=builder /build .
 # Copy alembic.ini for migrations (needed by installer)
 COPY alembic.ini /app/
 
-# Remove any stray development artifacts
-RUN find . -name "*.py" ! -name "__init__.py" -delete 2>/dev/null || true && \
+# Remove any stray development artifacts (preserve db/migrations/*.py for Alembic)
+RUN find . -path "./db/migrations" -prune -o -name "*.py" ! -name "__init__.py" -type f -delete 2>/dev/null || true && \
     find . -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true && \
     find . -name "Makefile" -delete 2>/dev/null || true
 
 # User management CLI (needs source .py, not compiled)
 COPY scripts/manage_users.py /app/scripts/manage_users.py
 
+# Copy entrypoint script that runs migrations
+COPY docker/entrypoint.api.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 ENV PYTHONPATH=/app
 
 EXPOSE 8000
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/entrypoint.sh"]
