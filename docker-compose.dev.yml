@@ -84,6 +84,21 @@ services:
       - ./llm:/app/llm
       - ./sap:/app/sap
 
+  beat:
+    image: meridian-api-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment: *dev-env
+    volumes:
+      - ./api:/app/api
+      - ./agents:/app/agents
+      - ./checks:/app/checks
+      - ./workers:/app/workers
+      - ./db:/app/db
+      - ./llm:/app/llm
+      - ./sap:/app/sap
+
   frontend:
     image: node:20-alpine
     working_dir: /app

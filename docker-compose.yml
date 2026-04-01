@@ -75,7 +75,7 @@ services:
       retries: 3
 
   ollama:
-    image: ghcr.io/entityoz/dq_agent/meridian-ollama:latest
+    image: ghcr.io/luketempleman/meridian-ollama:latest
     container_name: meridian-ollama
     volumes:
       - ollama_data:/root/.ollama
@@ -89,7 +89,7 @@ services:
       retries: 3
 
   api:
-    image: ghcr.io/entityoz/dq_agent/meridian-api:latest
+    image: ghcr.io/luketempleman/meridian-api:latest
     container_name: meridian-api
     env_file: .env
     ports:
@@ -109,7 +109,7 @@ services:
       retries: 3
 
   worker:
-    image: ghcr.io/entityoz/dq_agent/meridian-worker:latest
+    image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-worker
     env_file: .env
     depends_on:
@@ -122,7 +122,7 @@ services:
     restart: unless-stopped
 
   beat:
-    image: ghcr.io/entityoz/dq_agent/meridian-worker:latest
+    image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-beat
     command: ["celery", "-A", "workers.celery_app", "beat", "--loglevel=info"]
     env_file: .env
@@ -133,7 +133,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/entityoz/dq_agent/meridian-frontend:latest
+    image: ghcr.io/luketempleman/meridian-frontend:latest
     container_name: meridian-frontend
     env_file: .env
     ports:
