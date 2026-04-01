@@ -60,8 +60,8 @@ echo "Enter your Meridian licence key (provided by Vantax):"
 read -p "Licence Key: " LICENCE_KEY
 LICENCE_KEY=$(echo "$LICENCE_KEY" | tr -d ' ' | tr '[:lower:]' '[:upper:]')
 
-[[ ! "$LICENCE_KEY" =~ ^MRDX-[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}$ ]] && \
-    error "Invalid licence key format. Expected: MRDX-XXXXXXXX-XXXX-XXXX"
+[[ ! "$LICENCE_KEY" =~ ^MRDX-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$ ]] && \
+    error "Invalid licence key format. Expected: MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
 
 info "Licence key: ${LICENCE_KEY:0:9}****-****"
 
@@ -73,11 +73,11 @@ echo "Contacting licence server..."
 
 VALIDATION=$(curl -s -X POST "$LICENCE_SERVER" \
     -H "Content-Type: application/json" \
-    -d "{\"licence_key\":\"$LICENCE_KEY\",\"machine_fingerprint\":\"$(hostname)\"}" \
+    -d "{\"licenceKey\":\"$LICENCE_KEY\",\"machineFingerprint\":\"$(hostname)\"}" \
     -w "\n%{http_code}")
 
 HTTP_CODE=$(echo "$VALIDATION" | tail -n1)
-BODY=$(echo "$VALIDATION" | head -n-1)
+BODY=$(echo "$VALIDATION" | sed '$d')
 
 if [ "$HTTP_CODE" != "200" ]; then
     REASON=$(echo "$BODY" | grep -o '"reason":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
@@ -129,6 +129,7 @@ SAP_CONNECTOR=rfc
 CREDENTIAL_MASTER_KEY=$SECRET
 
 AUTH_MODE=local
+NEXT_PUBLIC_AUTH_MODE=local
 JWT_SECRET=$SECRET
 
 MERIDIAN_CORS_ORIGINS=http://localhost:3000
@@ -302,7 +303,7 @@ for i in {1..30}; do
 done
 
 echo "Running database migrations..."
-docker compose run --rm api alembic upgrade head || error "Migration failed"
+docker compose run --rm -T api alembic upgrade head || error "Migration failed"
 info "Database initialized"
 
 echo "Starting all services..."

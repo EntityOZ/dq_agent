@@ -64,6 +64,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy compiled application (no .py source)
 COPY --from=builder /build .
 
+# Copy alembic.ini for migrations (needed by installer)
+COPY alembic.ini /app/
+
 # Remove any stray development artifacts
 RUN find . -name "*.py" ! -name "__init__.py" -delete 2>/dev/null || true && \
     find . -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true && \
