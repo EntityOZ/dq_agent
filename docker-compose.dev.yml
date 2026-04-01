@@ -1,40 +1,62 @@
-# Development overrides — builds from source, uses Ollama Cloud, hot reload
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# =========================================================
+# Meridian Platform — Development Overlay
+# =========================================================
+# Builds from source, hot-reload, Ollama Cloud LLM.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Or set once per shell session:
+#   export COMPOSE_FILE="docker-compose.yml;docker-compose.dev.yml"  (Linux/Mac)
+#   $env:COMPOSE_FILE = "docker-compose.yml;docker-compose.dev.yml"  (PowerShell)
+# =========================================================
 
 services:
   api:
+    image: meridian-api-dev
     build:
       context: .
       dockerfile: Dockerfile.api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     environment: &dev-env
+      # ── LLM (Ollama Cloud for dev) ──────────────────────────
       - LLM_PROVIDER=ollama_cloud
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:397b-cloud}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://api.ollama.com/v1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - DATABASE_URL=postgresql+asyncpg://meridian:${DB_PASSWORD}@db:5432/meridian
-      - DATABASE_URL_SYNC=postgresql://meridian:${DB_PASSWORD}@db:5432/meridian
+      # ── Database ────────────────────────────────────────────
+      - DATABASE_URL=postgresql+asyncpg://meridian:${DB_PASSWORD:-password}@db:5432/meridian
+      - DATABASE_URL_SYNC=postgresql://meridian:${DB_PASSWORD:-password}@db:5432/meridian
+      # ── Redis ───────────────────────────────────────────────
       - REDIS_URL=redis://redis:6379/0
+      # ── MinIO ───────────────────────────────────────────────
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-meridian}
-      - MINIO_SECRET_KEY=${MINIO_PASSWORD}
+      - MINIO_SECRET_KEY=${MINIO_PASSWORD:-minioadmin}
       - MINIO_BUCKET_UPLOADS=${MINIO_BUCKET_UPLOADS:-meridian-uploads}
       - MINIO_BUCKET_REPORTS=${MINIO_BUCKET_REPORTS:-meridian-reports}
+      # ── CORS ────────────────────────────────────────────────
       - MERIDIAN_CORS_ORIGINS=${MERIDIAN_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # ── Licence ─────────────────────────────────────────────
       - LICENCE_KEY=${LICENCE_KEY:-}
       - LICENCE_SERVER_URL=${LICENCE_SERVER_URL:-https://licence.meridian.vantax.co.za}
       - LICENCE_FILE=${LICENCE_FILE:-}
+      # ── Auth ────────────────────────────────────────────────
+      - AUTH_MODE=${AUTH_MODE:-local}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-me}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      # ── SAP ─────────────────────────────────────────────────
+      - SAP_CONNECTOR=${SAP_CONNECTOR:-mock}
+      # ── Notifications (optional) ────────────────────────────
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL:-}
-      - AUTH_MODE=${AUTH_MODE:-local}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-noreply@meridian.local}
+      # ── Observability ───────────────────────────────────────
       - SENTRY_DSN=${SENTRY_DSN:-}
     volumes:
       - ./api:/app/api
@@ -45,8 +67,10 @@ services:
       - ./llm:/app/llm
       - ./sap:/app/sap
       - ./templates:/app/templates
+      - ./scripts:/app/scripts
 
   worker:
+    image: meridian-api-dev
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -78,8 +102,8 @@ services:
     networks:
       - meridian-net
 
-  llm:
-    # Disable the local LLM service in dev mode
+  ollama:
+    # Disable the local Ollama container in dev mode (uses Ollama Cloud instead)
     profiles:
       - gpu
 
