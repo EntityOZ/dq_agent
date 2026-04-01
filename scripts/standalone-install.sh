@@ -289,6 +289,15 @@ info "All images downloaded"
 # ── Start Services ────────────────────────────────────────
 step "Starting Services"
 
+# Check for existing deployment
+if docker ps -a --format '{{.Names}}' | grep -q "^meridian-"; then
+    warn "Existing Meridian containers detected"
+    echo "Stopping and removing old deployment..."
+    docker compose down -v 2>/dev/null || true
+    docker rm -f $(docker ps -aq -f "name=meridian-" 2>/dev/null) 2>/dev/null || true
+    info "Old deployment cleaned up"
+fi
+
 echo "Starting database and Redis..."
 docker compose up -d db redis
 
