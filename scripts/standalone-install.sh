@@ -132,6 +132,10 @@ AUTH_MODE=local
 NEXT_PUBLIC_AUTH_MODE=local
 JWT_SECRET=$SECRET
 
+# Clerk dummy keys (required by frontend build, not used in local auth mode)
+CLERK_SECRET_KEY=sk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15c2VjcmV0a2V5
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15a2V5
+
 MERIDIAN_CORS_ORIGINS=http://localhost:3000
 EOF
 
