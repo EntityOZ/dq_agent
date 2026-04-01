@@ -69,6 +69,10 @@ class LocalAuthMiddleware(BaseHTTPMiddleware):
         # Skip excluded paths
         if path in _EXCLUDED_PATHS:
             return await call_next(request)
+        
+        # Allow CORS preflight requests through
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         # Extract Bearer token
         auth_header = request.headers.get("authorization", "")
