@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    image: ghcr.io/luketempleman/meridian-api:latest
     environment: &api-env
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://llm:11434}
@@ -43,7 +43,7 @@ services:
       start_period: 30s
 
   worker:
-    image: ghcr.io/entityoz/dq_agent/vantax-api:latest
+    image: ghcr.io/luketempleman/meridian-api:latest
     command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
     environment: *api-env
     depends_on:
@@ -64,7 +64,7 @@ services:
       start_period: 30s
 
   frontend:
-    image: ghcr.io/entityoz/dq_agent/vantax-frontend:latest
+    image: ghcr.io/luketempleman/meridian-frontend:latest
     ports:
       - "3000:3000"
     environment:

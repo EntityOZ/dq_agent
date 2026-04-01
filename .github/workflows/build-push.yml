@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: ghcr.io/entityoz/dq_agent
+  REGISTRY: ghcr.io/luketempleman/meridian
 
 jobs:
   build:

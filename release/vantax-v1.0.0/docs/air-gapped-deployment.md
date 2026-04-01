@@ -6,16 +6,16 @@ For environments with no internet access.
 
 ```bash
 # Pull the images
-docker pull ghcr.io/entityoz/dq_agent/vantax-api:latest
-docker pull ghcr.io/entityoz/dq_agent/vantax-frontend:latest
+docker pull ghcr.io/luketempleman/meridian-api:latest
+docker pull ghcr.io/luketempleman/meridian-frontend:latest
 docker pull postgres:16-alpine
 docker pull redis:7-alpine
 docker pull ollama/ollama:latest
 docker pull minio/minio:latest
 
 # Save to tarballs
-docker save ghcr.io/entityoz/dq_agent/vantax-api:latest | gzip > vantax-api.tar.gz
-docker save ghcr.io/entityoz/dq_agent/vantax-frontend:latest | gzip > vantax-frontend.tar.gz
+docker save ghcr.io/luketempleman/meridian-api:latest | gzip > meridian-api.tar.gz
+docker save ghcr.io/luketempleman/meridian-frontend:latest | gzip > meridian-frontend.tar.gz
 docker save postgres:16-alpine | gzip > postgres.tar.gz
 docker save redis:7-alpine | gzip > redis.tar.gz
 docker save ollama/ollama:latest | gzip > ollama.tar.gz
