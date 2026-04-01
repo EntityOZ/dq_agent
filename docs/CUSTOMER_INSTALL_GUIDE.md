@@ -59,7 +59,7 @@ For other operating systems, visit: https://docs.docker.com/engine/install/
 You will need two things from Vantax:
 
 1. **Meridian Licence Key**
-   - Format: `MRDX-XXXXXXXX-XXXX-XXXX`
+   - Format: `MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX`
    - Provided in your welcome email
 
 2. **Installation Script**
@@ -111,8 +111,10 @@ The installer will guide you through the setup. Have your information ready:
 #### Prompt 1: Licence Key
 ```
 Enter your Meridian licence key (provided by Vantax):
-Licence Key: MRDX-XXXXXXXX-XXXX-XXXX
+Licence Key: MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX
 ```
+
+The installer will validate your licence with Vantax servers and retrieve your company information.
 
 #### Prompt 2: Admin Account
 ```
@@ -129,10 +131,11 @@ Admin Password: ********
 The installer will now automatically:
 
 - ✅ Validate your licence with Vantax servers
-- ✅ Download Meridian images (~3GB download, takes 5-15 minutes)
-- ✅ Generate secure configuration
-- ✅ Start all services
-- ✅ Initialize database
+- ✅ Download Meridian images from GitHub Container Registry (~5GB, takes 10-20 minutes)
+- ✅ Generate secure configuration with random passwords
+- ✅ Start database and cache services
+- ✅ Run database migrations
+- ✅ Start all application services (API, Workers, AI, Dashboard)
 - ✅ Create your admin account
 
 **Do not interrupt the installation process.**
@@ -195,8 +198,40 @@ docker compose ps
 When a new version is released:
 
 ```bash
+# Pull latest images
 docker compose pull
+
+# Stop services
+docker compose down
+
+# Start with new images
 docker compose up -d
+
+# Check status
+docker compose ps
+```
+
+### Backup Meridian
+
+Backup your database and configuration:
+
+```bash
+# Backup database
+docker compose exec db pg_dump -U meridian meridian > meridian-backup-$(date +%Y%m%d).sql
+
+# Backup configuration
+cp .env .env.backup-$(date +%Y%m%d)
+```
+
+### Restore from Backup
+
+```bash
+# Restore database
+cat meridian-backup-20260401.sql | docker compose exec -T db psql -U meridian meridian
+
+# Restore configuration
+cp .env.backup-20260401 .env
+docker compose restart
 ```
 
 ---
@@ -210,32 +245,48 @@ docker compose up -d
 **Solutions**:
 1. Check internet connectivity: `ping ghcr.io`
 2. Verify Docker is running: `docker ps`
-3. Check disk space: `df -h`
+3. Check disk space: `df -h` (need at least 20GB free)
 4. If behind a corporate proxy, configure Docker proxy settings
+5. Check Docker daemon is running: `sudo systemctl status docker`
 
 **Test manually**:
 ```bash
 docker pull ghcr.io/luketempleman/meridian-api:latest
+docker pull ghcr.io/luketempleman/meridian-frontend:latest
+docker pull ghcr.io/luketempleman/meridian-worker:latest
+docker pull ghcr.io/luketempleman/meridian-ollama:latest
 ```
+
+**Note**: Meridian images are publicly accessible. No GitHub account or authentication is required.
 
 ### Licence Validation Fails
 
 **Problem**: "Licence validation failed: invalid_key"
 
 **Solutions**:
-1. Double-check the licence key (correct format: MRDX-XXXXXXXX-XXXX-XXXX)
-2. Ensure your server has internet access to https://meridian-licence-worker.reshigan-085.workers.dev
-3. Contact support@vantax.co.za if the key is correct but validation fails
+1. Double-check the licence key (correct format: `MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX`)
+2. Ensure your server has internet access to: `https://meridian-licence-worker.reshigan-085.workers.dev`
+3. Test connectivity: `curl https://meridian-licence-worker.reshigan-085.workers.dev/api/licence/heartbeat`
+4. Verify the key is active in your Meridian HQ account
+5. Contact support@vantax.co.za if the key is correct but validation fails
+
+**Common Error Codes**:
+- `missing_key` — Licence key not found in database
+- `invalid_key` — Licence key format is incorrect
+- `expired` — Licence has expired
+- `suspended` — Licence has been suspended
 
 ### Services Don't Start
 
 **Problem**: Database or services fail health checks
 
 **Solutions**:
-1. Check available disk space: `df -h`
-2. Check available RAM: `free -h`
+1. Check available disk space: `df -h` (need at least 20GB free)
+2. Check available RAM: `free -h` (need at least 8GB)
 3. View service logs: `docker compose logs db` or `docker compose logs api`
-4. Restart services: `docker compose restart`
+4. Check if ports are available: `lsof -i :3000` and `lsof -i :8000`
+5. Restart services: `docker compose restart`
+6. Full reset (WARNING: deletes all data): `docker compose down -v && bash standalone-install.sh`
 
 ### Cannot Access Dashboard
 
