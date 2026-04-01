@@ -89,7 +89,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-QEMU for multi-platform builds
+
+      - name: Set up QEMU for multi-platform builds
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
@@ -112,5 +113,4 @@ QEMU for multi-platform builds
             ${{ env.IMAGE_PREFIX }}-ollama:${{ steps.model_tag.outputs.MODEL_TAG }}
             ${{ env.IMAGE_PREFIX }}-ollama:latest
           cache-from: type=gha
-          cache-to: type=gha,mode=maxL_TAG}
-          docker push ${{ env.IMAGE_PREFIX }}-ollama:latest
+          cache-to: type=gha,mode=max
