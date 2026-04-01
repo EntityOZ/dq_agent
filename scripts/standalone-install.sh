@@ -114,8 +114,8 @@ OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:3b
 
 DB_PASSWORD=$DB_PASS
-DATABASE_URL=postgresql+asyncpg://meridian:\${DB_PASSWORD}@db:5432/meridian
-DATABASE_URL_SYNC=postgresql://meridian:\${DB_PASSWORD}@db:5432/meridian
+DATABASE_URL=postgresql+asyncpg://meridian:$DB_PASS@db:5432/meridian
+DATABASE_URL_SYNC=postgresql://meridian:$DB_PASS@db:5432/meridian
 
 REDIS_URL=redis://redis:6379/0
 
