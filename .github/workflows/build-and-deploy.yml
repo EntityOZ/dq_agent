@@ -79,8 +79,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: luketempleman
+          password: ${{ secrets.GHCR_TOKEN }}
       
       - name: Set up QEMU for multi-platform builds
         uses: docker/setup-qemu-action@v3
