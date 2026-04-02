@@ -169,6 +169,18 @@ info "Default configuration created: meridian.env"
 # ── Docker Compose Definition ─────────────────────────────
 step "Docker Configuration"
 
+# Configure ports dynamically
+echo "🔧 Configuring ports..."
+if [ -f "scripts/port-config.sh" ]; then
+    ./scripts/port-config.sh auto
+else
+    # Default ports if port-config script not available
+    export MERIDIAN_API_PORT=${MERIDIAN_API_PORT:-8000}
+    export MERIDIAN_FRONTEND_PORT=${MERIDIAN_FRONTEND_PORT:-3000}
+    echo "   API Port:      $MERIDIAN_API_PORT"
+    echo "   Frontend Port: $MERIDIAN_FRONTEND_PORT"
+fi
+
 # Create simplified docker-compose.yml for all platforms
 cat > docker-compose.yml << 'COMPOSE_EOF'
 version: "3.9"
@@ -264,7 +276,7 @@ services:
     environment:
       - DB_PASSWORD_FILE=/run/secrets/db_password
     ports:
-      - "8000:8000"
+      - "${MERIDIAN_API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -313,8 +325,10 @@ services:
     image: ghcr.io/luketempleman/meridian-frontend:latest
     container_name: meridian-frontend
     env_file: ./meridian.env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:${MERIDIAN_API_PORT:-8000}
     ports:
-      - "3000:3000"
+      - "${MERIDIAN_FRONTEND_PORT:-3000}:3000"
     depends_on:
       - api
     networks:

@@ -25,6 +25,15 @@ Meridian is an enterprise SAP Data Quality and Master Data Management platform t
 - RAM: 16GB minimum for local AI (32GB recommended)
 - Storage: 50GB+ SSD storage
 
+## Dynamic Port Configuration
+
+The deployment automatically detects if ports 8000 (API) and 3000 (Frontend) are in use and will automatically select alternative available ports:
+
+- **API Port:** 8000 (automatically incremented if in use)
+- **Frontend Port:** 3000 (automatically incremented if in use)
+
+Port configurations are displayed during setup and stored in environment variables for Docker Compose to use.
+
 ## Deployment
 
 ### Automated Setup (Recommended)
@@ -87,11 +96,21 @@ setup.bat
 
 ## Accessing Meridian
 
-Once deployment is complete:
+Once deployment is complete, the platform will be available at the configured ports:
 
-- **Web Dashboard:** http://localhost:3000
-- **API Documentation:** http://localhost:8000/docs
-- **Health Check:** http://localhost:8000/health
+- **Web Dashboard:** http://localhost:[PORT] (default: 3000, or next available)
+- **API Documentation:** http://localhost:[PORT]/docs (default: 8000, or next available)
+- **Health Check:** http://localhost:[PORT]/health (default: 8000, or next available)
+
+The specific ports will be displayed during setup. To find the current ports:
+
+```bash
+# Check API port
+echo "API Port: ${MERIDIAN_API_PORT:-8000}"
+
+# Check Frontend port
+echo "Frontend Port: ${MERIDIAN_FRONTEND_PORT:-3000}"
+```
 
 Default credentials (change after first login): _Use the admin account you created_
 
@@ -136,6 +155,19 @@ Solutions:
 - Check available system resources (RAM, disk space)
 - View logs: `docker compose logs [servicename]`
 - Give services time to initialize (can take several minutes)
+
+**Port conflicts**
+```
+Error response from daemon: Ports are not available
+```
+Solutions:
+- The automatic port detection should handle most cases
+- Manually set ports using environment variables:
+  ```bash
+  export MERIDIAN_API_PORT=8001
+  export MERIDIAN_FRONTEND_PORT=3001
+  docker compose up -d
+  ```
 
 ### Useful Commands
 

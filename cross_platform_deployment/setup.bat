@@ -58,6 +58,31 @@ for /f "delims=" %%i in ('docker compose version') do set COMPOSE_VERSION=%%i
 echo Found: %COMPOSE_VERSION%
 echo.
 
+REM Configure ports
+echo Checking for available ports...
+powershell.exe -ExecutionPolicy Bypass -Command ^
+"$apiPort = 8000; $frontendPort = 3000; ^
+while ((Get-NetTCPConnection -LocalPort $apiPort -ErrorAction SilentlyContinue)) { $apiPort++; }; ^
+while ((Get-NetTCPConnection -LocalPort $frontendPort -ErrorAction SilentlyContinue)) { $frontendPort++; }; ^
+if ($apiPort -ne 8000) { Write-Host \"API port changed from 8000 to $apiPort\" }; ^
+if ($frontendPort -ne 3000) { Write-Host \"Frontend port changed from 3000 to $frontendPort\" }; ^
+Write-Output \"MERIDIAN_API_PORT=$apiPort\" > .env.port.tmp; ^
+Write-Output \"MERIDIAN_FRONTEND_PORT=$frontendPort\" >> .env.port.tmp"
+
+REM Check if port configuration file was created
+if exist ".env.port.tmp" (
+    echo Port configuration updated.
+    REM Append port configuration to main env file
+    type .env.port.tmp >> meridian.env 2>nul
+    del .env.port.tmp
+) else (
+    echo Using default ports.
+    echo MERIDIAN_API_PORT=8000 >> meridian.env
+    echo MERIDIAN_FRONTEND_PORT=3000 >> meridian.env
+)
+
+echo.
+
 echo Setup preparation successful!
 echo.
 
@@ -69,7 +94,7 @@ echo 4. Run: docker compose pull
 echo 5. Run: docker compose up -d
 echo.
 
-echo For detailed instructions, please refer to the instructions in setup.sh or
+echo For detailed instructions, please refer to README.md or
 echo the documentation at https://docs.meridian.vantax.co.za
 echo.
 
