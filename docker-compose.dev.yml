@@ -75,6 +75,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
+    command: ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     environment: *dev-env
     volumes:
       - ./api:/app/api

@@ -111,6 +111,7 @@ services:
   worker:
     image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-worker
+    command: ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     env_file: .env
     depends_on:
       db:
