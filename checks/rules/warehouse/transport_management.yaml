@@ -1,5 +1,5 @@
 module: transport_management
-target_state: TM_CURRENT
+target_state: ECC_AND_S4HANA
 rules:
 
   - id: TM001
@@ -11,24 +11,43 @@ rules:
     why_it_matters: >-
       TKNUM is the shipment number and primary key for all transport management documents.
       Without it, the shipment cannot be tracked, costed, or linked to deliveries. The entire
-      transport chain depends on this key.
+      transport chain depends on this key. In S/4HANA, shipment management is available via
+      Fiori app F1331 (Manage Shipments) in addition to classic VT01N/VT02N.
     rule_authority: sap_hard_constraint
     sap_impact: >-
       Shipment is untrackable. Freight costs cannot be calculated. Deliveries cannot be
       linked to transport. Carrier communication fails.
     fix_map:
       __blank__: >-
-        Shipment number is empty. This is a system-generated field assigned during
-        shipment creation (VT01N). A blank TKNUM indicates a data corruption or load error.
-        Investigate the data source.
-      __null__: >-
-        Shipment number was never assigned. Create the shipment via VT01N or
-        investigate the data load for errors.
+        In ECC: shipment numbers are assigned during creation via VT01N. A blank TKNUM
+        indicates data corruption. In S/4HANA: create via Fiori app F1331 or VT01N.
     record_fix_template: >-
       Shipment: TKNUM is {actual_value}. This is system-assigned — investigate the
-      data source or create via VT01N.
+      data source or create via VT01N (ECC) or Fiori app F1331 (S/4HANA).
 
   - id: TM002
+    field: VTTK.SHTYP
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Shipping type classifies the shipment for planning and cost calculation"
+    why_it_matters: >-
+      SHTYP provides classification of the shipment beyond the basic type. It influences
+      route determination, carrier selection, and freight cost schemas. Without it, transport
+      planning accuracy and freight costing are degraded.
+    rule_authority: best_practice
+    sap_impact: >-
+      Route determination less accurate. Freight cost schema may default to generic
+      rates. Carrier selection not optimised.
+    fix_map:
+      __blank__: >-
+        In ECC: set shipping type via VT02N. In S/4HANA: update via Fiori app F1331
+        or VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: SHTYP is {actual_value}. Set the shipping type via VT02N
+      (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM003
     field: VTTK.VSART
     check_class: null_check
     severity: critical
@@ -44,41 +63,35 @@ rules:
       undetermined — routing and scheduling cannot proceed.
     fix_map:
       __blank__: >-
-        Shipment type is empty. Determine the correct type based on the transport mode
-        (e.g. 0001 for road, 0002 for rail) and update via VT02N.
-      __null__: >-
-        Shipment type was never assigned. Check the transport planning requirements
-        and set via VT02N.
+        In ECC: set shipment type via VT02N (e.g. 0001 for road, 0002 for rail). In
+        S/4HANA: use Fiori app F1331 or VT02N.
     record_fix_template: >-
       Shipment {VTTK.TKNUM}: VSART is {actual_value}. Set the correct shipment type
-      via transaction VT02N.
+      via VT02N (ECC) or Fiori app F1331 (S/4HANA).
 
-  - id: TM003
-    field: VTTK.SHTYP
+  - id: TM004
+    field: VTTK.TDLNR
     check_class: null_check
     severity: high
     dimension: completeness
-    message: "Shipping type provides additional transport classification"
+    message: "Forwarding agent required for carrier integration and freight settlement"
     why_it_matters: >-
-      SHTYP provides further classification of the shipment beyond the basic type. It
-      influences route determination, carrier selection, and freight cost schemas. While
-      the shipment can technically be created without it, missing values degrade transport
-      planning accuracy and freight costing.
+      TDLNR identifies the forwarding agent (carrier/3PL). Without it, the system cannot
+      route the shipment to a carrier for execution, cannot calculate carrier-specific
+      freight rates, and freight settlement has no vendor to post costs against.
     rule_authority: best_practice
     sap_impact: >-
-      Route determination less accurate. Freight cost schema may default to generic
-      rates. Carrier selection not optimised.
+      Carrier assignment missing. Freight settlement cannot post to a vendor. 3PL
+      integration (EDI/API) has no recipient. Shipment cannot be tendered.
     fix_map:
       __blank__: >-
-        Shipping type is empty. Determine the correct classification from the transport
-        planning requirements and update via VT02N.
-      __null__: >-
-        Shipping type was never assigned. Set the appropriate value based on transport
-        mode and requirements via VT02N.
+        In ECC: assign forwarding agent via VT02N. The vendor must exist with the
+        forwarding agent account group. In S/4HANA: use Fiori app F1331 or VT02N.
     record_fix_template: >-
-      Shipment {VTTK.TKNUM}: SHTYP is {actual_value}. Set the shipping type via VT02N.
+      Shipment {VTTK.TKNUM}: TDLNR is {actual_value}. Assign the forwarding agent
+      vendor via VT02N (ECC) or Fiori app F1331 (S/4HANA).
 
-  - id: TM004
+  - id: TM005
     field: VTTK.ROUTE
     check_class: null_check
     severity: high
@@ -95,17 +108,104 @@ rules:
       scheduling cannot account for transport lead time.
     fix_map:
       __blank__: >-
-        Route is empty. Determine the correct route based on the shipping point and
-        destination. Maintain routes via transaction OVTC and assign to the shipment
-        via VT02N.
-      __null__: >-
-        Route was never assigned. Create or select the correct route in OVTC and
-        assign to the shipment via VT02N.
+        In ECC: maintain routes via T-code OVTC and assign to the shipment via VT02N.
+        In S/4HANA: use Fiori app F1331 or VT02N.
     record_fix_template: >-
-      Shipment {VTTK.TKNUM}: ROUTE is {actual_value}. Assign the correct route
-      via transaction VT02N.
+      Shipment {VTTK.TKNUM}: ROUTE is {actual_value}. Assign the correct route via
+      VT02N (ECC) or Fiori app F1331 (S/4HANA).
 
-  - id: TM005
+  - id: TM006
+    field: VTTK.DISTZ
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Distance required for freight costing and carbon emissions reporting"
+    why_it_matters: >-
+      DISTZ (distance) is used for distance-based freight cost calculation and for carbon
+      emissions reporting. Without it, freight costs may be understated and sustainability
+      reporting is incomplete for this shipment.
+    rule_authority: best_practice
+    sap_impact: >-
+      Distance-based freight rates cannot be calculated. Carbon emissions for this
+      shipment are unreported. Transport KPI dashboards have incomplete data.
+    fix_map:
+      __blank__: >-
+        In ECC: enter distance via VT02N or configure automatic distance determination
+        via OVTC. In S/4HANA: use Fiori app F1331 or VT02N.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: DISTZ is {actual_value}. Enter the distance via VT02N
+      (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM007
+    field: VTTK.ERDAT
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Shipment creation date is required for transport KPI tracking"
+    why_it_matters: >-
+      ERDAT records when the shipment was created. It is essential for measuring transport
+      KPIs such as lead time from shipment creation to goods issue, and for identifying
+      aged shipments that may indicate process bottlenecks.
+    rule_authority: best_practice
+    sap_impact: >-
+      Transport lead time KPIs cannot be calculated. Aged shipment reporting incomplete.
+      Audit trail missing creation timestamp.
+    fix_map:
+      __blank__: >-
+        In ECC: ERDAT is system-generated during shipment creation (VT01N). A blank
+        value indicates data corruption. In S/4HANA: check via Fiori app F1331.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: ERDAT is {actual_value}. This is system-generated —
+      investigate the data source.
+
+  - id: TM008
+    field: VTTK.STTRG
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Shipment status is required for transport monitoring and process control"
+    why_it_matters: >-
+      STTRG (shipment status) tracks the processing state of the transport document. It
+      controls which follow-on actions are available (loading, goods issue, completion).
+      Without a status, the transport monitoring cockpit cannot display the shipment
+      correctly and supervisors lose visibility.
+    rule_authority: best_practice
+    sap_impact: >-
+      Transport monitor displays incomplete. Follow-on actions may not be available.
+      Shipment lifecycle tracking broken.
+    fix_map:
+      __blank__: >-
+        In ECC: shipment status is system-maintained via VT02N during lifecycle
+        transitions. In S/4HANA: check via Fiori app F1331.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: STTRG is {actual_value}. This is system-maintained —
+      investigate the shipment processing history.
+
+  - id: TM009
+    fields: ["VTTK.DESSION", "VTTK.DESSION_END"]
+    check_class: cross_field_check
+    condition: "`VTTK.DESSION` > `VTTK.DESSION_END`"
+    severity: critical
+    dimension: consistency
+    message: "Planned start date must be before planned end date"
+    why_it_matters: >-
+      A planned start date (DESSION) after the planned end date (DESSION_END) is logically
+      impossible and indicates a data entry error. This corrupts transport scheduling,
+      causes negative transit time calculations, and prevents the transportation planning
+      system from optimising vehicle and driver allocation.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Transit time calculation produces negative values. Transport scheduling is invalid.
+      Vehicle and driver allocation cannot be planned.
+    fix_map:
+      __blank__: >-
+        In ECC: correct the dates via VT02N > Dates tab. In S/4HANA: use Fiori app
+        F1331 > Dates section.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: DESSION ({actual_value}) is after DESSION_END. Correct
+      the dates via VT02N (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM010
     field: VTTP.VBELN
     check_class: null_check
     severity: critical
@@ -121,60 +221,121 @@ rules:
       Billing for transport services has no reference.
     fix_map:
       __blank__: >-
-        Delivery number is empty on the shipment item. Assign the correct delivery via
-        VT02N > Deliveries tab. Ensure the delivery is released for transport.
-      __null__: >-
-        Delivery was never linked to this shipment. Add the delivery document via VT02N.
+        In ECC: assign delivery via VT02N > Deliveries tab. In S/4HANA: use Fiori app
+        F1331 or VT02N > Deliveries tab.
     record_fix_template: >-
       Shipment {VTTK.TKNUM}: delivery VBELN is {actual_value}. Link the correct
-      delivery via VT02N > Deliveries tab.
+      delivery via VT02N (ECC) or Fiori app F1331 (S/4HANA).
 
-  - id: TM006
-    field: VTTK.TDLNR
+  - id: TM011
+    field: VTTP.TPNUM
     check_class: null_check
     severity: high
     dimension: completeness
-    message: "Forwarding agent required for 3PL integration and freight settlement"
+    message: "Shipment item number provides line-level tracking within the shipment"
     why_it_matters: >-
-      TDLNR identifies the forwarding agent (carrier/3PL). Without it, the system cannot
-      route the shipment to a carrier for execution, cannot calculate carrier-specific
-      freight rates, and freight settlement has no vendor to post costs against.
+      TPNUM is the shipment item number that provides line-level granularity within a
+      shipment. Without it, individual delivery assignments within the shipment cannot
+      be distinguished, making partial loading, split deliveries, and item-level freight
+      cost allocation impossible.
     rule_authority: best_practice
     sap_impact: >-
-      Carrier assignment missing. Freight settlement cannot post to a vendor. 3PL
-      integration (EDI/API) has no recipient. Shipment cannot be tendered.
+      Individual delivery items within shipment indistinguishable. Partial loading not
+      trackable. Item-level freight allocation not possible.
     fix_map:
       __blank__: >-
-        Forwarding agent is empty. Assign the correct carrier vendor number via VT02N.
-        The vendor must be created with vendor account group for forwarding agents.
-      __null__: >-
-        Forwarding agent was never assigned. Determine the carrier from the transport
-        agreement and assign via VT02N.
+        In ECC: TPNUM is system-assigned when deliveries are added via VT02N. A blank
+        value indicates data corruption. In S/4HANA: check via Fiori app F1331.
     record_fix_template: >-
-      Shipment {VTTK.TKNUM}: TDLNR is {actual_value}. Assign the forwarding agent
-      vendor number via VT02N.
+      Shipment {VTTK.TKNUM}: TPNUM is {actual_value}. This is system-assigned —
+      investigate the data source.
 
-  - id: TM007
-    field: VTTK.DISTZ
+  - id: TM012
+    field: VTTK.DATBG
     check_class: null_check
     severity: medium
     dimension: completeness
-    message: "Distance required for freight costing and carbon reporting"
+    message: "Actual start date tracks when transport actually began"
     why_it_matters: >-
-      DISTZ (distance) is used for distance-based freight cost calculation and increasingly
-      for carbon emissions reporting. Without it, freight costs may be understated and
-      sustainability reporting is incomplete for this shipment.
+      DATBG records the actual departure date/time. Comparing this with the planned date
+      gives transport punctuality KPIs. Missing actual dates make it impossible to measure
+      on-time departure performance and calculate actual transit times.
     rule_authority: best_practice
     sap_impact: >-
-      Distance-based freight rates cannot be calculated. Carbon emissions for this
-      shipment are unreported. Transport KPI dashboards have incomplete data.
+      Transport punctuality KPIs unavailable. Actual transit time cannot be calculated.
+      Carrier performance measurement incomplete.
     fix_map:
       __blank__: >-
-        Distance is empty. Enter the transport distance via VT02N or configure automatic
-        distance determination via route maintenance (OVTC).
-      __null__: >-
-        Distance was never populated. Set up automatic distance determination or enter
-        manually via VT02N.
+        In ECC: enter actual departure via VT02N > Dates tab or use the shipment
+        completion transaction. In S/4HANA: use Fiori app F1331 > Dates section.
     record_fix_template: >-
-      Shipment {VTTK.TKNUM}: DISTZ is {actual_value}. Enter the distance via VT02N
-      or configure automatic determination in OVTC.
+      Shipment {VTTK.TKNUM}: DATBG is {actual_value}. Enter the actual departure date
+      via VT02N (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM013
+    field: VTTK.DATEN
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Actual end date required for transit time measurement and carrier SLA tracking"
+    why_it_matters: >-
+      DATEN records the actual arrival date/time. Together with DATBG, it enables
+      actual transit time calculation and carrier SLA compliance measurement. Missing
+      arrival dates break the complete transport lifecycle tracking.
+    rule_authority: best_practice
+    sap_impact: >-
+      Actual transit time cannot be calculated. Carrier SLA compliance cannot be
+      measured. Transport completion reporting incomplete.
+    fix_map:
+      __blank__: >-
+        In ECC: enter actual arrival via VT02N > Dates tab. In S/4HANA: use Fiori app
+        F1331 > Dates section.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: DATEN is {actual_value}. Enter the actual arrival date
+      via VT02N (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM014
+    field: VTTK.DTESSION
+    check_class: null_check
+    severity: medium
+    dimension: completeness
+    message: "Planned transit duration enables delivery promise calculation"
+    why_it_matters: >-
+      DTESSION (planned transit duration) is used to calculate expected delivery dates
+      from the shipment start date. Without it, delivery date promises cannot account
+      for transport time and customers receive inaccurate delivery commitments.
+    rule_authority: best_practice
+    sap_impact: >-
+      Delivery date calculation cannot include transport time. Customer delivery
+      promises are inaccurate. Available-to-promise (ATP) results unreliable.
+    fix_map:
+      __blank__: >-
+        In ECC: set transit duration via VT02N or configure via route maintenance (OVTC).
+        In S/4HANA: use Fiori app F1331 or route configuration.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: DTESSION is {actual_value}. Set the transit duration via
+      VT02N (ECC) or Fiori app F1331 (S/4HANA).
+
+  - id: TM015
+    field: VTTK.TDLNR
+    check_class: regex_check
+    pattern: "^[0-9]{1,10}$"
+    severity: high
+    dimension: validity
+    message: "Forwarding agent must be a valid SAP vendor number (numeric, max 10 digits)"
+    why_it_matters: >-
+      The forwarding agent (TDLNR) must be a valid SAP vendor number. Non-numeric values
+      or values exceeding 10 digits will not match any vendor master record, causing
+      freight settlement posting failures and carrier integration errors.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Vendor master lookup fails. Freight settlement cannot post to this vendor.
+      Carrier EDI/API integration rejects the invalid vendor number.
+    fix_map:
+      __other__: >-
+        Forwarding agent '{invalid_value}' is not a valid vendor number format. In ECC:
+        verify the vendor via XK03 and correct the shipment via VT02N. In S/4HANA: check
+        via Fiori app F0843 (Display Supplier) and correct via F1331.
+    record_fix_template: >-
+      Shipment {VTTK.TKNUM}: TDLNR '{actual_value}' is not a valid vendor number.
+      Verify via XK03 (ECC) or Fiori app F0843 (S/4HANA) and correct.

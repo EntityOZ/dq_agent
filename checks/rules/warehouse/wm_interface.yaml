@@ -1,166 +1,282 @@
 module: wm_interface
-target_state: EWMS_CURRENT
+target_state: ECC_AND_S4HANA
 rules:
 
   - id: WMI001
-    field: LTAK.TANUM
+    field: MLGN.LGNUM
     check_class: null_check
     severity: critical
     dimension: completeness
-    message: "Transfer order number is the primary key for WM interface documents"
+    message: "Warehouse number is mandatory on the material-warehouse assignment"
     why_it_matters: >-
-      TANUM is the transfer order number and primary key for the WM interface transfer
-      order header. Without it, the interface document cannot be identified, processed,
-      or confirmed. All WM movements through the interface depend on this key.
+      LGNUM in table MLGN links a material to a specific warehouse for WM processing.
+      Without it, the IM-WM interface cannot route goods movements to the correct warehouse
+      and transfer orders are not created. In S/4HANA with embedded EWM, MLGN is deprecated;
+      the equivalent assignment is maintained via /SCWM/ product master data.
     rule_authority: sap_hard_constraint
     sap_impact: >-
-      WM interface document is unprocessable. Cannot be confirmed or reversed. Stock
-      movement through the IM-WM interface is lost.
+      Material not linked to any warehouse. IM-WM interface fails for this material.
+      Goods movements do not trigger WM transfer orders.
     fix_map:
       __blank__: >-
-        Transfer order number is empty. This is a system-generated field — a blank value
-        indicates a data corruption or interface error. Investigate the IM-WM interface
-        configuration and the triggering goods movement.
-      __null__: >-
-        Transfer order number was never assigned. Check the interface processing log
-        for errors and reprocess the goods movement.
+        In ECC: assign warehouse via T-code MM02 > Warehouse Management views. In
+        S/4HANA with embedded EWM: MLGN is deprecated — maintain the product master
+        warehouse assignment via /SCWM/MAT1 or Fiori app F0842.
     record_fix_template: >-
-      WM interface document: TANUM is {actual_value}. Investigate the IM-WM interface
-      for processing errors.
+      Material WM assignment: LGNUM is {actual_value}. Assign the warehouse via MM02 >
+      WM views (ECC) or /SCWM/MAT1 (S/4HANA embedded EWM).
 
   - id: WMI002
-    field: LTAK.LGNUM
+    field: MLGN.LGBKZ
     check_class: null_check
-    severity: critical
+    severity: high
     dimension: completeness
-    message: "Warehouse number is mandatory — routes the interface document to the correct warehouse"
+    message: "Storage bin indicator controls putaway strategy for this material-warehouse"
     why_it_matters: >-
-      LGNUM determines which warehouse the interface transfer order is routed to. Without
-      it, the IM-WM interface cannot determine the target warehouse and the goods movement
-      cannot create the corresponding WM transfer order.
-    rule_authority: sap_hard_constraint
+      LGBKZ (storage bin indicator) on MLGN defines the putaway strategy for the material
+      in this warehouse. Without it, the system defaults to a generic strategy that may
+      place goods in unsuitable bin types, reducing warehouse efficiency. In S/4HANA
+      embedded EWM, putaway strategies are configured via /SCWM/ process-oriented storage
+      control.
+    rule_authority: best_practice
     sap_impact: >-
-      Interface document cannot be routed to a warehouse. WM transfer order not created.
-      IM stock is updated but WM stock is not — causing permanent discrepancy.
+      Putaway strategy defaults to generic logic. Material may be placed in wrong bin
+      type. Warehouse efficiency degraded.
     fix_map:
       __blank__: >-
-        Warehouse number is empty on the interface document. Check the storage location
-        to warehouse assignment (SPRO > LE-WM) and the triggering goods movement.
-      __null__: >-
-        Warehouse number was never assigned. Verify the IM-WM interface configuration
-        for this plant/storage location combination.
+        In ECC: set storage bin indicator via MM02 > Warehouse Management 1 view. In
+        S/4HANA: MLGN deprecated — configure putaway via /SCWM/SPRO storage process
+        settings.
     record_fix_template: >-
-      WM interface TO {LTAK.TANUM}: LGNUM is {actual_value}. Check the storage location
-      to warehouse assignment in customising.
+      Material WM assignment for warehouse {MLGN.LGNUM}: LGBKZ is {actual_value}. Set
+      via MM02 > WM1 view (ECC) or /SCWM/ configuration (S/4HANA).
 
   - id: WMI003
-    field: LTAK.STATUS
-    check_class: domain_value_check
+    field: MLGN.LTKZE
+    check_class: null_check
     severity: high
-    dimension: accuracy
-    message: "WM interface transfer order status must be a valid processing state"
-    allowed_values: ["A", "C", "P"]
-    valid_values_with_labels:
-      A: "Active — transfer order is open and being processed"
-      C: "Confirmed — transfer order has been completed"
-      P: "Planned — transfer order is created but not yet active"
+    dimension: completeness
+    message: "Stock removal indicator controls the picking strategy for this material"
     why_it_matters: >-
-      The status field controls which processing steps are available for the transfer order.
-      An invalid status means the system cannot determine the current processing state,
-      potentially allowing confirmed orders to be reprocessed or blocking active orders
-      from confirmation.
+      LTKZE (stock removal indicator) on MLGN defines the picking strategy for the material
+      in this warehouse (e.g. FIFO, LIFO, FEFO). Without it, picking defaults to a generic
+      strategy that may not enforce expiry-based or receipt-date-based picking sequences.
     rule_authority: best_practice
     sap_impact: >-
-      Processing state undefined. Confirmed TOs may be reprocessed. Active TOs may be
-      incorrectly treated as complete. WM cockpit displays are unreliable.
+      Picking strategy defaults to generic logic. FEFO/FIFO not enforced. Expired stock
+      may be picked out of sequence. Warehouse compliance risk.
     fix_map:
-      __other__: >-
-        Status '{actual_value}' is not a valid WM interface TO status. Valid values are:
-        A (active), C (confirmed), P (planned). Investigate the processing history and
-        correct via the WM interface monitor.
+      __blank__: >-
+        In ECC: set stock removal indicator via MM02 > Warehouse Management 1 view. In
+        S/4HANA: configure picking strategy via /SCWM/SPRO storage process settings.
     record_fix_template: >-
-      WM interface TO {LTAK.TANUM}: STATUS is '{actual_value}'. Correct to a valid
-      status (A/C/P) via the WM interface monitor.
+      Material WM assignment for warehouse {MLGN.LGNUM}: LTKZE is {actual_value}. Set
+      via MM02 > WM1 view (ECC) or /SCWM/ configuration (S/4HANA).
 
   - id: WMI004
-    field: LTBK.TBNUM
+    field: MLGN.LTKZA
     check_class: null_check
-    severity: high
+    severity: medium
     dimension: completeness
-    message: "Transfer requirement number links the WM demand to the transfer order"
+    message: "Stock placement indicator defines putaway sequence for goods receipt"
     why_it_matters: >-
-      TBNUM is the transfer requirement number that creates the demand for a WM movement.
-      Without it, the transfer order has no link back to the originating requirement, making
-      it impossible to track whether the demand has been fulfilled and breaking the
-      requirement-to-execution audit trail.
+      LTKZA (stock placement indicator) determines the putaway sequence when goods are
+      received. It works with LGBKZ to fully define how materials are stored. Missing
+      values may cause putaway to use suboptimal bin selection.
     rule_authority: best_practice
     sap_impact: >-
-      No link between demand and execution. Transfer requirement stays open even after
-      the TO is confirmed. WM cockpit shows unfulfilled requirements.
+      Putaway sequence not optimised. Goods receipt may be placed in less efficient
+      locations. Warehouse space utilisation degraded.
     fix_map:
       __blank__: >-
-        Transfer requirement number is empty. If the TO was created manually (LT01),
-        this may be expected. If created from an interface or delivery, investigate
-        the missing link.
-      __null__: >-
-        Transfer requirement was never linked. Check the TO creation source and link
-        the correct requirement if applicable.
+        In ECC: set stock placement indicator via MM02 > Warehouse Management 1 view.
+        In S/4HANA: configure via /SCWM/SPRO storage process settings.
     record_fix_template: >-
-      WM interface TO {LTAK.TANUM}: TBNUM is {actual_value}. Verify the transfer
-      requirement link if this TO originated from a requirement.
+      Material WM assignment for warehouse {MLGN.LGNUM}: LTKZA is {actual_value}. Set
+      via MM02 > WM1 view (ECC) or /SCWM/ configuration (S/4HANA).
 
   - id: WMI005
-    field: LTAK.BETYP
-    check_class: domain_value_check
+    field: MLGT.LGTYP
+    check_class: null_check
     severity: critical
-    dimension: accuracy
-    message: "Movement type indicator determines the GL posting type — invalid corrupts stock"
-    allowed_values: ["B", "L", "E", "S", "W"]
-    valid_values_with_labels:
-      B: "Goods receipt for purchase order"
-      L: "Goods issue for delivery"
-      E: "Goods receipt for production order"
-      S: "Stock transfer"
-      W: "Warehouse internal movement"
+    dimension: completeness
+    message: "Storage type on material-warehouse-type assignment is mandatory"
     why_it_matters: >-
-      BETYP (movement type indicator) determines how the WM movement maps to an IM
-      movement type and thus which GL accounts are posted to. An invalid value causes
-      the wrong GL posting, corrupts stock values, and creates reconciliation breaks
-      between WM and FI.
+      LGTYP in MLGT links the material to a specific storage type within the warehouse.
+      This is critical for determining which bins are eligible for putaway and picking.
+      Without it, the material has no fixed bin or preferred storage area. In S/4HANA
+      with embedded EWM, MLGT is deprecated and replaced by /SCWM/ product master
+      storage configuration.
     rule_authority: sap_hard_constraint
     sap_impact: >-
-      Wrong GL posting. Stock valuation corrupted. WM-FI reconciliation breaks.
-      Financial audit findings.
+      Material has no storage type assignment. Putaway cannot determine preferred area.
+      Fixed bin assignment not possible.
     fix_map:
-      __other__: >-
-        Movement type indicator '{actual_value}' is invalid. Valid values are: B (GR for PO),
-        L (GI for delivery), E (GR for production), S (stock transfer), W (internal).
-        Investigate the originating document and correct the interface mapping.
+      __blank__: >-
+        In ECC: assign storage type via MM02 > Warehouse Management 2 view. In S/4HANA:
+        MLGT is deprecated — configure via /SCWM/MAT1 or Fiori app F0842.
     record_fix_template: >-
-      WM interface TO {LTAK.TANUM}: BETYP is '{actual_value}'. Correct to a valid
-      movement type indicator via the WM interface configuration.
+      Material WM type assignment: LGTYP is {actual_value}. Assign via MM02 > WM2 view
+      (ECC) or /SCWM/MAT1 (S/4HANA).
 
   - id: WMI006
-    field: LTAK.LGTYP
+    field: MLGT.LGPLA
     check_class: null_check
     severity: high
     dimension: completeness
-    message: "Storage type on interface TO determines source or destination area"
+    message: "Fixed bin assignment enables direct putaway to a predetermined location"
     why_it_matters: >-
-      LGTYP on the interface transfer order header identifies the source or destination
-      storage type. Without it, the WM system cannot determine which area of the warehouse
-      is involved in the movement, degrading putaway and picking strategy execution.
+      LGPLA in MLGT assigns a fixed storage bin for the material within a storage type.
+      With a fixed bin, putaway can go directly to the predetermined location without
+      searching for available bins, significantly improving put-away speed. Without it,
+      the system must search for open bins each time.
     rule_authority: best_practice
     sap_impact: >-
-      Source/destination storage type unknown. Putaway and picking strategies cannot
-      consider storage type rules. Manual bin assignment required.
+      No fixed bin for this material. Putaway requires dynamic bin search each time.
+      Slower putaway cycle time. Picking staff cannot predict location.
     fix_map:
       __blank__: >-
-        Storage type is empty on the interface TO. Check the IM-WM interface configuration
-        for the correct default storage type assignment.
-      __null__: >-
-        Storage type was never assigned. Verify the interface customising and the
-        triggering goods movement for the correct storage type.
+        In ECC: assign fixed bin via MM02 > Warehouse Management 2 view. In S/4HANA:
+        maintain via /SCWM/MAT1 product master storage data.
     record_fix_template: >-
-      WM interface TO {LTAK.TANUM}: LGTYP is {actual_value}. Check the interface
-      configuration for the correct storage type assignment.
+      Material WM type assignment: LGPLA is {actual_value}. Assign a fixed bin via
+      MM02 > WM2 view (ECC) or /SCWM/MAT1 (S/4HANA).
+
+  - id: WMI007
+    field: MARD.LGORT
+    check_class: null_check
+    severity: critical
+    dimension: completeness
+    message: "Storage location is the IM-side link to WM — mandatory for WM interface"
+    why_it_matters: >-
+      LGORT (storage location) on MARD is the inventory management counterpart to the
+      WM warehouse. The IM-WM interface uses the storage location to warehouse assignment
+      to route goods movements into WM. Without LGORT, no WM processing can be triggered
+      for stock at this plant/material combination.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      IM-WM interface cannot route this stock to WM. Transfer orders not created.
+      WM and IM stock levels diverge.
+    fix_map:
+      __blank__: >-
+        In ECC: assign storage location via MM02 > MRP view or MMSC (mass storage
+        location assignment). In S/4HANA: use Fiori app F0842 or MM02.
+    record_fix_template: >-
+      Material stock record: LGORT is {actual_value}. Assign the correct storage
+      location via MM02 (ECC) or Fiori app F0842 (S/4HANA).
+
+  - id: WMI008
+    field: MLGN.LGNUM
+    check_class: regex_check
+    pattern: "^[A-Z0-9]{3,4}$"
+    severity: high
+    dimension: validity
+    message: "Warehouse number must be 3-4 alphanumeric characters"
+    why_it_matters: >-
+      SAP warehouse numbers follow a 3-4 character alphanumeric convention. Non-conforming
+      values indicate data entry errors or migration issues and will cause lookups against
+      the warehouse configuration to fail.
+    rule_authority: best_practice
+    sap_impact: >-
+      Warehouse number lookup fails in customising. IM-WM interface cannot find the
+      warehouse configuration. Transfer order creation fails.
+    fix_map:
+      __other__: >-
+        Warehouse number '{invalid_value}' does not match the expected 3-4 character
+        format. In ECC: correct via MM02 > WM views. In S/4HANA: maintain via /SCWM/MAT1.
+    record_fix_template: >-
+      Material WM assignment: LGNUM '{actual_value}' has non-standard format. Correct
+      via MM02 > WM views (ECC) or /SCWM/MAT1 (S/4HANA).
+
+  - id: WMI009
+    field: MARD.LGORT
+    check_class: regex_check
+    pattern: "^[A-Z0-9]{4}$"
+    severity: high
+    dimension: validity
+    message: "Storage location must be exactly 4 alphanumeric characters"
+    why_it_matters: >-
+      SAP storage locations are exactly 4 characters. Non-conforming values will not match
+      any configured storage location, causing goods movements to fail and IM-WM interface
+      lookups to return no warehouse assignment.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      Storage location lookup fails. Goods movements rejected. IM-WM interface cannot
+      determine the target warehouse.
+    fix_map:
+      __other__: >-
+        Storage location '{invalid_value}' does not match the required 4-character format.
+        In ECC: correct via MM02 > MRP views. In S/4HANA: use Fiori app F0842.
+    record_fix_template: >-
+      Material stock record: LGORT '{actual_value}' has invalid format. Correct via
+      MM02 (ECC) or Fiori app F0842 (S/4HANA).
+
+  - id: WMI010
+    field: MLGN.LGBKZ
+    check_class: regex_check
+    pattern: "^[A-Z0-9]{1,3}$"
+    severity: medium
+    dimension: validity
+    message: "Storage bin indicator must be a valid alphanumeric code"
+    why_it_matters: >-
+      The storage bin indicator is a 1-3 character code that maps to a putaway strategy
+      in WM customising. An invalid format will not match any configured strategy, causing
+      the system to fall back to a default that may not be appropriate.
+    rule_authority: best_practice
+    sap_impact: >-
+      Putaway strategy lookup fails. System falls back to default strategy. Material
+      may be stored in wrong bin type.
+    fix_map:
+      __other__: >-
+        Storage bin indicator '{invalid_value}' is not valid. In ECC: check configured
+        strategies in SPRO > LE-WM and correct via MM02 > WM1 view.
+    record_fix_template: >-
+      Material WM assignment for warehouse {MLGN.LGNUM}: LGBKZ '{actual_value}' is
+      not valid. Correct via MM02 > WM1 view (ECC).
+
+  - id: WMI011
+    field: MLGN.LTKZE
+    check_class: regex_check
+    pattern: "^[A-Z0-9]{1,3}$"
+    severity: medium
+    dimension: validity
+    message: "Stock removal indicator must be a valid alphanumeric code"
+    why_it_matters: >-
+      The stock removal indicator maps to a picking strategy in WM customising. An invalid
+      format prevents the system from applying the correct picking sequence (FIFO, FEFO,
+      etc.), defaulting to less optimal picking logic.
+    rule_authority: best_practice
+    sap_impact: >-
+      Picking strategy lookup fails. FEFO/FIFO not enforced for this material.
+      Compliance risk for shelf-life-managed materials.
+    fix_map:
+      __other__: >-
+        Stock removal indicator '{invalid_value}' is not valid. In ECC: check configured
+        strategies in SPRO > LE-WM and correct via MM02 > WM1 view.
+    record_fix_template: >-
+      Material WM assignment for warehouse {MLGN.LGNUM}: LTKZE '{actual_value}' is
+      not valid. Correct via MM02 > WM1 view (ECC).
+
+  - id: WMI012
+    field: MARD.LGORT
+    check_class: null_check
+    severity: high
+    dimension: completeness
+    message: "Storage location to warehouse mapping must exist for WM-managed locations"
+    why_it_matters: >-
+      For storage locations that are WM-managed, the LGORT must have a corresponding
+      warehouse assignment in customising (table T320). Without this mapping, goods
+      movements at this storage location will not trigger WM transfer orders, creating
+      a gap between IM and WM stock levels.
+    rule_authority: sap_hard_constraint
+    sap_impact: >-
+      WM processing not triggered. Stock exists in IM but not in WM. Permanent
+      discrepancy between inventory management and warehouse management.
+    fix_map:
+      __blank__: >-
+        In ECC: configure the storage location to warehouse assignment via SPRO >
+        Logistics Execution > Warehouse Management > Master Data > Define Storage
+        Location Control. In S/4HANA embedded EWM: configure via /SCWM/SPRO.
+    record_fix_template: >-
+      Storage location {MARD.LGORT}: missing warehouse assignment. Configure via
+      SPRO (ECC) or /SCWM/SPRO (S/4HANA embedded EWM).
