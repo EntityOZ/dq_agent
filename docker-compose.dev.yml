@@ -19,11 +19,11 @@ services:
       dockerfile: Dockerfile.api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     environment: &dev-env
-      # ── LLM (Ollama Cloud for dev) ──────────────────────────
-      - LLM_PROVIDER=ollama_cloud
-      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:397b-cloud}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://api.ollama.com/v1}
+      # ── LLM (reads from .env) ────────────────────────────────
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:9b-instruct}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       # ── Database ────────────────────────────────────────────
       - DATABASE_URL=postgresql+asyncpg://meridian:${DB_PASSWORD:-password}@db:5432/meridian

@@ -108,6 +108,7 @@ class Finding(Base):
     tenant = relationship("Tenant", back_populates="findings")
 
     __table_args__ = (
+        UniqueConstraint("version_id", "check_id", "tenant_id", name="uq_findings_version_check_tenant"),
         Index("ix_findings_tenant_version", "tenant_id", "version_id"),
         Index("ix_findings_tenant_module_severity", "tenant_id", "module", "severity"),
     )
