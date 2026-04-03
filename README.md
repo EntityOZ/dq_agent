@@ -32,8 +32,11 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **10 module coverage** — FI, MM, SD, PM, PP, Integration, HR, SuccessFactors, Concur, eWMS with ~100 field-to-config-element mappings
 - **SAP version detection** — automatic S/4HANA vs ECC identification from field presence
 - **Number range analysis** — FI document number utilisation estimation and fiscal period detection
+- **Process Detection** — 7 business process signatures (Order-to-Cash, Procure-to-Pay, Record-to-Report, Plan-to-Produce, Maintain-to-Operate, Hire-to-Retire, Source-to-Contract) with completeness scoring, bottleneck detection, and exception rate analysis
+- **Alignment Validation** — 8 check categories (ghost config, process bottlenecks, licence waste, config conflicts, master data mismatch, number range exhaustion, org structure gaps, integration gaps) with ZAR impact estimation
+- **Configuration Health Score (CHS)** — per-module health scoring with weighted severity deductions
+- **Root cause analysis bridge** — classifies DQ findings as bad data, bad config, process gap, or combined
 - **Config drift tracking** — detect added, removed, and modified config elements between analysis runs
-- **Configuration Health Score (CHS)** — per-module health scoring with severity breakdown
 
 ### SAP Integration
 - **CSV/Excel upload** — SE16 exports with automatic column mapping

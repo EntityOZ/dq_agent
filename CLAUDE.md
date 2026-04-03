@@ -124,7 +124,11 @@ meridian/
 │   └── services/
 │       ├── licence_service.py       ← online/offline licence strategies
 │       ├── config_intelligence/     ← Config Intelligence Engine (3-layer)
-│       │   └── discovery.py         ← Layer 1: config discovery from transactional data
+│       │   ├── discovery.py         ← Layer 1: config discovery from transactional data
+│       │   ├── process_detector.py  ← Layer 2: 7 business process signature detection
+│       │   ├── alignment_validator.py ← Layer 3: 8 alignment check categories + CHS + root cause
+│       │   ├── drift_detector.py    ← config drift between runs (added/removed/modified)
+│       │   └── engine.py            ← orchestrator chaining all 3 layers
 │       └── ...                      ← scoring, cleaning, NLP, export, etc.
 │
 ├── llm/
@@ -471,7 +475,8 @@ SENTRY_DSN=
 | review/full-code-review | Security audit | Done |
 | phase-3a | Meridian HQ admin portal, D1 migration, licence enforcement | Done |
 | phase-3b | IP protection, CI/CD, offline licence, LLM tiers, deployment tooling | Done |
-| **config-intelligence-p1** | **Config Intelligence Engine Phase 1 — DB migration, models, Config Discovery (10 SAP modules)** | **Done** |
+| config-intelligence-p1 | Config Intelligence Engine Phase 1 — DB migration, models, Config Discovery (10 SAP modules) | Done |
+| **config-intelligence-p2** | **Config Intelligence Engine Phase 2 — Process Detection (7 processes), Alignment Validation (8 categories), CHS, root cause bridge, drift detection, orchestrator** | **Done** |
 
 ---
 
