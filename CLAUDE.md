@@ -10,6 +10,8 @@ Meridian analyses SAP data quality across 29 modules and 254+ predefined validat
 
 The product also includes a full MDM platform: golden records, match & merge, business glossary, stewardship workbench, cleaning engine, exception management, analytics, NLP query interface, data contracts, SAP sync engine, and a governance dashboard.
 
+The **Config Intelligence Engine** reverse-engineers live SAP configuration from transactional data alone — no SPRO access, no RFC calls. It has 3 layers: Config Discovery (extract config inventory), Process Detection (match business process signatures), and Alignment Validation (find misalignment between config and processes).
+
 A centralised Cloudflare control plane (**Meridian HQ**) handles licencing, billing, and admin — it never touches SAP data.
 
 ---
@@ -113,12 +115,16 @@ meridian/
 │   ├── main.py
 │   ├── config.py
 │   ├── deps.py
+│   ├── models/
+│   │   └── config_intelligence.py   ← dataclass models for config intelligence engine
 │   ├── middleware/
 │   │   ├── tenant.py                ← JWT → tenant_id → Postgres RLS context
 │   │   └── licence.py               ← module entitlement enforcement
 │   ├── routes/                      ← all API endpoints
 │   └── services/
 │       ├── licence_service.py       ← online/offline licence strategies
+│       ├── config_intelligence/     ← Config Intelligence Engine (3-layer)
+│       │   └── discovery.py         ← Layer 1: config discovery from transactional data
 │       └── ...                      ← scoring, cleaning, NLP, export, etc.
 │
 ├── llm/
@@ -312,6 +318,14 @@ match_scores (id, tenant_id, candidate_a_key, candidate_b_key, total_score)
 glossary_terms (id, tenant_id, sap_table, sap_field, business_definition)
 stewardship_queue (id, tenant_id, item_type, priority, sla_hours, ai_recommendation)
 
+-- Config Intelligence
+config_inventory (id, tenant_id, run_id, module, element_type, element_value, transaction_count, status)
+config_processes (id, tenant_id, run_id, process_id, process_name, status, completeness_score)
+config_process_steps (id, process_id, step_number, step_name, detected, volume)
+config_alignment_findings (id, tenant_id, run_id, check_id, module, category, severity, title, affected_elements)
+config_health_scores (id, tenant_id, run_id, module, chs_score, critical_count, high_count)
+config_drift_log (id, tenant_id, run_id, module, element_type, element_value, change_type)
+
 -- RBAC + Audit
 users (id, tenant_id, clerk_user_id, email, role, permissions)
 llm_audit_log (id, service_name, prompt_hash, token_count, latency_ms)
@@ -456,7 +470,8 @@ SENTRY_DSN=
 | fixes | 29-module cleaning coverage, export/writeback fixes | Done |
 | review/full-code-review | Security audit | Done |
 | phase-3a | Meridian HQ admin portal, D1 migration, licence enforcement | Done |
-| **phase-3b** | **IP protection, CI/CD, offline licence, LLM tiers, deployment tooling** | **Done** |
+| phase-3b | IP protection, CI/CD, offline licence, LLM tiers, deployment tooling | Done |
+| **config-intelligence-p1** | **Config Intelligence Engine Phase 1 — DB migration, models, Config Discovery (10 SAP modules)** | **Done** |
 
 ---
 

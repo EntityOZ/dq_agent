@@ -27,6 +27,14 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **Data lineage** — table-to-field dependency mapping and sync source attribution
 - **Relationship graph** — cross-domain SAP relationships with AI impact scoring
 
+### Config Intelligence
+- **Config Discovery** — reverse-engineers live SAP configuration from transactional data alone (no SPRO, no RFC)
+- **10 module coverage** — FI, MM, SD, PM, PP, Integration, HR, SuccessFactors, Concur, eWMS with ~100 field-to-config-element mappings
+- **SAP version detection** — automatic S/4HANA vs ECC identification from field presence
+- **Number range analysis** — FI document number utilisation estimation and fiscal period detection
+- **Config drift tracking** — detect added, removed, and modified config elements between analysis runs
+- **Configuration Health Score (CHS)** — per-module health scoring with severity breakdown
+
 ### SAP Integration
 - **CSV/Excel upload** — SE16 exports with automatic column mapping
 - **Pluggable SAP connector** — abstraction layer supporting PyRFC (default), ctypes, OData, or custom backends via `SAP_CONNECTOR` env var
