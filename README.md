@@ -37,6 +37,8 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **Configuration Health Score (CHS)** — per-module health scoring with weighted severity deductions
 - **Root cause analysis bridge** — classifies DQ findings as bad data, bad config, process gap, or combined
 - **Config drift tracking** — detect added, removed, and modified config elements between analysis runs
+- **13 REST API endpoints** — full CRUD for config inventory, processes, alignment findings, health scores, drift, licence utilisation, and root cause analysis (`/api/v1/config/*`)
+- **Database persistence** — all analysis results persisted to PostgreSQL with RLS tenant isolation
 
 ### SAP Integration
 - **CSV/Excel upload** — SE16 exports with automatic column mapping

@@ -128,7 +128,9 @@ meridian/
 │       │   ├── process_detector.py  ← Layer 2: 7 business process signature detection
 │       │   ├── alignment_validator.py ← Layer 3: 8 alignment check categories + CHS + root cause
 │       │   ├── drift_detector.py    ← config drift between runs (added/removed/modified)
-│       │   └── engine.py            ← orchestrator chaining all 3 layers
+│       │   ├── engine.py            ← orchestrator chaining all 3 layers
+│       │   ├── persistence.py       ← save/load analysis runs to PostgreSQL
+│       │   └── serializers.py       ← dataclass → Pydantic response converters
 │       └── ...                      ← scoring, cleaning, NLP, export, etc.
 │
 ├── llm/
@@ -476,7 +478,8 @@ SENTRY_DSN=
 | phase-3a | Meridian HQ admin portal, D1 migration, licence enforcement | Done |
 | phase-3b | IP protection, CI/CD, offline licence, LLM tiers, deployment tooling | Done |
 | config-intelligence-p1 | Config Intelligence Engine Phase 1 — DB migration, models, Config Discovery (10 SAP modules) | Done |
-| **config-intelligence-p2** | **Config Intelligence Engine Phase 2 — Process Detection (7 processes), Alignment Validation (8 categories), CHS, root cause bridge, drift detection, orchestrator** | **Done** |
+| config-intelligence-p2 | Config Intelligence Engine Phase 2 — Process Detection (7 processes), Alignment Validation (8 categories), CHS, root cause bridge, drift detection, orchestrator | Done |
+| **config-intelligence-p3** | **Config Intelligence Engine Phase 3 — 13 FastAPI endpoints, Pydantic schemas, DB persistence layer, serializers** | **Done** |
 
 ---
 
