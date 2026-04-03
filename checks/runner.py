@@ -51,6 +51,8 @@ def run_checks(module_name: str, df: pd.DataFrame, tenant_id: str) -> list[Check
     rules = config.get("rules", [])
     module = config.get("module", module_name)
     results: list[CheckResult] = []
+    result_rules: list[dict] = []  # parallel list — the rule that produced each result
+    skipped = 0
 
     for rule in rules:
         # Inject module name into each rule dict
@@ -77,12 +79,18 @@ def run_checks(module_name: str, df: pd.DataFrame, tenant_id: str) -> list[Check
                     error=f"Unknown check_class: {check_class_name}",
                 )
             )
+            result_rules.append(rule)
             continue
 
         try:
             check = check_cls(rule)
             result = check.run(df)
+            if result is None:
+                # Field not in partial extract — skip silently
+                skipped += 1
+                continue
             results.append(result)
+            result_rules.append(rule)
         except Exception as e:
             logger.error(f"Exception in check {rule.get('id')}: {e}", exc_info=True)
             results.append(
@@ -101,7 +109,10 @@ def run_checks(module_name: str, df: pd.DataFrame, tenant_id: str) -> list[Check
                     error=str(e),
                 )
             )
+            result_rules.append(rule)
 
+    if skipped:
+        logger.info(f"Module '{module}': skipped {skipped} checks (fields not in extract)")
     logger.info(f"Module '{module}': ran {len(results)} checks, {sum(1 for r in results if r.passed)} passed")
 
     # Enrich failing results with deterministic fix recommendations
@@ -111,7 +122,7 @@ def run_checks(module_name: str, df: pd.DataFrame, tenant_id: str) -> list[Check
             continue
 
         try:
-            rule = rules[i]
+            rule = result_rules[i]
 
             # Build rule_context from YAML fields
             rule_context: dict = {}

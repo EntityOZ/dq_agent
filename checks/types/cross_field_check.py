@@ -13,23 +13,10 @@ class CrossFieldCheck(BaseCheck):
             condition = self.rule["condition"]
             total = len(df)
 
-            # Check all required fields exist
+            # Check all required fields exist — skip if any are missing (partial extract)
             missing = [f for f in fields if f not in df.columns]
             if missing:
-                return CheckResult(
-                    check_id=self.rule["id"],
-                    module=self.rule.get("module", ""),
-                    field=field,
-                    severity=self.rule.get("severity", "medium"),
-                    dimension=self.rule.get("dimension", "consistency"),
-                    passed=False,
-                    affected_count=total,
-                    total_count=total,
-                    pass_rate=0.0,
-                    message=self.rule.get("message", ""),
-                    details={"condition": condition, "missing_fields": missing},
-                    error=f"Missing columns: {missing}",
-                )
+                return None  # Skip — fields not in partial extract
 
             # Rows matching the condition are the PASSING rows
             passing_df = df.query(condition)

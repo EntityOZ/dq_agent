@@ -12,7 +12,8 @@
       "Bash(npm ci:*)",
       "Bash(python -m pytest tests/test_licence_gating.py tests/test_phase_o_nav_redesign.py tests/test_stewardship_workbench.py tests/test_export_engine.py -v --tb=short)",
       "Bash(python -m pytest tests/test_pyrfc_connector.py -v --tb=short)",
-      "Bash(python -m pytest tests/test_full_pipeline.py -v --tb=short)"
+      "Bash(python -m pytest tests/test_full_pipeline.py -v --tb=short)",
+      "Bash(python scripts/fill_gaps.py)"
     ]
   }
 }

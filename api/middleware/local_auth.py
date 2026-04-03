@@ -17,6 +17,7 @@ DEV_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
 _EXCLUDED_PATHS = {
     "/api/v1/auth/login",
+    "/api/v1/licence",
     "/health",
 }
 

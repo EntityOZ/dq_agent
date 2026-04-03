@@ -51,3 +51,45 @@ def get_required_fields(module_name: str) -> set[str]:
                     fields.add(field)
             return fields
     return set()
+
+
+def get_standard_fields(module_name: str) -> set[str]:
+    """Return all known standard SAP fields for a module.
+
+    This combines:
+    - Fields referenced in validation rules (from the module YAML)
+    - Fields defined in column_map.yaml aliases (both source and target)
+
+    Custom/customer fields are identified as anything NOT in this set.
+    Common indicators of custom fields:
+    - Z or ZZ prefix (SAP customer namespace)
+    - Fields not belonging to any standard SAP table
+    """
+    fields: set[str] = set()
+
+    # 1. Fields from validation rules
+    for category in CATEGORIES:
+        path = RULES_DIR / category / f"{module_name}.yaml"
+        if path.exists():
+            with open(path, "r") as f:
+                config = yaml.safe_load(f) or {}
+            for rule in config.get("rules", []):
+                field = rule.get("field", "")
+                if field:
+                    fields.add(field)
+                for related in rule.get("related_fields", []):
+                    if related:
+                        fields.add(related)
+
+    # 2. Fields from column maps (both aliases and canonical target names)
+    for category in CATEGORIES:
+        path = RULES_DIR / category / "column_map.yaml"
+        if path.exists():
+            with open(path, "r") as f:
+                maps = yaml.safe_load(f) or {}
+            if module_name in maps:
+                col_map = maps[module_name]
+                fields.update(col_map.keys())
+                fields.update(col_map.values())
+
+    return fields

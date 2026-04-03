@@ -60,5 +60,6 @@ class BaseCheck(ABC):
         self.rule = rule
 
     @abstractmethod
-    def run(self, df: pd.DataFrame) -> CheckResult:
+    def run(self, df: pd.DataFrame) -> CheckResult | None:
+        """Run the check. Return None to skip (e.g. field not in partial extract)."""
         ...

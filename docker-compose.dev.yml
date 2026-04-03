@@ -68,6 +68,7 @@ services:
       - ./sap:/app/sap
       - ./templates:/app/templates
       - ./scripts:/app/scripts
+      - ./uploads:/app/uploads
 
   worker:
     image: meridian-api-dev
@@ -83,7 +84,6 @@ services:
       - ./db:/app/db
       - ./llm:/app/llm
       - ./sap:/app/sap
-
   beat:
     image: meridian-api-dev
     build:

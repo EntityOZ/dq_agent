@@ -14,20 +14,7 @@ class ReferentialCheck(BaseCheck):
             total = len(df)
 
             if field not in df.columns:
-                return CheckResult(
-                    check_id=self.rule["id"],
-                    module=self.rule.get("module", ""),
-                    field=field,
-                    severity=self.rule.get("severity", "medium"),
-                    dimension=self.rule.get("dimension", "consistency"),
-                    passed=False,
-                    affected_count=total,
-                    total_count=total,
-                    pass_rate=0.0,
-                    message=self.rule.get("message", ""),
-                    details={"reference_field": reference_field, "error": f"Column '{field}' not found"},
-                    error=f"Column '{field}' not found",
-                )
+                return None  # Skip — field not in partial extract
 
             ref_set = set(str(v) for v in reference_values)
             values = df[field].astype(str)

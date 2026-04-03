@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.deps import Tenant, get_db, get_tenant
-from api.services.column_mapper import apply_column_mapping, get_required_fields
+from api.services.column_mapper import apply_column_mapping, get_required_fields, get_standard_fields
 from api.services.storage import upload_file as minio_upload
 
 router = APIRouter(prefix="/api/v1", tags=["upload"])
@@ -107,25 +107,39 @@ async def upload_file(
     # Step 5b: Apply standard column mapping (handles any remaining aliases)
     df = apply_column_mapping(df, module)
 
-    # Step 6: Validate required columns
+    # Step 6: Classify columns — standard SAP vs custom/customer fields
     required_fields = get_required_fields(module)
-    if required_fields:
-        present = set(df.columns)
-        missing = []
-        for field in required_fields:
-            # Accept either "TABLE.FIELD" or just "FIELD"
-            short_name = field.split(".")[-1] if "." in field else field
-            if field not in present and short_name not in present:
-                missing.append(field)
-        if missing:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "error": "missing_required_columns",
-                    "missing_columns": sorted(missing),
-                    "available_columns": sorted(list(present)),
-                },
-            )
+    standard_sap_fields = get_standard_fields(module)
+    present = set(df.columns)
+
+    # 6a: Identify which standard fields are present vs missing
+    missing_standard = []
+    present_standard = []
+    for field in required_fields:
+        short_name = field.split(".")[-1] if "." in field else field
+        if field in present or short_name in present:
+            present_standard.append(field)
+        else:
+            missing_standard.append(field)
+
+    if missing_standard:
+        logger.warning(
+            f"Upload missing {len(missing_standard)}/{len(required_fields)} standard SAP fields "
+            f"for module '{module}' — proceeding with partial extract"
+        )
+
+    # 6b: Identify custom/customer fields (not in standard SAP schema)
+    all_known_short = {f.split(".")[-1] for f in standard_sap_fields if "." in f} | standard_sap_fields
+    custom_fields = []
+    for col in present:
+        short_col = col.split(".")[-1] if "." in col else col
+        if col not in standard_sap_fields and short_col not in all_known_short:
+            custom_fields.append(col)
+
+    if custom_fields:
+        logger.info(
+            f"Detected {len(custom_fields)} custom/customer fields: {sorted(custom_fields)}"
+        )
 
     # Step 7: Store cleaned parquet to MinIO
     parquet_buffer = io.BytesIO()
@@ -144,6 +158,9 @@ async def upload_file(
         "columns": list(df.columns),
         "modules": [module],
         "parquet_path": parquet_path,
+        "standard_fields_present": sorted(present_standard),
+        "standard_fields_missing": sorted(missing_standard),
+        "custom_fields": sorted(custom_fields),
     }
     version = await create_version(db, tenant.id, metadata)
     logger.info(f"Created version: {version.id}")
