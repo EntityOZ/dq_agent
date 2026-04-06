@@ -289,15 +289,10 @@ async def reject_proposed_rule(
 
 async def _resolve_user_id(db: AsyncSession, tenant: Tenant, request: Request) -> str:
     """Resolve current user ID from request context."""
-    clerk_user_id = getattr(request.state, "clerk_user_id", None)
-    if clerk_user_id:
-        result = await db.execute(
-            text("SELECT id FROM users WHERE clerk_user_id = :cid AND tenant_id = :tid"),
-            {"cid": clerk_user_id, "tid": str(tenant.id)},
-        )
-        row = result.fetchone()
-        if row:
-            return str(row[0])
+    # Use local auth user ID if available
+    local_user_id = getattr(request.state, "local_user_id", None)
+    if local_user_id:
+        return str(local_user_id)
 
     # Fallback: return a deterministic UUID for dev mode
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"dev-user-{tenant.id}"))

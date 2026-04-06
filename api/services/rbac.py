@@ -90,21 +90,7 @@ async def _get_user_role(
     if role_header and role_header in VALID_ROLES:
         return role_header
 
-    # Try to look up user by Clerk user ID from JWT claims
-    clerk_user_id = getattr(request.state, "clerk_user_id", None)
-    if clerk_user_id:
-        await db.execute(text(f"SET app.tenant_id = '{tenant.id}'"))
-        result = await db.execute(
-            text("SELECT role, is_active FROM users WHERE clerk_user_id = :cid AND tenant_id = :tid"),
-            {"cid": clerk_user_id, "tid": str(tenant.id)},
-        )
-        row = result.fetchone()
-        if row:
-            if not row[1]:  # is_active = false
-                raise HTTPException(status_code=403, detail="User account is deactivated")
-            return row[0]
-
-    # Fall back — in local dev mode, check for local auth JWT claims
+    # Check for local auth JWT claims
     from api.config import settings
     if settings.auth_mode == "local":
         local_user_id = getattr(request.state, "local_user_id", None)

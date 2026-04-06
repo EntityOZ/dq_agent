@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://frontend:3000"
 
     # Auth
-    clerk_secret_key: Optional[str] = None
+    # Clerk removed - using local auth only
     auth_mode: str = "local"
 
     # SAP RFC sync

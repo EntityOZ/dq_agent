@@ -45,7 +45,7 @@ async def list_users(
 
     result = await db.execute(
         text("""
-            SELECT id, tenant_id, clerk_user_id, email, name, role,
+            SELECT id, tenant_id, email, name, role,
                    permissions, is_active, last_login, created_at
             FROM users
             WHERE tenant_id = :tid

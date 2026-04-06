@@ -61,12 +61,13 @@ async def _get_user_role(request: Request, tenant: Tenant, db: AsyncSession) -> 
     if role_header and role_header in PERMISSIONS:
         return role_header
 
-    clerk_user_id = getattr(request.state, "clerk_user_id", None)
-    if clerk_user_id:
+    # Use local auth user ID to look up role
+    local_user_id = getattr(request.state, "local_user_id", None)
+    if local_user_id:
         await db.execute(text(f"SET app.tenant_id = '{tenant.id}'"))
         result = await db.execute(
-            text("SELECT role, is_active FROM users WHERE clerk_user_id = :cid AND tenant_id = :tid"),
-            {"cid": clerk_user_id, "tid": str(tenant.id)},
+            text("SELECT role, is_active FROM users WHERE id = :uid AND tenant_id = :tid"),
+            {"uid": local_user_id, "tid": str(tenant.id)},
         )
         row = result.fetchone()
         if row:

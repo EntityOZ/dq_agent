@@ -58,7 +58,7 @@ async def get_tenant(request: Request) -> Tenant:
     if settings.auth_mode == "local":
         return _DEV_TENANT
 
-    # Phase 4 will implement JWT extraction via Clerk
+    # JWT extraction for local auth
     # For now, return dev tenant as fallback
     return _DEV_TENANT
 
