@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 
 const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
 
@@ -20,11 +20,11 @@ const withClerk = clerkMiddleware((auth, req) => {
   }
 });
 
-export default function middleware(req: NextRequest) {
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
   if (isLocalAuth) {
     return NextResponse.next();
   }
-  return withClerk(req);
+  return withClerk(req, event);
 }
 
 // Static matcher — always required by Next.js, cannot be conditional
