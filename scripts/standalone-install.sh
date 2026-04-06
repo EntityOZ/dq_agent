@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # =========================================================
 # Meridian Platform — One-Script Installer
-# 
-# This script handles complete installation:
-#   • Licence validation
-#   • Image download
-#   • Configuration generation
-#   • Service deployment
+#
+# Pulls pre-built images from GHCR, configures, and starts
+# all services. Images are built automatically when code is
+# pushed to main (GitHub Actions build-and-deploy.yml).
 #
 # Requirements: Docker 24.0+, internet connection
+# GHCR packages must be set to Public in GitHub settings.
 # =========================================================
 set -euo pipefail
 
@@ -44,12 +43,11 @@ echo -e "${NC}\n"
 step "Prerequisites Check"
 
 command -v docker &>/dev/null || error "Docker not installed. Get it from: https://docs.docker.com/engine/install/"
-command -v curl &>/dev/null || error "curl not installed"
+command -v curl &>/dev/null   || error "curl not installed"
 
 DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0.0.0")
 DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
 [ "$DOCKER_MAJOR" -lt 24 ] && error "Docker 24.0+ required (found $DOCKER_VERSION)"
-
 info "Docker $DOCKER_VERSION detected"
 info "Docker Compose available"
 
@@ -63,7 +61,7 @@ LICENCE_KEY=$(echo "$LICENCE_KEY" | tr -d ' ' | tr '[:lower:]' '[:upper:]')
 [[ ! "$LICENCE_KEY" =~ ^MRDX-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$ ]] && \
     error "Invalid licence key format. Expected: MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
 
-info "Licence key: ${LICENCE_KEY:0:9}****-****"
+info "Licence key format valid"
 
 # ── Validate Licence ──────────────────────────────────────
 step "Validating Licence"
@@ -105,38 +103,48 @@ cat > .env << EOF
 # Generated: $(date)
 # Licence: ${LICENCE_KEY:0:9}****-****
 
-MERIDIAN_LICENCE_MODE=online
-MERIDIAN_LICENCE_KEY=$LICENCE_KEY
-MERIDIAN_LICENCE_SERVER_URL=https://meridian-licence-worker.reshigan-085.workers.dev/api/licence/validate
+# Licence
+LICENCE_MODE=online
+LICENCE_KEY=$LICENCE_KEY
+LICENCE_SERVER_URL=$LICENCE_SERVER
 
+# LLM
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:3b
 
+# Database
 DB_PASSWORD=$DB_PASS
 DATABASE_URL=postgresql+asyncpg://meridian:$DB_PASS@db:5432/meridian
 DATABASE_URL_SYNC=postgresql://meridian:$DB_PASS@db:5432/meridian
 
+# Redis
 REDIS_URL=redis://redis:6379/0
 
+# MinIO
+# MINIO_PASSWORD   → MinIO container's root password (MINIO_ROOT_PASSWORD)
+# MINIO_SECRET_KEY → API client connection key (config.py: minio_secret_key)
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=meridian
 MINIO_PASSWORD=$MINIO_PASS
+MINIO_SECRET_KEY=$MINIO_PASS
 MINIO_BUCKET_UPLOADS=meridian-uploads
 MINIO_BUCKET_REPORTS=meridian-reports
 
-SAP_CONNECTOR=rfc
+# SAP (mock mode — configure a real connector after setup)
+SAP_CONNECTOR=mock
 CREDENTIAL_MASTER_KEY=$SECRET
 
+# Auth
 AUTH_MODE=local
 NEXT_PUBLIC_AUTH_MODE=local
-JWT_SECRET=$SECRET
 
-# Clerk dummy keys (required by frontend build, not used in local auth mode)
+# CORS
+CORS_ORIGINS=http://localhost:3000
+
+# Clerk dummy keys — required for frontend build; not used in local auth mode
 CLERK_SECRET_KEY=sk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15c2VjcmV0a2V5
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15a2V5
-
-MERIDIAN_CORS_ORIGINS=http://localhost:3000
 EOF
 
 info "Configuration saved to .env"
@@ -208,8 +216,9 @@ services:
       timeout: 20s
       retries: 3
 
+  # Standard Ollama image — model is pulled at first startup (see installer step below)
   ollama:
-    image: ghcr.io/luketempleman/meridian-ollama:latest
+    image: ollama/ollama:latest
     container_name: meridian-ollama
     volumes:
       - ollama_data:/root/.ollama
@@ -220,7 +229,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
 
   api:
     image: ghcr.io/luketempleman/meridian-api:latest
@@ -245,6 +254,7 @@ services:
   worker:
     image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-worker
+    command: ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     env_file: .env
     depends_on:
       db:
@@ -279,50 +289,79 @@ services:
     restart: unless-stopped
 COMPOSE_EOF
 
-info "Docker Compose configuration created"
+info "docker-compose.yml created"
 
 # ── Pull Images ───────────────────────────────────────────
 step "Downloading Images"
 
-echo "Pulling Meridian images (this may take several minutes)..."
+echo "Pulling Meridian images from GHCR..."
+echo "(Images are built automatically when code is pushed to main)"
+echo ""
 
-docker compose pull || error "Failed to pull images. Check GHCR access."
+docker compose pull \
+    || error "Failed to pull images from GHCR.
+  Possible causes:
+    1. Images haven't been built yet — push to main first, wait for CI to finish
+    2. GHCR packages are set to Private — go to github.com/luketempleman → Packages
+       → set each meridian-* package visibility to Public
+    3. No internet connection"
 
 info "All images downloaded"
 
-# ── Start Services ────────────────────────────────────────
+# ── Start Infrastructure ──────────────────────────────────
 step "Starting Services"
 
-# Check for existing deployment
+# Remove any stale Meridian containers
 if docker ps -a --format '{{.Names}}' | grep -q "^meridian-"; then
-    warn "Existing Meridian containers detected"
-    echo "Stopping and removing old deployment..."
+    warn "Existing Meridian containers found — removing..."
     docker compose down -v 2>/dev/null || true
     docker rm -f $(docker ps -aq -f "name=meridian-" 2>/dev/null) 2>/dev/null || true
-    info "Old deployment cleaned up"
+    info "Old deployment removed"
 fi
 
 echo "Starting database and Redis..."
 docker compose up -d db redis
 
-echo "Waiting for database to be ready..."
+echo "Waiting for database..."
 for i in {1..30}; do
     if docker compose exec -T db pg_isready -U meridian &>/dev/null; then
         info "Database ready"
         break
     fi
-    [ $i -eq 30 ] && error "Database failed to start. Check: docker compose logs db"
+    [ $i -eq 30 ] && error "Database failed to start. Run: docker compose logs db"
     sleep 2
 done
 
+# ── Migrations ────────────────────────────────────────────
+# Run migrations early to catch failures before starting everything.
+# The API entrypoint.sh also runs migrations on startup — running twice is safe.
 echo "Running database migrations..."
-docker compose run --rm -T api alembic upgrade head || error "Migration failed"
-info "Database initialized"
+docker compose run --rm -T api alembic upgrade head \
+    || error "Migration failed. Run: docker compose logs"
+info "Migrations complete"
 
+# ── Start All Services ────────────────────────────────────
 echo "Starting all services..."
 docker compose up -d
-
 info "All services started"
+
+# ── Pull Ollama Model ─────────────────────────────────────
+step "Downloading AI Model"
+
+echo "Waiting for Ollama to be ready..."
+for i in {1..30}; do
+    if docker compose exec -T ollama curl -sf http://localhost:11434/api/version &>/dev/null; then
+        info "Ollama ready"
+        break
+    fi
+    [ $i -eq 30 ] && { warn "Ollama not ready — skipping model pull. Pull manually later."; break; }
+    sleep 3
+done
+
+echo "Pulling qwen2.5:3b (~2 GB)..."
+docker compose exec -T ollama ollama pull qwen2.5:3b \
+    && info "AI model ready" \
+    || warn "Model pull failed. Pull manually: docker compose exec ollama ollama pull qwen2.5:3b"
 
 # ── Health Checks ─────────────────────────────────────────
 step "Verifying Deployment"
@@ -344,7 +383,7 @@ for i in {1..30}; do
         info "Frontend online at http://localhost:3000"
         break
     fi
-    [ $i -eq 30 ] && warn "Frontend not responding yet. It may still be starting."
+    [ $i -eq 30 ] && warn "Frontend not responding yet — it may still be starting up."
     sleep 2
 done
 
@@ -373,16 +412,14 @@ done
 echo ""
 info "Creating admin user..."
 
-# Create user via API
-CREATE_RESPONSE=$(curl -sf -X POST http://localhost:8000/api/users \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"$ADMIN_EMAIL\",\"name\":\"$ADMIN_NAME\",\"password\":\"$ADMIN_PASS\",\"role\":\"admin\"}" 2>/dev/null || echo "")
-
-if echo "$CREATE_RESPONSE" | grep -q "\"email\""; then
-    info "Admin user created: $ADMIN_EMAIL"
-else
-    warn "Could not create user via API. You can create it after login."
-fi
+# manage_users.py is bundled in the prod image — it seeds the tenant and hashes the password
+docker compose exec -T api python scripts/manage_users.py create \
+    --email "$ADMIN_EMAIL" \
+    --name "$ADMIN_NAME" \
+    --password "$ADMIN_PASS" \
+    --role admin \
+    && info "Admin user created: $ADMIN_EMAIL" \
+    || warn "Admin creation failed — run manually: docker compose exec api python scripts/manage_users.py create --email <email> --password <pass> --role admin"
 
 # ── Summary ───────────────────────────────────────────────
 step "Installation Complete!"
