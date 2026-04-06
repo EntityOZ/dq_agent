@@ -233,6 +233,7 @@ services:
 
   api:
     image: ghcr.io/luketempleman/meridian-api:latest
+    platform: linux/amd64
     container_name: meridian-api
     env_file: .env
     ports:
@@ -253,6 +254,7 @@ services:
 
   worker:
     image: ghcr.io/luketempleman/meridian-worker:latest
+    platform: linux/amd64
     container_name: meridian-worker
     command: ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     env_file: .env
@@ -267,6 +269,7 @@ services:
 
   beat:
     image: ghcr.io/luketempleman/meridian-worker:latest
+    platform: linux/amd64
     container_name: meridian-beat
     command: ["celery", "-A", "workers.celery_app", "beat", "--loglevel=info"]
     env_file: .env
@@ -278,6 +281,7 @@ services:
 
   frontend:
     image: ghcr.io/luketempleman/meridian-frontend:latest
+    platform: linux/amd64
     container_name: meridian-frontend
     env_file: .env
     ports:
