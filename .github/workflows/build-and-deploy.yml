@@ -93,33 +93,33 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.api.prod
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}-api:${{ steps.version.outputs.VERSION }}
             ${{ env.IMAGE_PREFIX }}-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Build and push Frontend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.frontend.prod
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.version.outputs.VERSION }}
             ${{ env.IMAGE_PREFIX }}-frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Build and push Worker
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.worker.prod
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}-worker:${{ steps.version.outputs.VERSION }}
