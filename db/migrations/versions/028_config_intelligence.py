@@ -88,7 +88,7 @@ def upgrade() -> None:
         sa.Column("severity", sa.VARCHAR(20), nullable=False),
         sa.Column("title", sa.VARCHAR(500), nullable=False),
         sa.Column("description", sa.Text, nullable=True),
-        sa.Column("affected_elements", JSONB, server_default="'[]'"),
+        sa.Column("affected_elements", JSONB, server_default=sa.text("'[]'")),
         sa.Column("remediation", sa.Text, nullable=True),
         sa.Column("estimated_impact_zar", sa.Float, server_default="0"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
