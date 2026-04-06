@@ -2,10 +2,12 @@
 # =========================================================
 # Meridian Platform — One-Script Installer
 #
-# Builds images from source, configures, and starts all
-# services. Run this from the Meridian project root.
+# Pulls pre-built images from GHCR, configures, and starts
+# all services. Images are built automatically when code is
+# pushed to main (GitHub Actions build-and-deploy.yml).
 #
 # Requirements: Docker 24.0+, internet connection
+# GHCR packages must be set to Public in GitHub settings.
 # =========================================================
 set -euo pipefail
 
@@ -47,11 +49,7 @@ DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || ec
 DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
 [ "$DOCKER_MAJOR" -lt 24 ] && error "Docker 24.0+ required (found $DOCKER_VERSION)"
 info "Docker $DOCKER_VERSION detected"
-
-# Must run from project root — Dockerfile.api and frontend/ must exist
-[ ! -f "Dockerfile.api" ] && error "Run this script from the Meridian project root (Dockerfile.api not found here: $(pwd))"
-[ ! -d "frontend" ]       && error "Run this script from the Meridian project root (frontend/ directory not found here: $(pwd))"
-info "Running from project root: $(pwd)"
+info "Docker Compose available"
 
 # ── Licence Key ───────────────────────────────────────────
 step "Licence Activation"
@@ -105,12 +103,12 @@ cat > .env << EOF
 # Generated: $(date)
 # Licence: ${LICENCE_KEY:0:9}****-****
 
-# Licence — config.py reads LICENCE_MODE, LICENCE_KEY, LICENCE_SERVER_URL (no MERIDIAN_ prefix)
+# Licence
 LICENCE_MODE=online
 LICENCE_KEY=$LICENCE_KEY
 LICENCE_SERVER_URL=$LICENCE_SERVER
 
-# LLM — qwen2.5:3b is pulled at startup (~2 GB, fast to run on CPU)
+# LLM
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:3b
@@ -124,8 +122,8 @@ DATABASE_URL_SYNC=postgresql://meridian:$DB_PASS@db:5432/meridian
 REDIS_URL=redis://redis:6379/0
 
 # MinIO
-# MINIO_PASSWORD  → used by the MinIO container (MINIO_ROOT_PASSWORD)
-# MINIO_SECRET_KEY → used by the API to connect to MinIO (config.py: minio_secret_key)
+# MINIO_PASSWORD   → MinIO container's root password (MINIO_ROOT_PASSWORD)
+# MINIO_SECRET_KEY → API client connection key (config.py: minio_secret_key)
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=meridian
 MINIO_PASSWORD=$MINIO_PASS
@@ -133,7 +131,7 @@ MINIO_SECRET_KEY=$MINIO_PASS
 MINIO_BUCKET_UPLOADS=meridian-uploads
 MINIO_BUCKET_REPORTS=meridian-reports
 
-# SAP — mock mode for standalone installs (configure real connector after setup)
+# SAP (mock mode — configure a real connector after setup)
 SAP_CONNECTOR=mock
 CREDENTIAL_MASTER_KEY=$SECRET
 
@@ -141,7 +139,7 @@ CREDENTIAL_MASTER_KEY=$SECRET
 AUTH_MODE=local
 NEXT_PUBLIC_AUTH_MODE=local
 
-# CORS — config.py reads CORS_ORIGINS (no MERIDIAN_ prefix)
+# CORS
 CORS_ORIGINS=http://localhost:3000
 
 # Clerk dummy keys — required for frontend build; not used in local auth mode
@@ -154,10 +152,7 @@ info "Configuration saved to .env"
 # ── Docker Compose File ───────────────────────────────────
 step "Creating Deployment Configuration"
 
-# Write to docker-compose.standalone.yml to avoid overwriting the dev compose file
-COMPOSE_FILE="docker-compose.standalone.yml"
-
-cat > "$COMPOSE_FILE" << 'COMPOSE_EOF'
+cat > docker-compose.yml << 'COMPOSE_EOF'
 version: "3.9"
 
 networks:
@@ -221,7 +216,7 @@ services:
       timeout: 20s
       retries: 3
 
-  # Standard Ollama image — model is pulled at first startup (see "Downloading AI Model" step)
+  # Standard Ollama image — model is pulled at first startup (see installer step below)
   ollama:
     image: ollama/ollama:latest
     container_name: meridian-ollama
@@ -237,9 +232,7 @@ services:
       retries: 5
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    image: ghcr.io/luketempleman/meridian-api:latest
     container_name: meridian-api
     env_file: .env
     ports:
@@ -259,9 +252,7 @@ services:
       retries: 3
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-worker
     command: ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     env_file: .env
@@ -275,9 +266,7 @@ services:
     restart: unless-stopped
 
   beat:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    image: ghcr.io/luketempleman/meridian-worker:latest
     container_name: meridian-beat
     command: ["celery", "-A", "workers.celery_app", "beat", "--loglevel=info"]
     env_file: .env
@@ -288,12 +277,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_AUTH_MODE: local
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15a2V5
+    image: ghcr.io/luketempleman/meridian-frontend:latest
     container_name: meridian-frontend
     env_file: .env
     ports:
@@ -305,19 +289,24 @@ services:
     restart: unless-stopped
 COMPOSE_EOF
 
-info "$COMPOSE_FILE created"
+info "docker-compose.yml created"
 
-# ── Build Images ──────────────────────────────────────────
-step "Building Images (from source)"
+# ── Pull Images ───────────────────────────────────────────
+step "Downloading Images"
 
-echo "Building API, worker, and frontend images..."
-echo "This takes 5–15 minutes on first run."
+echo "Pulling Meridian images from GHCR..."
+echo "(Images are built automatically when code is pushed to main)"
 echo ""
 
-docker compose -f "$COMPOSE_FILE" build --parallel \
-    || error "Image build failed. Fix the error above and re-run."
+docker compose pull \
+    || error "Failed to pull images from GHCR.
+  Possible causes:
+    1. Images haven't been built yet — push to main first, wait for CI to finish
+    2. GHCR packages are set to Private — go to github.com/luketempleman → Packages
+       → set each meridian-* package visibility to Public
+    3. No internet connection"
 
-info "All images built successfully"
+info "All images downloaded"
 
 # ── Start Infrastructure ──────────────────────────────────
 step "Starting Services"
@@ -325,58 +314,35 @@ step "Starting Services"
 # Remove any stale Meridian containers
 if docker ps -a --format '{{.Names}}' | grep -q "^meridian-"; then
     warn "Existing Meridian containers found — removing..."
-    docker compose -f "$COMPOSE_FILE" down -v 2>/dev/null || true
+    docker compose down -v 2>/dev/null || true
     docker rm -f $(docker ps -aq -f "name=meridian-" 2>/dev/null) 2>/dev/null || true
     info "Old deployment removed"
 fi
 
 echo "Starting database and Redis..."
-docker compose -f "$COMPOSE_FILE" up -d db redis
+docker compose up -d db redis
 
 echo "Waiting for database..."
 for i in {1..30}; do
-    if docker compose -f "$COMPOSE_FILE" exec -T db pg_isready -U meridian &>/dev/null; then
+    if docker compose exec -T db pg_isready -U meridian &>/dev/null; then
         info "Database ready"
         break
     fi
-    [ $i -eq 30 ] && error "Database failed to start. Run: docker compose -f $COMPOSE_FILE logs db"
+    [ $i -eq 30 ] && error "Database failed to start. Run: docker compose logs db"
     sleep 2
 done
 
 # ── Migrations ────────────────────────────────────────────
+# Run migrations early to catch failures before starting everything.
+# The API entrypoint.sh also runs migrations on startup — running twice is safe.
 echo "Running database migrations..."
-docker compose -f "$COMPOSE_FILE" run --rm -T api alembic upgrade head \
-    || error "Migration failed. Run: docker compose -f $COMPOSE_FILE logs"
+docker compose run --rm -T api alembic upgrade head \
+    || error "Migration failed. Run: docker compose logs"
 info "Migrations complete"
-
-# ── Seed Dev Tenant ───────────────────────────────────────
-# Local auth (auth.py + deps.py) uses the hardcoded UUID below.
-# No migration creates this row, so we insert it here.
-echo "Seeding initial tenant..."
-docker compose -f "$COMPOSE_FILE" run --rm -T api python -c "
-import os, sys
-sys.path.insert(0, '/app')
-from sqlalchemy import create_engine, text
-engine = create_engine(os.environ['DATABASE_URL_SYNC'])
-with engine.connect() as conn:
-    conn.execute(text('''
-        INSERT INTO tenants (id, name, licensed_modules, created_at)
-        VALUES (
-            '00000000-0000-0000-0000-000000000001',
-            'Default',
-            ARRAY['business_partner','material_master','fi_gl'],
-            now()
-        )
-        ON CONFLICT (id) DO NOTHING
-    '''))
-    conn.commit()
-print('Tenant ready')
-" || warn "Tenant seed skipped (may already exist)"
-info "Tenant seeded"
 
 # ── Start All Services ────────────────────────────────────
 echo "Starting all services..."
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose up -d
 info "All services started"
 
 # ── Pull Ollama Model ─────────────────────────────────────
@@ -384,7 +350,7 @@ step "Downloading AI Model"
 
 echo "Waiting for Ollama to be ready..."
 for i in {1..30}; do
-    if docker compose -f "$COMPOSE_FILE" exec -T ollama curl -sf http://localhost:11434/api/version &>/dev/null; then
+    if docker compose exec -T ollama curl -sf http://localhost:11434/api/version &>/dev/null; then
         info "Ollama ready"
         break
     fi
@@ -393,9 +359,9 @@ for i in {1..30}; do
 done
 
 echo "Pulling qwen2.5:3b (~2 GB)..."
-docker compose -f "$COMPOSE_FILE" exec -T ollama ollama pull qwen2.5:3b \
+docker compose exec -T ollama ollama pull qwen2.5:3b \
     && info "AI model ready" \
-    || warn "Model pull failed. Pull manually: docker compose -f $COMPOSE_FILE exec ollama ollama pull qwen2.5:3b"
+    || warn "Model pull failed. Pull manually: docker compose exec ollama ollama pull qwen2.5:3b"
 
 # ── Health Checks ─────────────────────────────────────────
 step "Verifying Deployment"
@@ -406,7 +372,7 @@ for i in {1..60}; do
         info "API online at http://localhost:8000"
         break
     fi
-    [ $i -eq 60 ] && warn "API health check timed out. Check: docker compose -f $COMPOSE_FILE logs api"
+    [ $i -eq 60 ] && warn "API health check timed out. Check: docker compose logs api"
     sleep 2
 done
 
@@ -446,42 +412,14 @@ done
 echo ""
 info "Creating admin user..."
 
-# Insert admin via the API container — hashes password with Argon2, respects RLS
-docker compose -f "$COMPOSE_FILE" exec -T \
-    -e ADMIN_EMAIL="$ADMIN_EMAIL" \
-    -e ADMIN_NAME="$ADMIN_NAME" \
-    -e ADMIN_PASS="$ADMIN_PASS" \
-    api python -c "
-import os, uuid, sys
-sys.path.insert(0, '/app')
-from api.services.local_auth import hash_password
-from sqlalchemy import create_engine, text
-
-TENANT_ID = '00000000-0000-0000-0000-000000000001'
-engine = create_engine(os.environ['DATABASE_URL_SYNC'])
-email = os.environ['ADMIN_EMAIL']
-name  = os.environ.get('ADMIN_NAME', email)
-pw    = hash_password(os.environ['ADMIN_PASS'])
-uid   = str(uuid.uuid4())
-
-with engine.connect() as conn:
-    conn.execute(text(f\"SET app.tenant_id = '{TENANT_ID}'\"))
-    existing = conn.execute(
-        text('SELECT id FROM users WHERE email = :email AND tenant_id = :tid'),
-        {'email': email, 'tid': TENANT_ID}
-    ).fetchone()
-    if existing:
-        print(f'User {email} already exists — skipping')
-    else:
-        conn.execute(text('''
-            INSERT INTO users (id, tenant_id, email, name, role, password_hash, is_active, created_at)
-            VALUES (:id, :tid, :email, :name, 'admin', :pw, true, now())
-        '''), {'id': uid, 'tid': TENANT_ID, 'email': email, 'name': name, 'pw': pw})
-        conn.commit()
-        print(f'Admin user created: {email}')
-" \
+# manage_users.py is bundled in the prod image — it seeds the tenant and hashes the password
+docker compose exec -T api python scripts/manage_users.py create \
+    --email "$ADMIN_EMAIL" \
+    --name "$ADMIN_NAME" \
+    --password "$ADMIN_PASS" \
+    --role admin \
     && info "Admin user created: $ADMIN_EMAIL" \
-    || warn "Admin creation failed — create the user from the dashboard after login."
+    || warn "Admin creation failed — run manually: docker compose exec api python scripts/manage_users.py create --email <email> --password <pass> --role admin"
 
 # ── Summary ───────────────────────────────────────────────
 step "Installation Complete!"
@@ -502,10 +440,10 @@ echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "Useful commands:"
-echo "  View logs:    docker compose -f $COMPOSE_FILE logs -f"
-echo "  Stop:         docker compose -f $COMPOSE_FILE stop"
-echo "  Restart:      docker compose -f $COMPOSE_FILE restart"
-echo "  Rebuild:      docker compose -f $COMPOSE_FILE build && docker compose -f $COMPOSE_FILE up -d"
+echo "  View logs:    docker compose logs -f"
+echo "  Stop:         docker compose stop"
+echo "  Restart:      docker compose restart"
+echo "  Update:       docker compose pull && docker compose up -d"
 echo ""
 echo "For support: support@vantax.co.za"
 echo ""
