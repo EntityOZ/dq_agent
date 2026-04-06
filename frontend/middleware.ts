@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
 
@@ -10,15 +11,21 @@ const isPublicRoute = createRouteMatcher([
   "/health",
 ]);
 
-export default clerkMiddleware((auth, req) => {
-  // Skip auth entirely in local dev mode
-  if (isLocalAuth) {
-    return NextResponse.next();
-  }
+// clerkMiddleware validates the publishable key on every request BEFORE calling
+// the inner handler. Wrapping it here means we can return early in local auth
+// mode without Clerk ever touching the key.
+const withClerk = clerkMiddleware((auth, req) => {
   if (!isPublicRoute(req)) {
     auth.protect();
   }
 });
+
+export default function middleware(req: NextRequest) {
+  if (isLocalAuth) {
+    return NextResponse.next();
+  }
+  return withClerk(req);
+}
 
 // Static matcher — always required by Next.js, cannot be conditional
 export const config = {
