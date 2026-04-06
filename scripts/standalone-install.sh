@@ -385,6 +385,8 @@ for i in {1..60}; do
     [ $i -eq 60 ] && warn "API health check timed out. Check: docker compose logs api"
     sleep 2
 done
+# Give the API startup event (tenant seeding) a moment to complete
+sleep 5
 
 echo "Waiting for frontend..."
 for i in {1..30}; do
@@ -400,36 +402,59 @@ done
 # ── Admin User ────────────────────────────────────────────
 step "Admin Account Setup"
 
-echo "Create your first admin user:"
-echo ""
+# Support non-interactive mode via env vars (useful for automated installs):
+#   ADMIN_EMAIL=... ADMIN_NAME=... ADMIN_PASSWORD=... bash standalone-install.sh
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
+ADMIN_NAME="${ADMIN_NAME:-}"
+ADMIN_PASS="${ADMIN_PASSWORD:-}"
 
-read -p "Admin Email: " ADMIN_EMAIL
-while [ -z "$ADMIN_EMAIL" ]; do
-    echo -e "${RED}Email required${NC}"
-    read -p "Admin Email: " ADMIN_EMAIL
-done
-
-read -p "Admin Name [$ADMIN_EMAIL]: " ADMIN_NAME
-ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
-
-while true; do
-    read -sp "Admin Password (min 8 chars): " ADMIN_PASS
+if [ -z "$ADMIN_EMAIL" ]; then
+    echo "Create your first admin user:"
     echo ""
-    [ ${#ADMIN_PASS} -ge 8 ] && break
-    echo -e "${RED}Password must be at least 8 characters${NC}"
-done
+    # Detect non-interactive stdin (pipe/redirect) — skip prompts cleanly
+    if [ -t 0 ]; then
+        read -p "Admin Email: " ADMIN_EMAIL
+        while [ -z "$ADMIN_EMAIL" ]; do
+            echo -e "${RED}Email required${NC}"
+            read -p "Admin Email: " ADMIN_EMAIL
+        done
+        read -p "Admin Name [$ADMIN_EMAIL]: " ADMIN_NAME
+        ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
+        while true; do
+            read -sp "Admin Password (min 8 chars): " ADMIN_PASS
+            echo ""
+            [ ${#ADMIN_PASS} -ge 8 ] && break
+            echo -e "${RED}Password must be at least 8 characters${NC}"
+        done
+    else
+        warn "Non-interactive mode — skipping admin user creation."
+        warn "Create the first user after install:"
+        warn "  docker compose exec api python scripts/manage_users.py create --email admin@example.com --password <pass> --role admin"
+        ADMIN_EMAIL="SKIP"
+    fi
+fi
 
+if [ "$ADMIN_EMAIL" != "SKIP" ] && [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASS" ]; then
+ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
 echo ""
 info "Creating admin user..."
 
-# manage_users.py is bundled in the prod image — it seeds the tenant and hashes the password
-docker compose exec -T api python scripts/manage_users.py create \
+# manage_users.py is bundled in the prod image — seeds the tenant and hashes the password
+# Redirect stdin from /dev/null so docker compose exec doesn't inherit the closed pipe
+ADMIN_RESULT=$(docker compose exec -T api python scripts/manage_users.py create \
     --email "$ADMIN_EMAIL" \
     --name "$ADMIN_NAME" \
     --password "$ADMIN_PASS" \
-    --role admin \
-    && info "Admin user created: $ADMIN_EMAIL" \
-    || warn "Admin creation failed — run manually: docker compose exec api python scripts/manage_users.py create --email <email> --password <pass> --role admin"
+    --role admin 2>&1 </dev/null) || true
+
+if echo "$ADMIN_RESULT" | grep -q "User created"; then
+    info "Admin user created: $ADMIN_EMAIL"
+else
+    warn "Admin creation issue: $ADMIN_RESULT"
+    warn "Run manually: docker compose exec api python scripts/manage_users.py create --email $ADMIN_EMAIL --password <pass> --role admin"
+fi
+
+fi # end SKIP check
 
 # ── Summary ───────────────────────────────────────────────
 step "Installation Complete!"
