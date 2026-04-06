@@ -104,9 +104,11 @@ cat > .env << EOF
 # Licence: ${LICENCE_KEY:0:9}****-****
 
 # Licence
+# licence middleware (api/middleware/licence.py) appends /validate to LICENCE_SERVER_URL,
+# so we store the base URL only (strip /validate suffix if present).
 LICENCE_MODE=online
 LICENCE_KEY=$LICENCE_KEY
-LICENCE_SERVER_URL=$LICENCE_SERVER
+LICENCE_SERVER_URL=${LICENCE_SERVER%/validate}
 
 # LLM
 LLM_PROVIDER=ollama
@@ -346,26 +348,30 @@ info "Migrations complete"
 
 # ── Start All Services ────────────────────────────────────
 echo "Starting all services..."
-docker compose up -d
+docker compose up -d || true
 info "All services started"
 
 # ── Pull Ollama Model ─────────────────────────────────────
 step "Downloading AI Model"
 
+OLLAMA_READY=false
 echo "Waiting for Ollama to be ready..."
 for i in {1..30}; do
     if docker compose exec -T ollama curl -sf http://localhost:11434/api/version &>/dev/null; then
         info "Ollama ready"
+        OLLAMA_READY=true
         break
     fi
-    [ $i -eq 30 ] && { warn "Ollama not ready — skipping model pull. Pull manually later."; break; }
+    [ $i -eq 30 ] && warn "Ollama not ready — skipping model pull. Pull manually later."
     sleep 3
 done
 
-echo "Pulling qwen2.5:3b (~2 GB)..."
-docker compose exec -T ollama ollama pull qwen2.5:3b \
-    && info "AI model ready" \
-    || warn "Model pull failed. Pull manually: docker compose exec ollama ollama pull qwen2.5:3b"
+if [ "$OLLAMA_READY" = "true" ]; then
+    echo "Pulling qwen2.5:3b (~2 GB)..."
+    docker compose exec -T ollama ollama pull qwen2.5:3b \
+        && info "AI model ready" \
+        || warn "Model pull failed. Pull manually: docker compose exec ollama ollama pull qwen2.5:3b"
+fi
 
 # ── Health Checks ─────────────────────────────────────────
 step "Verifying Deployment"
