@@ -56,6 +56,7 @@ class AlignmentValidator:
         findings.extend(self._check_number_range_health(config_elements))
         findings.extend(self._check_org_structure_gaps(config_elements))
         findings.extend(self._check_integration_gaps(config_elements))
+        findings.extend(self._check_z_object_alignment(config_elements, records))
         return findings
 
     # ------------------------------------------------------------------
@@ -504,6 +505,88 @@ class AlignmentValidator:
                     )],
                     remediation="Investigate and reprocess failed IDocs",
                     estimated_impact_zar=error_count * 3000,
+                ))
+
+        return findings
+
+    # ------------------------------------------------------------------
+    # Z-Object Alignment
+    # ------------------------------------------------------------------
+
+    def _check_z_object_alignment(
+        self,
+        elements: list[ConfigElement],
+        records: list[dict],
+    ) -> list[AlignmentFinding]:
+        """Z-Object alignment checks: ghost Z config, Z field completeness."""
+        findings: list[AlignmentFinding] = []
+
+        # Filter Z-prefixed config elements
+        z_elements = [e for e in elements if e.element_type.startswith("z_")]
+        if not z_elements:
+            return findings
+
+        # Ghost Z config: Z config values in inventory with 0 transactions
+        ghost_z = [e for e in z_elements if e.transaction_count == 0]
+        if ghost_z:
+            by_module: dict[str, list[ConfigElement]] = defaultdict(list)
+            for e in ghost_z:
+                by_module[e.module].append(e)
+            for module, group in by_module.items():
+                findings.append(AlignmentFinding(
+                    check_id=f"GHOST-Z-{module}",
+                    module=module,
+                    category=AlignmentCategory.GHOST,
+                    severity=Severity.LOW,
+                    title=f"{len(group)} ghost Z config values in {module}",
+                    description=(
+                        f"{len(group)} custom Z config values in module {module} "
+                        f"have zero transactions — may be abandoned customisations"
+                    ),
+                    affected_elements=[e.element_value for e in group],
+                    remediation="Review ghost Z config values and deactivate if no longer needed",
+                    estimated_impact_zar=len(group) * 300,
+                ))
+
+        # Z field completeness: ZZ fields with >50% null rate
+        zz_fields = set()
+        for r in records:
+            for key in r.keys():
+                upper_key = key.upper()
+                if upper_key.startswith("ZZ") or (
+                    len(upper_key) > 2
+                    and upper_key[0] == "Z"
+                    and upper_key[1].isalpha()
+                    and upper_key[1].isupper()
+                    and "_" in upper_key
+                ):
+                    zz_fields.add(key)
+            break  # Only need field names from first record
+
+        for field in zz_fields:
+            total = len(records)
+            if total == 0:
+                continue
+            null_count = sum(
+                1 for r in records
+                if r.get(field) is None or r.get(field) == ""
+            )
+            null_rate = (null_count / total) * 100
+            if null_rate > 50:
+                findings.append(AlignmentFinding(
+                    check_id=f"Z-FIELD-COMPLETENESS-{field.upper()}",
+                    module="CROSS",
+                    category=AlignmentCategory.MISMATCH,
+                    severity=Severity.MEDIUM,
+                    title=f"Z field {field} has {null_rate:.0f}% null rate",
+                    description=(
+                        f"Custom field {field} has {null_rate:.0f}% null values "
+                        f"({null_count} of {total} records) — indicates degraded "
+                        f"data entry or abandoned customisation"
+                    ),
+                    affected_elements=[field],
+                    remediation=f"Review field {field}: enforce data entry or deprecate",
+                    estimated_impact_zar=null_count * 100,
                 ))
 
         return findings

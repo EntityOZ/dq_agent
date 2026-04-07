@@ -112,6 +112,9 @@ class ConfigDiscovery:
         if fields & ewms_fields:
             elements.extend(self._discover_ewms(records))
 
+        # Z-Object Integration: detect Z config values and append to inventory
+        elements = self._append_z_objects_to_inventory(records, elements)
+
         return elements
 
     # ------------------------------------------------------------------
@@ -520,6 +523,29 @@ class ConfigDiscovery:
                     sap_reference_table="",
                 ))
 
+        return elements
+
+    # ------------------------------------------------------------------
+    # Z-Object Integration
+    # ------------------------------------------------------------------
+
+    def _append_z_objects_to_inventory(
+        self, records: list[dict], elements: list[ConfigElement]
+    ) -> list[ConfigElement]:
+        """Detect Z objects and append them to the config inventory."""
+        from api.services.z_object_intelligence.detector import ZDetector
+
+        detector = ZDetector()
+        result = detector.detect(records)
+        for z_obj in result.z_config_values:
+            elements.append(ConfigElement(
+                module=z_obj.module,
+                element_type=f"z_{z_obj.source_field.lower()}",
+                element_value=z_obj.object_name,
+                transaction_count=z_obj.transaction_count,
+                status=ConfigStatus.ACTIVE if z_obj.transaction_count > 0 else ConfigStatus.DORMANT,
+                sap_reference_table=f"Z-CUSTOM ({z_obj.source_field})",
+            ))
         return elements
 
     # ------------------------------------------------------------------
