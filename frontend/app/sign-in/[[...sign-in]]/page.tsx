@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SignIn } from "@clerk/nextjs";
 import { ShieldCheck } from "lucide-react";
 import apiClient from "@/lib/api/client";
 
-const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
 const TOKEN_KEY = "mn_auth_token";
 
-function LocalSignIn() {
+export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -89,18 +87,6 @@ function LocalSignIn() {
           </button>
         </form>
       </div>
-    </div>
-  );
-}
-
-export default function SignInPage() {
-  if (isLocalAuth) {
-    return <LocalSignIn />;
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA]">
-      <SignIn />
     </div>
   );
 }

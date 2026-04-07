@@ -2,19 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback } from "react";
 import { User, Bell, Menu, X, ChevronLeft, ChevronRight, Search, Download, LogOut } from "lucide-react";
-
-const isLocalAuth = process.env.NEXT_PUBLIC_AUTH_MODE === "local";
-
-const ClerkUserButton = dynamic(
-  () => import("@clerk/nextjs").then((mod) => mod.UserButton),
-  {
-    ssr: false,
-    loading: () => <User className="h-5 w-5 text-muted-foreground" />,
-  }
-);
 
 function LocalUserButton() {
   const { user, logout } = useAuth();
@@ -72,7 +61,7 @@ function LocalUserButton() {
   );
 }
 
-const UserButton = isLocalAuth ? LocalUserButton : ClerkUserButton;
+const UserButton = LocalUserButton;
 
 import {
   LayoutDashboard,
@@ -710,8 +699,5 @@ export default function DashboardLayout({
     </div>
   );
 
-  if (isLocalAuth) {
-    return <AuthGuard>{content}</AuthGuard>;
-  }
-  return content;
+  return <AuthGuard>{content}</AuthGuard>;
 }

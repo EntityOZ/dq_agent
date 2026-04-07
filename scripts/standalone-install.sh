@@ -209,9 +209,6 @@ FRONTEND_URL=${PROTOCOL}://${SERVER_ADDRESS}:3000
 # CORS — allow both localhost (SSH tunnels / dev) and the server address
 CORS_ORIGINS=http://localhost:3000,${PROTOCOL}://${SERVER_ADDRESS}:3000
 
-# Clerk dummy keys — required for frontend build; not used in local auth mode
-CLERK_SECRET_KEY=sk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15c2VjcmV0a2V5
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15a2V5
 EOF
 
 info "Configuration saved to .env"
@@ -293,7 +290,7 @@ services:
       - meridian-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -420,16 +417,31 @@ info "All services started"
 step "Downloading AI Model"
 
 OLLAMA_READY=false
-echo "Waiting for Ollama to be ready..."
-for i in {1..30}; do
-    if docker compose exec -T ollama curl -sf http://localhost:11434/api/version &>/dev/null; then
-        info "Ollama ready"
-        OLLAMA_READY=true
+
+# Stage 1: wait for the container to be running (image may still be pulling)
+echo "Waiting for Ollama container to start (image pull may take a few minutes)..."
+for i in {1..60}; do
+    STATE=$(docker inspect --format '{{.State.Status}}' meridian-ollama 2>/dev/null || echo "missing")
+    if [ "$STATE" = "running" ]; then
         break
     fi
-    [ $i -eq 30 ] && warn "Ollama not ready — skipping model pull. Pull manually later."
-    sleep 3
+    [ $i -eq 60 ] && warn "Ollama container never started — skipping model pull. Pull manually later: docker compose exec ollama ollama pull qwen2.5:3b" && break
+    sleep 5
 done
+
+# Stage 2: wait for the Ollama HTTP server to be responsive inside the container
+if [ "$(docker inspect --format '{{.State.Status}}' meridian-ollama 2>/dev/null)" = "running" ]; then
+    echo "Waiting for Ollama service to be ready..."
+    for i in {1..40}; do
+        if docker compose exec -T ollama curl -sf http://localhost:11434 &>/dev/null; then
+            info "Ollama ready"
+            OLLAMA_READY=true
+            break
+        fi
+        [ $i -eq 40 ] && warn "Ollama service did not respond — skipping model pull. Pull manually later: docker compose exec ollama ollama pull qwen2.5:3b"
+        sleep 3
+    done
+fi
 
 if [ "$OLLAMA_READY" = "true" ]; then
     echo "Pulling qwen2.5:3b (~2 GB)..."

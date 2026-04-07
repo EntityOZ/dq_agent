@@ -1,9 +1,7 @@
-import { SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
+// Self-registration is not supported in local auth mode.
+// Accounts are created by an admin via the CLI or user management page.
 export default function SignUpPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA]">
-      <SignUp />
-    </div>
-  );
+  redirect("/sign-in");
 }
