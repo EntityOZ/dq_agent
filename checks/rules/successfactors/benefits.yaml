@@ -267,3 +267,12 @@ rules:
     sap_impact: Payroll deducts premiums twice. Carrier feeds contain duplicate enrollments. Benefits cost reports are overstated.
     fix_map:
       __blank__: "Review duplicate enrollments in Admin Center > Benefits. End-date or delete the incorrect enrollment. Verify carrier feed after correction."
+
+  - id: BEN012
+    field: ENROL_DATE
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: low
+    dimension: timeliness
+    message: Benefit enrollment older than 2 years — verify enrollment is still valid and premiums are current
+    rule_authority: best_practice

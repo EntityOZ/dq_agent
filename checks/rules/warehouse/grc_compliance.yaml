@@ -312,3 +312,12 @@ rules:
     sap_impact: SoD matrix produces incorrect results. Audit reports flag phantom conflicts. Access risk quantification is unreliable.
     fix_map:
       __blank__: "Review duplicate role assignments in GRC Access Control. Remove the duplicate assignment. Re-run SoD analysis for affected users."
+
+  - id: GRC014
+    field: VALID_FROM_GRC
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: medium
+    dimension: timeliness
+    message: GRC role assignment older than 2 years — stale access assignments should be recertified
+    rule_authority: best_practice

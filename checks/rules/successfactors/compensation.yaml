@@ -392,3 +392,12 @@ rules:
     sap_impact: Compensation statements show conflicting data. Budget forecasts are overstated. Payroll integration may pick the wrong record.
     fix_map:
       __blank__: "Review duplicate compensation records in Admin Center > Compensation Import. Archive or end-date the incorrect record."
+
+  - id: COMP017
+    field: COMPINFO.EFFECTIVE_DATE_COMP
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: medium
+    dimension: timeliness
+    message: Compensation record not updated in 2+ years — salary may be outdated, review against current pay ranges
+    rule_authority: best_practice

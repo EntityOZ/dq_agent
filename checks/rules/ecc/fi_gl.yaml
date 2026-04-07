@@ -680,3 +680,25 @@ rules:
     record_fix_template: >-
       GL Account {SKA1.SAKNR}: duplicate detected. Review and merge via
       FS00 / Fiori app F2735. Repost any transactions from the duplicate account.
+
+  - id: GL026
+    field: SKA1.ERDAT
+    check_class: freshness_check
+    max_age_hours: 43800
+    severity: low
+    dimension: timeliness
+    message: GL account created 5+ years ago and may contain outdated configuration � review account determination and field status
+    rule_authority: best_practice
+
+  - id: GL027
+    field: SKA1.TXT50
+    check_class: regex_check
+    pattern: '^[A-Za-z0-9 \-\/\(\)&,\.]+$'
+    severity: medium
+    dimension: accuracy
+    message: GL account description contains special characters or non-standard formatting
+    why_it_matters: GL account descriptions with irregular characters cause report rendering issues, export failures, and inconsistent financial statement presentation.
+    rule_authority: best_practice
+    sap_impact: Financial reports render incorrectly. Data exports truncate at special characters. Trial balance descriptions are inconsistent.
+    fix_map:
+      __blank__: "Standardise the GL account description via FS00 to use only letters, numbers, spaces, and basic punctuation."

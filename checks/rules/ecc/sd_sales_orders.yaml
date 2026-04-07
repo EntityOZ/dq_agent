@@ -609,3 +609,26 @@ rules:
   sap_impact: Order volume and revenue reports are overstated. Delivery creation references ambiguous orders. Billing may process the same order twice.
   fix_map:
     __blank__: "This is typically a data extract issue â€” ensure the extract is at header level (VBAK) not header-item (VBAK+VBAP). If genuine duplicates exist, escalate to Basis."
+
+- id: SDSO034
+  field: VBAK.ERDAT_SO
+  check_class: freshness_check
+  max_age_hours: 8760
+  severity: medium
+  dimension: timeliness
+  message: Sales order older than 1 year — open orders older than 12 months should be reviewed for closure or rejection
+  rule_authority: best_practice
+
+- id: SDSO035
+  field: VBAP.KWMENG
+  check_class: cross_field_check
+  fields: ['VBAP.KWMENG']
+  condition: "`VBAP.KWMENG`.notna() & (`VBAP.KWMENG` > 0)"
+  severity: high
+  dimension: accuracy
+  message: Sales order line has zero or negative order quantity — indicates configuration or entry error
+  why_it_matters: Zero or negative quantities on sales order lines cause delivery creation failures, incorrect revenue recognition, and pricing errors.
+  rule_authority: best_practice
+  sap_impact: Delivery cannot be created for zero-quantity line. Revenue is not recognised. Pricing conditions produce zero or negative amounts.
+  fix_map:
+    __blank__: "Review the order line via VA02. If a returns order is intended, use the correct order type (RE). If data error, correct the quantity."

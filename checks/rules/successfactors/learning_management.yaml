@@ -321,3 +321,12 @@ rules:
     sap_impact: Compliance dashboards show incorrect completion rates. Learners receive duplicate notifications. Training cost reports are overstated.
     fix_map:
       __blank__: "Review duplicate assignments in Learning > Admin > Assignment Rules. Remove the duplicate assignment. Verify completion status on the surviving record."
+
+  - id: LMS014
+    field: DUE_DATE
+    check_class: freshness_check
+    max_age_hours: 0
+    severity: high
+    dimension: timeliness
+    message: Learning assignment past due date — overdue mandatory training creates compliance risk
+    rule_authority: best_practice

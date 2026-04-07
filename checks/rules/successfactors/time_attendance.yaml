@@ -297,3 +297,12 @@ rules:
     sap_impact: Payroll processes doubled hours. Overtime is overstated. Leave balances are incorrect. Cost centre allocations are wrong.
     fix_map:
       __blank__: "Review duplicate time records in Time Management > Admin. Delete the duplicate entry. Verify the correct time record feeds to payroll."
+
+  - id: TIME014
+    field: USERID_TIME
+    check_class: freshness_check
+    max_age_hours: 2190
+    severity: medium
+    dimension: timeliness
+    message: Time record older than 3 months — stale time records may indicate inactive time recording for this employee
+    rule_authority: best_practice

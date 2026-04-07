@@ -2262,3 +2262,17 @@ rules:
   sap_impact: Inventory is split across duplicate materials. MRP generates incorrect requirements. Purchasing creates POs against the wrong material. Stock valuation is fragmented.
   fix_map:
     __blank__: "Identify and consolidate duplicate materials. Use MMAM to change material type if needed. Merge stock via movement type 309. Update all dependent documents (BOM, source list, info records)."
+
+- id: MM139
+  field: MARA.BRGEW
+  check_class: cross_field_check
+  fields: ['MARA.BRGEW', 'MARA.NTGEW']
+  condition: "`MARA.BRGEW`.notna() & `MARA.NTGEW`.notna() & (`MARA.BRGEW` >= `MARA.NTGEW`)"
+  severity: medium
+  dimension: accuracy
+  message: Gross weight is less than net weight — physically impossible, indicates data entry error
+  why_it_matters: Gross weight must always be greater than or equal to net weight. When reversed, shipping weight calculations, freight cost determination, and customs declarations are incorrect.
+  rule_authority: sap_hard_constraint
+  sap_impact: Freight cost calculation is wrong. Shipping documents show incorrect weight. Customs declarations contain inaccurate data.
+  fix_map:
+    __blank__: "Correct weights via MM02 > General Data > Dimensions tab. Gross weight must >= net weight."

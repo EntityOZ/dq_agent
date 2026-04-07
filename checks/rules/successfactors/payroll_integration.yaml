@@ -360,3 +360,12 @@ rules:
     sap_impact: Employee is paid twice. Tax withholding is doubled. Payroll-to-FI posting is overstated. Payroll reconciliation fails.
     fix_map:
       __blank__: "Investigate the ECP replication log. Delete the duplicate payroll result via the Payroll Control Center. Re-run the replication for the affected period."
+
+  - id: PAY017
+    field: PAYRESULT.PAY_DATE
+    check_class: freshness_check
+    max_age_hours: 2190
+    severity: medium
+    dimension: timeliness
+    message: Payroll result older than 3 months — verify integration is running and results are being replicated
+    rule_authority: best_practice

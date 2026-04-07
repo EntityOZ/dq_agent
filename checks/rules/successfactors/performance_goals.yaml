@@ -263,3 +263,12 @@ rules:
   sap_impact: Calibration sessions show conflicting ratings. Compensation decisions reference the wrong review. Overall rating is ambiguous.
   fix_map:
     __blank__: "Identify duplicate review forms in Admin Center > Performance. Delete the incorrect form. Verify the correct form is routed in the current cycle."
+
+- id: PERF016
+  field: REVIEW_DATE
+  check_class: freshness_check
+  max_age_hours: 17520
+  severity: medium
+  dimension: timeliness
+  message: Performance review older than 2 years — review cycle may be stalled or employee was missed in current cycle
+  rule_authority: best_practice

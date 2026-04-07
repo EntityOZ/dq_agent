@@ -541,3 +541,25 @@ rules:
   sap_impact: Maintenance orders reference the wrong equipment. Failure history is split. Warranty tracking is unreliable. Cost reporting doubles up.
   fix_map:
     __blank__: "Identify and merge duplicate equipment via IE02 or archive duplicates via OIEA. Reassign maintenance orders and notifications to the surviving record."
+
+- id: PM034
+  field: EQUI.ERDAT
+  check_class: freshness_check
+  max_age_hours: 87600
+  severity: low
+  dimension: timeliness
+  message: Equipment master created 10+ years ago � review if technical data, warranty, and maintenance plan are still current
+  rule_authority: best_practice
+
+- id: PM035
+  field: EQUI.BAUJJ
+  check_class: regex_check
+  pattern: '^(19|20)\d{2}$'
+  severity: medium
+  dimension: accuracy
+  message: Equipment construction year is invalid � must be a 4-digit year between 1900 and 2099
+  why_it_matters: Invalid construction years cause incorrect age-based maintenance calculations, wrong warranty determinations, and unreliable asset lifecycle reporting.
+  rule_authority: best_practice
+  sap_impact: Warranty validation fails. Age-based maintenance triggers are wrong. Asset lifecycle reports are unreliable.
+  fix_map:
+    __blank__: "Correct the equipment construction year via IE02 > General tab."

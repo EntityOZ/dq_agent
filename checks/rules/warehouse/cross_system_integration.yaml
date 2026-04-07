@@ -294,3 +294,25 @@ rules:
     sap_impact: Cross-system reconciliation shows false differences. Material sync creates duplicates in target system. Stock reports disagree between systems.
     fix_map:
       __blank__: "De-duplicate the cross-system mapping extract. Verify the material number mapping table between source and target systems."
+
+  - id: XSYS014
+    field: BUDAT
+    check_class: freshness_check
+    max_age_hours: 2190
+    severity: medium
+    dimension: timeliness
+    message: Cross-system posting older than 3 months � verify integration is running and postings are being replicated
+    rule_authority: best_practice
+
+  - id: XSYS015
+    field: MATNR_CROSS
+    check_class: regex_check
+    pattern: '^[A-Z0-9\-]{1,40}$'
+    severity: medium
+    dimension: accuracy
+    message: Cross-system material number contains invalid characters � should be alphanumeric
+    why_it_matters: Material numbers with special characters cause matching failures between systems, IDoc processing errors, and reconciliation breaks.
+    rule_authority: best_practice
+    sap_impact: IDoc mapping fails on special characters. Cross-system reconciliation cannot match. Material sync creates orphan records.
+    fix_map:
+      __blank__: "Standardise the material number to alphanumeric characters. Update the mapping table between source and target systems."

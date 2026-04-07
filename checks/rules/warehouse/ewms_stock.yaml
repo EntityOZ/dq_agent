@@ -372,3 +372,12 @@ rules:
   sap_impact: Available stock is overstated. Warehouse tasks are created for non-existent stock. Physical inventory count will show variances.
   fix_map:
     __blank__: "Verify the data extract is at quant level (one row per storage bin per material per batch). If genuine quant duplicates exist, run /SCWM/AQUA to reconcile."
+
+- id: EWMS023
+  field: LGNUM
+  check_class: freshness_check
+  max_age_hours: 8760
+  severity: low
+  dimension: timeliness
+  message: Stock record unchanged for 1+ year — slow-moving or dead stock should be reviewed for disposal or write-down
+  rule_authority: best_practice

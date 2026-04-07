@@ -298,3 +298,12 @@ rules:
   sap_impact: TO confirmation posts to wrong quant. Stock movements are doubled. Warehouse productivity metrics are inflated.
   fix_map:
     __blank__: "De-duplicate the data extract at TO header level. If genuine duplicates exist in eWMS, escalate to Basis â€” this indicates a number range collision."
+
+- id: EWMS_TO019
+  field: ERDAT_TO
+  check_class: freshness_check
+  max_age_hours: 720
+  severity: high
+  dimension: timeliness
+  message: Transfer order older than 30 days and not confirmed — stuck TOs block bin capacity and distort available stock
+  rule_authority: best_practice

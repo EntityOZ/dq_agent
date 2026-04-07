@@ -291,3 +291,12 @@ rules:
   sap_impact: Maintenance costs are allocated to wrong vehicle. Insurance and licence costs are doubled. Fleet utilisation reports are unreliable.
   fix_map:
     __blank__: "Identify duplicate vehicle records. Merge or archive the duplicate via fleet management transaction. Update all linked maintenance orders."
+
+- id: FLEET018
+  field: LAST_SERVICE_DATE
+  check_class: freshness_check
+  max_age_hours: 8760
+  severity: medium
+  dimension: timeliness
+  message: Vehicle not serviced in 1+ year — overdue maintenance creates safety and warranty risk
+  rule_authority: best_practice

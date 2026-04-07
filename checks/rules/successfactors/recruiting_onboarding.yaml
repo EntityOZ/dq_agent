@@ -336,3 +336,12 @@ rules:
   sap_impact: Application history is split. Offer letters may be sent to wrong record. EEO reporting undercounts unique applicants.
   fix_map:
     __blank__: "Merge duplicate candidates in Recruiting > Candidate Management > Merge Candidates. Preserve the record with the most complete application history."
+
+- id: REC020
+  field: JOBREQUISITION.OPEN_DATE
+  check_class: freshness_check
+  max_age_hours: 4380
+  severity: medium
+  dimension: timeliness
+  message: Requisition open for 6+ months — long-open requisitions should be reviewed, refreshed, or closed
+  rule_authority: best_practice

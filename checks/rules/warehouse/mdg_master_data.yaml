@@ -376,3 +376,12 @@ rules:
     sap_impact: Workflow routes to wrong approver. Audit trail is ambiguous. Data activation may process the wrong change request.
     fix_map:
       __blank__: "Investigate duplicate CR IDs. This is typically a data extract issue. If genuine, escalate to MDG administration â€” number range collision or replication error."
+
+  - id: MDG017
+    field: CREATED_BY_MDG
+    check_class: freshness_check
+    max_age_hours: 8760
+    severity: low
+    dimension: timeliness
+    message: MDG change request older than 1 year — long-pending CRs should be reviewed, approved, or rejected
+    rule_authority: best_practice

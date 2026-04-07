@@ -461,3 +461,25 @@ rules:
   sap_impact: Production orders link to wrong routing. Scheduled times and costs are incorrect. Confirmation postings go against wrong operations.
   fix_map:
     __blank__: "Investigate duplicate routing numbers. If caused by extract join, de-duplicate the extract. If genuine, archive the unused routing via CA02."
+
+- id: PP028
+  field: PLNNR
+  check_class: freshness_check
+  max_age_hours: 26280
+  severity: medium
+  dimension: timeliness
+  message: Routing not updated in 3+ years — review if operations, work centres, and standard values are still accurate
+  rule_authority: best_practice
+
+- id: PP029
+  field: MARC.DISPO
+  check_class: regex_check
+  pattern: "^[A-Z0-9]{3}$"
+  severity: medium
+  dimension: accuracy
+  message: MRP controller code format is invalid — must be exactly 3 alphanumeric characters
+  why_it_matters: Invalid MRP controller codes cause MRP run exceptions, unassigned planned orders, and materials falling through planning coverage.
+  rule_authority: best_practice
+  sap_impact: MRP cannot assign planned orders to a controller. Materials are excluded from MRP monitoring. Exception messages are generated every run.
+  fix_map:
+    __blank__: "Correct the MRP controller via MM02 > MRP 1 view. Ensure the controller code exists in OMD0."

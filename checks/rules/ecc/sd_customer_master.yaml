@@ -658,3 +658,12 @@ rules:
     record_fix_template: >-
       Customer {KNA1.KUNNR}: WAERS is {actual_value}. Assign the sales area
       currency via VD02 / Fiori app F3893.
+
+  - id: SDCM026
+    field: KNA1.ERDAT
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: low
+    dimension: timeliness
+    message: SD customer master not updated in 2+ years — review if pricing, shipping, and partner functions are still current
+    rule_authority: best_practice

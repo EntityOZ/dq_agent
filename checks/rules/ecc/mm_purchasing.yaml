@@ -746,3 +746,26 @@ rules:
   sap_impact: MIGO cannot determine which PO to post against. Invoice verification (MIRO) matches to the wrong PO. Goods receipt history is ambiguous.
   fix_map:
     __blank__: "Investigate the source of duplicate PO numbers. This is typically a data extract issue (duplicate rows from joined tables). If genuine duplicates exist in SAP, escalate to Basis â€” this indicates a number range collision."
+
+- id: PUR043
+  field: EKKO.BEDAT
+  check_class: freshness_check
+  max_age_hours: 8760
+  severity: medium
+  dimension: timeliness
+  message: Purchase order older than 1 year — open POs older than 12 months should be reviewed and closed if no longer needed
+  rule_authority: best_practice
+
+- id: PUR044
+  field: EKPO.NETPR
+  check_class: cross_field_check
+  fields: ['EKPO.NETPR']
+  condition: "`EKPO.NETPR`.notna() & (`EKPO.NETPR` >= 0)"
+  severity: high
+  dimension: accuracy
+  message: Purchase order line has negative net price — indicates pricing error or incorrect credit memo configuration
+  why_it_matters: Negative PO prices cause goods receipt valuation errors, invoice verification mismatches, and incorrect cost centre charges.
+  rule_authority: best_practice
+  sap_impact: GR posting creates negative stock value. Invoice verification shows price variance. Cost centre is credited instead of debited.
+  fix_map:
+    __blank__: "Review the PO line price via ME22N. If a credit memo is intended, use the correct document type (returns PO). If data error, correct the net price."

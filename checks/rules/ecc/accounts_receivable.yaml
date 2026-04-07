@@ -642,3 +642,25 @@ rules:
     record_fix_template: >-
       Customer {KNA1.KUNNR}: duplicate detected. Review and merge via FD03 /
       Fiori app F3893.
+
+  - id: AR026
+    field: KNA1.ERDAT_CUSTOMER
+    check_class: freshness_check
+    max_age_hours: 17520
+    severity: low
+    dimension: timeliness
+    message: Customer master not updated in 2+ years — review if credit limits, payment terms, and addresses are still current
+    rule_authority: best_practice
+
+  - id: AR027
+    field: KNA1.STCEG
+    check_class: regex_check
+    pattern: "^[A-Z]{2}[0-9A-Z]{5,15}$"
+    severity: high
+    dimension: accuracy
+    message: Customer VAT/tax registration number format is invalid
+    why_it_matters: Invalid customer VAT numbers cause output tax reporting errors, rejected e-invoices, and audit findings.
+    rule_authority: best_practice
+    sap_impact: Output tax reports include invalid numbers. E-invoicing rejected. Audit flags non-compliant customer tax data.
+    fix_map:
+      __blank__: "Correct the customer tax number via XD02 > Tax Information. Validate against the VIES or SARS database."

@@ -484,3 +484,12 @@ rules:
   sap_impact: Depreciation is posted twice. Asset subledger does not reconcile with FI-GL. Asset value reports are overstated. Year-end close will flag the imbalance.
   fix_map:
     __blank__: "Identify and merge duplicate asset records via AS06 (asset transfer within company code) or archive the duplicate via OAAR. Reconcile with FI-GL after correction."
+
+- id: AA031
+  field: ANLA.AKTIV
+  check_class: freshness_check
+  max_age_hours: 87600
+  severity: low
+  dimension: timeliness
+  message: Asset capitalised more than 10 years ago — review if useful life and depreciation parameters are still appropriate
+  rule_authority: best_practice

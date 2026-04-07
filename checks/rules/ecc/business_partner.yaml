@@ -691,3 +691,16 @@ rules:
     __blank__: 'In ECC: Set via BP transaction. In S/4HANA: Use Fiori app F3893 (Manage Business Partner).'
   record_fix_template: 'Record is missing BUT000.TITLE. In ECC: Set via BP transaction. In S/4HANA: Use Fiori app F3893 (Manage
     Business Partner).'
+
+- id: BP041
+  field: BUT000.STCEG
+  check_class: regex_check
+  pattern: "^[A-Z]{2}[0-9A-Z]{5,15}$"
+  severity: high
+  dimension: accuracy
+  message: Business partner VAT/tax registration number format is invalid
+  why_it_matters: Invalid BP tax numbers cause tax reporting errors across both customer and vendor directions.
+  rule_authority: best_practice
+  sap_impact: Tax reporting fails. E-invoicing rejected. Both AP and AR tax reconciliation affected.
+  fix_map:
+    __blank__: "Correct the BP tax number via BP > Tax Numbers tab. Validate against VIES/SARS."
