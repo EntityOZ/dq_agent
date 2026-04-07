@@ -41,7 +41,7 @@ step()  { echo -e "\n${CYAN}${BOLD}━━━ $* ━━━${NC}\n"; }
 [ "$EUID" -ne 0 ] && error "Please run as root:  sudo bash $0"
 
 # ── Banner ────────────────────────────────────────────────
-clear
+clear 2>/dev/null || true
 echo -e "${CYAN}"
 cat << "EOF"
 ╔══════════════════════════════════════════════╗
@@ -598,8 +598,11 @@ step "10/10  Starting Meridian"
 
 cd "$MERIDIAN_DIR"
 
-# Tear down any stale deployment
+# Tear down any stale deployment (including orphaned containers from partial runs)
 docker compose down --remove-orphans 2>/dev/null || true
+docker rm -f meridian-api meridian-worker meridian-beat meridian-frontend \
+              meridian-db meridian-redis meridian-minio meridian-ollama \
+              meridian-ollama-init 2>/dev/null || true
 
 # Pull all images from GHCR
 echo "Pulling images (this may take a few minutes)..."

@@ -1,6 +1,7 @@
 name = "meridian-licence-worker"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
+workers_dev = true
 
 [[kv_namespaces]]
 binding = "LICENCE_KV"
@@ -15,15 +16,13 @@ database_id = "a71c8296-6bb7-454b-a2bf-818d69b76bef"
 [vars]
 ENVIRONMENT = "production"
 
-# Custom domains:
-#   licence.meridian.vantax.co.za — licence validation API
-#   get.meridian.vantax.co.za     — installer script delivery (GET /install?key=MRDX-...)
-[[routes]]
-pattern = "licence.meridian.vantax.co.za/*"
+# Custom domains — Cloudflare handles DNS + SSL automatically
+[[custom_domains]]
+hostname = "licence.meridian.vantax.co.za"
 zone_name = "vantax.co.za"
 
-[[routes]]
-pattern = "get.meridian.vantax.co.za/*"
+[[custom_domains]]
+hostname = "get.meridian.vantax.co.za"
 zone_name = "vantax.co.za"
 
 # Secrets — set via:
