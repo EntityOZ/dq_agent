@@ -1,6 +1,6 @@
-# Vantax — SAP Data Quality Agent
+# Meridian — SAP Data Quality & MDM Platform
 
-Vantax is a customer-deployed SAP Data Quality and Master Data Management platform. It analyses data quality across **29 SAP modules** with **254+ predefined validation checks**, manages golden records with AI-assisted survivorship, and provides a full MDM governance layer — all running entirely inside the customer's own environment.
+Meridian is a customer-deployed SAP Data Quality and Master Data Management platform. It analyses data quality across **29 SAP modules** with **254+ predefined validation checks**, manages golden records with AI-assisted survivorship, and provides a full MDM governance layer — all running entirely inside the customer's own environment.
 
 SAP data, findings, and reports **never leave the customer boundary**.
 
@@ -23,7 +23,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 - **Cleaning engine** — 5-category detection (dedup, standardisation, enrichment, validation, lifecycle) across all 29 modules with Excel export
 - **Exception management** — rule-based detection, 4-tier SLA, Kanban board, impact estimation (ZAR)
 - **Analytics** — predictive DQS forecasting, prescriptive actions, impact analysis, cost avoidance ROI
-- **NLP query interface** — "Ask Vantax" natural language search across all findings and MDM data
+- **NLP query interface** — "Ask Meridian" natural language search across all findings and MDM data
 - **Data lineage** — table-to-field dependency mapping and sync source attribution
 - **Relationship graph** — cross-domain SAP relationships with AI impact scoring
 
@@ -91,7 +91,7 @@ SAP data, findings, and reports **never leave the customer boundary**.
 
 1. Clone the repository:
    ```bash
-   git clone <repo-url> && cd vantax
+   git clone <repo-url> && cd meridian
    ```
 
 2. Copy the environment file and fill in your values:
@@ -181,7 +181,7 @@ alembic revision --autogenerate -m "description"  # create new migration
 Standard deployment for single-server installations. See `docker-compose.yml`.
 
 ### Kubernetes Helm Chart
-For enterprise deployments. See `helm/vantax/`.
+For enterprise deployments. See `helm/meridian/`.
 
 ### Air-Gapped Mode
 Set `LICENCE_FILE` path for offline licence validation, `AUTH_MODE=local` for local auth,

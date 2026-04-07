@@ -100,7 +100,11 @@ meridian/
 │   ├── Dockerfile.api.prod          ← multi-stage: compiles .pyc, strips source
 │   ├── Dockerfile.worker.prod       ← same build, Celery entrypoint
 │   ├── Dockerfile.frontend.prod     ← Next.js standalone, no source in image
+│   ├── Dockerfile.nginx             ← custom nginx reverse proxy image
 │   ├── Dockerfile.ollama            ← pre-baked Ollama model (Tier 2)
+│   ├── nginx/
+│   │   ├── nginx.conf               ← global nginx config (worker tuning, gzip)
+│   │   └── meridian.conf            ← reverse proxy site config (API/frontend routing, HTTPS)
 │   ├── docker-compose.customer.yml  ← customer template (pre-built images)
 │   └── docker-compose.customer.ollama.yml ← Tier 2 Ollama overlay
 │
@@ -155,6 +159,7 @@ meridian/
 │           └── api/admin/           ← proxy routes → licence worker
 │
 ├── scripts/
+│   ├── meridian-deploy.sh           ← interactive installer (licence, Docker, SSL, admin)
 │   ├── install.sh                   ← first-time customer setup
 │   ├── update.sh                    ← pull new images, run migrations
 │   ├── healthcheck.sh               ← validate all services
