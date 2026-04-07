@@ -1,4 +1,13 @@
+from .baseline import ZBaselineEngine
 from .detector import ZDetector
+from .engine import ZObjectIntelligenceEngine
 from .profiler import ZProfiler
+from .rule_builder import ZRuleBuilder
 
-__all__ = ["ZDetector", "ZProfiler"]
+__all__ = [
+    "ZDetector",
+    "ZProfiler",
+    "ZBaselineEngine",
+    "ZRuleBuilder",
+    "ZObjectIntelligenceEngine",
+]
