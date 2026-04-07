@@ -50,7 +50,18 @@ class Tenant:
 _DEV_TENANT = Tenant(
     id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
     name="Dev Tenant",
-    licensed_modules=["business_partner", "material_master", "fi_gl"],
+    licensed_modules=[
+        "business_partner", "material_master", "fi_gl",
+        "accounts_payable", "accounts_receivable", "asset_accounting",
+        "mm_purchasing", "plant_maintenance", "production_planning",
+        "sd_customer_master", "sd_sales_orders",
+        "employee_central", "compensation", "benefits",
+        "payroll_integration", "performance_goals", "succession_planning",
+        "recruiting_onboarding", "learning_management", "time_attendance",
+        "ewms_stock", "ewms_transfer_orders", "batch_management",
+        "mdg_master_data", "grc_compliance", "fleet_management",
+        "transport_management", "wm_interface", "cross_system_integration",
+    ],
 )
 
 

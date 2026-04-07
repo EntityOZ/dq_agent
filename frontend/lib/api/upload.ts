@@ -30,12 +30,16 @@ export async function matchColumns(
   filename: string,
   moduleHint?: string
 ): Promise<MatchResponse> {
-  const { data } = await apiClient.post<MatchResponse>("/api/v1/upload/match", {
-    headers,
-    sample_rows: sampleRows,
-    filename,
-    module_hint: moduleHint ?? null,
-  });
+  const { data } = await apiClient.post<MatchResponse>(
+    "/api/v1/upload/match",
+    {
+      headers,
+      sample_rows: sampleRows,
+      filename,
+      module_hint: moduleHint ?? null,
+    },
+    { timeout: 120_000 } // 2 min — LLM column matching can be slow with local models
+  );
   return data;
 }
 

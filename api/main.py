@@ -83,7 +83,15 @@ async def lifespan(app: FastAPI):
                         text(
                             "INSERT INTO tenants (id, name, licensed_modules) "
                             "VALUES ('00000000-0000-0000-0000-000000000001', 'Dev Tenant', "
-                            "ARRAY['business_partner', 'material_master', 'fi_gl'])"
+                            "ARRAY['business_partner','material_master','fi_gl','accounts_payable',"
+                            "'accounts_receivable','asset_accounting','mm_purchasing','plant_maintenance',"
+                            "'production_planning','sd_customer_master','sd_sales_orders',"
+                            "'employee_central','compensation','benefits','payroll_integration',"
+                            "'performance_goals','succession_planning','recruiting_onboarding',"
+                            "'learning_management','time_attendance',"
+                            "'ewms_stock','ewms_transfer_orders','batch_management','mdg_master_data',"
+                            "'grc_compliance','fleet_management','transport_management','wm_interface',"
+                            "'cross_system_integration'])"
                         )
                     )
                     await session.commit()
@@ -105,6 +113,25 @@ async def lifespan(app: FastAPI):
                     )
                     await session.commit()
                     logger.info("Dev tenant jwt_secret generated")
+
+                # Ensure at least one admin user exists for local auth
+                user_count = await session.execute(
+                    text("SELECT COUNT(*) FROM users WHERE tenant_id = '00000000-0000-0000-0000-000000000001'")
+                )
+                if user_count.scalar() == 0:
+                    import uuid as _uuid
+                    from api.services.local_auth import hash_password
+                    default_pw = hash_password("admin")
+                    await session.execute(
+                        text(
+                            "INSERT INTO users (id, tenant_id, email, name, role, password_hash, is_active) "
+                            "VALUES (:id, '00000000-0000-0000-0000-000000000001', "
+                            "'admin@meridian.local', 'Admin', 'admin', :pw, true)"
+                        ),
+                        {"id": str(_uuid.uuid4()), "pw": default_pw},
+                    )
+                    await session.commit()
+                    logger.info("Default admin user created: admin@meridian.local / admin")
         except Exception as e:
             logger.warning(f"Dev tenant init failed: {e}")
 

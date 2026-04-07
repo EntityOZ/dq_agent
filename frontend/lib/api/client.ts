@@ -5,7 +5,7 @@ const TOKEN_KEY = "mn_auth_token";
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-  timeout: 30_000,
+  timeout: 60_000,
   headers: { "Content-Type": "application/json" },
 });
 
