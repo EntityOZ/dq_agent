@@ -8,6 +8,31 @@
 # =========================================================
 
 services:
+  nginx:
+    image: ghcr.io/luketempleman/meridian-nginx:{{VERSION}}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Bind-mount certs dir — populated by meridian-deploy.sh for SSL
+      - ./nginx/certs:/etc/nginx/certs:ro
+      # Optional: bind-mount config to override without rebuilding the image
+      # - ./nginx/meridian.conf:/etc/nginx/conf.d/meridian.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - meridian-net
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t 2>/dev/null && wget -qO- http://localhost/health > /dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
   api:
     image: ghcr.io/luketempleman/meridian-api:{{VERSION}}
     extra_hosts:
@@ -61,12 +86,12 @@ services:
 
   frontend:
     image: ghcr.io/luketempleman/meridian-frontend:{{VERSION}}
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     env_file: .env
     environment:
-      - INTERNAL_API_URL=http://api:8000
       - AUTH_MODE=${AUTH_MODE:-local}
+      - NEXT_PUBLIC_AUTH_MODE=${AUTH_MODE:-local}
     depends_on:
       - api
     networks:

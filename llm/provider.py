@@ -33,13 +33,12 @@ def get_llm() -> Any:
 
     if provider == "ollama_cloud":
         # Ollama Cloud API — dev and CI usage
-        return ChatOpenAI(
-            base_url=os.getenv("OLLAMA_BASE_URL", "https://ollama.com/api/v1"),
-            api_key=os.getenv("OLLAMA_API_KEY"),
-            model=os.getenv("OLLAMA_MODEL", "llama3.1:70b"),
+        return ChatOllama(
+            base_url=os.getenv("OLLAMA_BASE_URL", "https://ollama.com/api"),
+            model=os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud"),
+            headers={"Authorization": f"Bearer {os.getenv('OLLAMA_API_KEY', '')}"},
             temperature=0.1,
-            timeout=120.0,
-            max_retries=2,
+            num_predict=8192,
         )
 
     if provider == "anthropic":
