@@ -37,7 +37,7 @@ def upgrade() -> None:
         sa.Column("transaction_count_total", sa.Integer, server_default="0"),
         sa.Column("profile_snapshot", JSONB, nullable=True),
         sa.Column("baseline_snapshot", JSONB, nullable=True),
-        sa.Column("rules_applied", JSONB, server_default="'[]'"),
+        sa.Column("rules_applied", JSONB, server_default=sa.text("'[]'")),
         sa.Column("notes", sa.Text, nullable=True),
         sa.UniqueConstraint("tenant_id", "module", "category", "object_name", name="uq_z_registry_tenant_module_cat_name"),
     )
@@ -140,7 +140,7 @@ def upgrade() -> None:
         sa.Column("severity", sa.VARCHAR(20), nullable=False),
         sa.Column("title", sa.VARCHAR(500), nullable=False),
         sa.Column("description", sa.Text, nullable=True),
-        sa.Column("affected_records", JSONB, server_default="'[]'"),
+        sa.Column("affected_records", JSONB, server_default=sa.text("'[]'")),
         sa.Column("remediation", sa.Text, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
     )
