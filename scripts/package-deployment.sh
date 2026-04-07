@@ -108,10 +108,7 @@ fi
 DB_PASS=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c 16)
 MINIO_PASS=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c 16)
 
-CORS_VALUE="${DOMAIN:-http://localhost:3000}"
-if [[ -n "$DOMAIN" ]]; then
-  CORS_VALUE="${DOMAIN},http://localhost:3000"
-fi
+INTERNAL_API="http://api:8000"
 
 # Licence config
 if [[ "$OFFLINE" == "true" ]]; then
@@ -164,8 +161,8 @@ ${LICENCE_KEY_LINE}
 ${LICENCE_TOKEN_LINE}
 MERIDIAN_LICENCE_SERVER_URL=https://licence.meridian.vantax.co.za/api/licence/validate
 
-# ── CORS (set to your frontend domain) ───────────────────
-MERIDIAN_CORS_ORIGINS=${CORS_VALUE}
+# ── Internal API proxy (used by Next.js rewrites — do not change) ──
+INTERNAL_API_URL=${INTERNAL_API}
 
 # ── LLM (Tier ${TIER}) ────────────────────────────────────
 ${LLM_SECTION}
@@ -186,7 +183,6 @@ MINIO_BUCKET_REPORTS=meridian-reports
 
 # ── Auth ──────────────────────────────────────────────────
 AUTH_MODE=local
-NEXT_PUBLIC_AUTH_MODE=local
 
 # ── SAP Connection ────────────────────────────────────────
 # Fill in your SAP system credentials:

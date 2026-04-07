@@ -2,8 +2,7 @@ import apiClient from "./client";
 import type { Version } from "@/types/api";
 
 export function getReportDownloadUrl(versionId: string): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  return `${base}/api/v1/reports/${versionId}/download`;
+  return `/api/v1/reports/${versionId}/download`;
 }
 
 export async function pollVersionStatus(

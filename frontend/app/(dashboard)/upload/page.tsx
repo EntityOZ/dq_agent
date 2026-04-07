@@ -654,7 +654,7 @@ export default function UploadPage() {
                 <Button>View Findings</Button>
               </Link>
               <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/reports/${version.id}/download`}
+                href={`/api/v1/reports/${version.id}/download`}
                 download
               >
                 <Button variant="outline">Download Report</Button>

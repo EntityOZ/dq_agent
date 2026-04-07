@@ -81,8 +81,7 @@ services:
     platform: linux/amd64
     container_name: meridian-api
     env_file: .env
-    ports:
-      - "8000:8000"
+    # No ports exposed — API is only reachable via internal Docker network (http://api:8000)
     depends_on:
       db:
         condition: service_healthy
@@ -129,6 +128,8 @@ services:
     platform: linux/amd64
     container_name: meridian-frontend
     env_file: .env
+    environment:
+      - INTERNAL_API_URL=http://api:8000
     ports:
       - "3000:3000"
     depends_on:

@@ -3,7 +3,7 @@ import axios from "axios";
 const TOKEN_KEY = "mn_auth_token";
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+  baseURL: "",  // Same origin — requests go to /api/* on the current host
   timeout: 60_000,
   headers: { "Content-Type": "application/json" },
 });

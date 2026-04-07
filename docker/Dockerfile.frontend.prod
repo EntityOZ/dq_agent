@@ -15,13 +15,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 ENV NEXT_TELEMETRY_DISABLED=1
-# Placeholders — replaced at container startup by docker-entrypoint.sh
-ENV NEXT_PUBLIC_API_URL=__NEXT_PUBLIC_API_URL_PLACEHOLDER__
-ENV NEXT_PUBLIC_AUTH_MODE=__NEXT_PUBLIC_AUTH_MODE_PLACEHOLDER__
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=__NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_PLACEHOLDER__
-# Clerk server key — not a NEXT_PUBLIC_ var, so not baked into JS bundles
-ARG CLERK_SECRET_KEY=sk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15c2VjcmV0a2V5
-ENV CLERK_SECRET_KEY=$CLERK_SECRET_KEY
 RUN npm run build
 
 # === PRODUCTION STAGE ===
@@ -41,14 +34,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Remove source maps
 RUN find . -name "*.map" -delete 2>/dev/null || true
 
-# Copy the runtime env rewrite script
-COPY frontend/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

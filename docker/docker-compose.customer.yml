@@ -13,13 +13,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file: .env
+    # No ports exposed — API is only reachable via internal Docker network (http://api:8000)
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8000:8000"
     networks:
       - meridian-net
     restart: unless-stopped
@@ -66,7 +65,8 @@ services:
       - "3000:3000"
     env_file: .env
     environment:
-      - NEXT_PUBLIC_AUTH_MODE=${AUTH_MODE:-local}
+      - INTERNAL_API_URL=http://api:8000
+      - AUTH_MODE=${AUTH_MODE:-local}
     depends_on:
       - api
     networks:

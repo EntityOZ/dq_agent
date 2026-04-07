@@ -6,10 +6,9 @@
 # all services. Images are built automatically when code is
 # pushed to main (GitHub Actions build-and-deploy.yml).
 #
-# The frontend image uses build-time placeholders for
-# NEXT_PUBLIC_* vars. The docker-entrypoint.sh inside the
-# image replaces them at container startup with the real
-# values from .env — so one image works on any server IP.
+# The frontend uses Next.js rewrites to proxy /api/* requests
+# to the FastAPI backend over the internal Docker network.
+# Only port 3000 is exposed — one image works on any server IP.
 #
 # Requirements: Docker 24.0+, internet connection
 # GHCR packages must be set to Public in GitHub settings.
@@ -56,57 +55,8 @@ DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
 info "Docker $DOCKER_VERSION detected"
 info "Docker Compose available"
 
-# ── Detect Server IP ─────────────────────────────────────
-step "Network Configuration"
-
-PUBLIC_IP=$(curl -sf --max-time 5 https://api.ipify.org \
-    || curl -sf --max-time 5 https://checkip.amazonaws.com \
-    || curl -sf --max-time 5 https://ifconfig.me \
-    || echo "unknown")
-PUBLIC_IP=$(echo "$PUBLIC_IP" | tr -d '[:space:]')
-
-PRIVATE_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "unknown")
-
-echo "Detected IPs:"
-echo "  Public IP:  $PUBLIC_IP"
-echo "  Private IP: $PRIVATE_IP"
-echo ""
-echo "The server address is used by browsers to reach the Meridian API."
-echo "  • Use the ${BOLD}public IP${NC} if users access Meridian over the internet."
-echo "  • Use the ${BOLD}private IP${NC} if users are on the same network or VPN."
-echo "  • You can also enter a DNS name (e.g. meridian.yourcompany.com)."
-echo ""
-
-if [ -t 0 ]; then
-    DEFAULT_IP="${PUBLIC_IP}"
-    [ "$DEFAULT_IP" = "unknown" ] && DEFAULT_IP="${PRIVATE_IP}"
-    read -p "Server address [$DEFAULT_IP]: " USER_ADDRESS
-    SERVER_ADDRESS="${USER_ADDRESS:-$DEFAULT_IP}"
-else
-    SERVER_ADDRESS="${PUBLIC_IP}"
-    [ "$SERVER_ADDRESS" = "unknown" ] && SERVER_ADDRESS="${PRIVATE_IP}"
-fi
-
-SERVER_ADDRESS=$(echo "$SERVER_ADDRESS" | tr -d '[:space:]')
-[ "$SERVER_ADDRESS" = "unknown" ] && error "Could not detect server IP. Please provide one manually."
-info "Using server address: $SERVER_ADDRESS"
-
-# ── Protocol Selection ───────────────────────────────────
-echo ""
-echo "Will users connect via HTTPS (e.g. behind a reverse proxy or ALB)?"
-if [ -t 0 ]; then
-    read -p "Use HTTPS? [y/N]: " USE_HTTPS
-else
-    USE_HTTPS="n"
-fi
-
-if [[ "$USE_HTTPS" =~ ^[Yy] ]]; then
-    PROTOCOL="https"
-    info "Protocol: HTTPS (ensure your reverse proxy terminates TLS on ports 443→3000 and 443→8000)"
-else
-    PROTOCOL="http"
-    info "Protocol: HTTP"
-fi
+# ── Detect Server IP (for display only) ──────────────────
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "this server")
 
 # ── Licence Key ───────────────────────────────────────────
 step "Licence Activation"
@@ -158,7 +108,6 @@ SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | 
 cat > .env << EOF
 # Meridian Platform Configuration
 # Generated: $(date)
-# Server:   ${SERVER_ADDRESS}
 # Licence:  ${LICENCE_KEY:0:9}****-****
 
 # Licence
@@ -197,17 +146,9 @@ CREDENTIAL_MASTER_KEY=$SECRET
 
 # Auth
 AUTH_MODE=local
-NEXT_PUBLIC_AUTH_MODE=local
 
-# API URL (used by frontend browser JS — must be the server's reachable address)
-# The frontend Docker entrypoint replaces build-time placeholders with this value.
-NEXT_PUBLIC_API_URL=${PROTOCOL}://${SERVER_ADDRESS}:8000
-
-# Frontend URL
-FRONTEND_URL=${PROTOCOL}://${SERVER_ADDRESS}:3000
-
-# CORS — allow both localhost (SSH tunnels / dev) and the server address
-CORS_ORIGINS=http://localhost:3000,${PROTOCOL}://${SERVER_ADDRESS}:3000
+# Internal API proxy (used by Next.js rewrites — do not change)
+INTERNAL_API_URL=http://api:8000
 
 EOF
 
@@ -300,8 +241,7 @@ services:
     platform: linux/amd64
     container_name: meridian-api
     env_file: .env
-    ports:
-      - "8000:8000"
+    # No ports exposed — API is only reachable via internal Docker network (http://api:8000)
     depends_on:
       db:
         condition: service_healthy
@@ -348,6 +288,8 @@ services:
     platform: linux/amd64
     container_name: meridian-frontend
     env_file: .env
+    environment:
+      - INTERNAL_API_URL=http://api:8000
     ports:
       - "3000:3000"
     depends_on:
@@ -455,7 +397,7 @@ step "Verifying Deployment"
 
 echo "Waiting for API..."
 for i in {1..60}; do
-    if curl -sf http://localhost:8000/health &>/dev/null; then
+    if docker compose exec -T api curl -sf http://localhost:8000/health &>/dev/null; then
         info "API online"
         break
     fi
@@ -476,14 +418,12 @@ for i in {1..30}; do
     sleep 2
 done
 
-# ── Verify Entrypoint Replacement ─────────────────────────
-echo "Verifying frontend environment configuration..."
-PLACEHOLDER_CHECK=$(docker compose exec -T frontend sh -c 'grep -r "__NEXT_PUBLIC_API_URL_PLACEHOLDER__" /app/.next/ 2>/dev/null | head -1' || true)
-if [ -n "$PLACEHOLDER_CHECK" ]; then
-    warn "Frontend env placeholders were not replaced — the entrypoint may not have run."
-    warn "Check: docker compose logs frontend | head -20"
+echo "Verifying API proxy..."
+PROXY_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/health 2>/dev/null || echo "000")
+if [ "$PROXY_STATUS" = "200" ]; then
+    info "API proxy working (port 8000 is internal-only)"
 else
-    info "Frontend environment configured correctly"
+    warn "API proxy check returned $PROXY_STATUS — API may still be starting. Check: docker compose logs frontend"
 fi
 
 # ── Admin User ────────────────────────────────────────────
@@ -551,8 +491,8 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo -e "  ${BOLD}✓ Meridian is running!${NC}"
 echo ""
-echo "  Dashboard:   ${CYAN}${PROTOCOL}://${SERVER_ADDRESS}:3000${NC}"
-echo "  API:         ${PROTOCOL}://${SERVER_ADDRESS}:8000"
+echo "  Dashboard:   ${CYAN}http://${SERVER_IP}:3000${NC}"
+echo "  (Access from any browser on the same network)"
 echo "  Login:       $ADMIN_EMAIL"
 echo ""
 echo "  Licence:     ${LICENCE_KEY:0:9}****-****"
@@ -566,10 +506,6 @@ echo "  View logs:    docker compose logs -f"
 echo "  Stop:         docker compose stop"
 echo "  Restart:      docker compose restart"
 echo "  Update:       docker compose pull && docker compose up -d"
-echo ""
-echo "To change the server address later:"
-echo "  1. Edit NEXT_PUBLIC_API_URL and CORS_ORIGINS in .env"
-echo "  2. Run: docker compose up -d  (entrypoint re-applies env on restart)"
 echo ""
 echo "For support: support@vantax.co.za"
 echo ""

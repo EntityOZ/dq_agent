@@ -155,11 +155,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS — origins configurable via CORS_ORIGINS env var (comma-separated)
-_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+# CORS — permissive because API port is internal-only (not publicly exposed).
+# All browser traffic goes through the Next.js same-origin proxy on :3000.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

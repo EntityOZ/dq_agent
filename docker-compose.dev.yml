@@ -38,8 +38,8 @@ services:
       - MINIO_SECRET_KEY=${MINIO_PASSWORD:-minioadmin}
       - MINIO_BUCKET_UPLOADS=${MINIO_BUCKET_UPLOADS:-meridian-uploads}
       - MINIO_BUCKET_REPORTS=${MINIO_BUCKET_REPORTS:-meridian-reports}
-      # ── CORS ────────────────────────────────────────────────
-      - MERIDIAN_CORS_ORIGINS=${MERIDIAN_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # ── CORS (permissive — API port is internal-only) ─────
+      - MERIDIAN_CORS_ORIGINS=*
       # ── Licence ─────────────────────────────────────────────
       - LICENCE_KEY=${LICENCE_KEY:-}
       - LICENCE_SERVER_URL=${LICENCE_SERVER_URL:-https://licence.meridian.vantax.co.za}
@@ -47,7 +47,7 @@ services:
       # ── Auth ────────────────────────────────────────────────
       - AUTH_MODE=${AUTH_MODE:-local}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-me}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - FRONTEND_URL=http://localhost:3000
       # ── SAP ─────────────────────────────────────────────────
       - SAP_CONNECTOR=${SAP_CONNECTOR:-mock}
       # ── Notifications (optional) ────────────────────────────
@@ -111,8 +111,8 @@ services:
     working_dir: /app
     command: sh -c "npm install --include=dev && npm run dev"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_AUTH_MODE=${AUTH_MODE:-local}
+      - INTERNAL_API_URL=http://api:8000
+      - AUTH_MODE=${AUTH_MODE:-local}
       - PORT=3000
       - HOSTNAME=0.0.0.0
     ports:
