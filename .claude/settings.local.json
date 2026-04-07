@@ -32,7 +32,8 @@
       "Bash(powershell -Command \"[System.Console]::Beep\\(800, 300\\)\")",
       "Bash(powershell -Command \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\Windows Notify Email.wav'\\).PlaySync\\(\\)\")",
       "Bash(npm update:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(wrangler d1:*)"
     ]
   }
 }

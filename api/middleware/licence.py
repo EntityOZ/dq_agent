@@ -398,10 +398,20 @@ def _check_feature_gate(path: str, licensed_features: list[str]) -> JSONResponse
     return None
 
 
+_LICENCE_EXCLUDED_PREFIXES = (
+    "/api/v1/auth",   # login / me — must work before licence is validated
+    "/api/v1/licence",
+)
+
+
 class LicenceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Only check /api/v1/* routes
         if not request.url.path.startswith("/api/v1"):
+            return await call_next(request)
+
+        # Auth and licence endpoints are always accessible
+        if any(request.url.path.startswith(p) for p in _LICENCE_EXCLUDED_PREFIXES):
             return await call_next(request)
 
         # Dev mode — skip validation if no licence key and AUTH_MODE=local

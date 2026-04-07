@@ -15,6 +15,18 @@ database_id = "a71c8296-6bb7-454b-a2bf-818d69b76bef"
 [vars]
 ENVIRONMENT = "production"
 
+# Custom domains:
+#   licence.meridian.vantax.co.za — licence validation API
+#   get.meridian.vantax.co.za     — installer script delivery (GET /install?key=MRDX-...)
+[[routes]]
+pattern = "licence.meridian.vantax.co.za/*"
+zone_name = "vantax.co.za"
+
+[[routes]]
+pattern = "get.meridian.vantax.co.za/*"
+zone_name = "vantax.co.za"
+
 # Secrets — set via:
 #   wrangler secret put LICENCE_ADMIN_SECRET
 #   wrangler secret put LICENCE_SECRET
+#   wrangler secret put OFFLINE_JWT_PRIVATE_KEY

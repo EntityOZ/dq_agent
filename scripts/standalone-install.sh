@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
 # =========================================================
-# Meridian Platform — One-Script Installer
+# Meridian Platform — Enterprise Installer
 #
-# Pulls pre-built images from GHCR, configures, and starts
-# all services. Images are built automatically when code is
-# pushed to main (GitHub Actions build-and-deploy.yml).
+# Usage:
+#   sudo bash standalone-install.sh
 #
-# The frontend uses Next.js rewrites to proxy /api/* requests
-# to the FastAPI backend over the internal Docker network.
-# Only port 3000 is exposed — one image works on any server IP.
+# Traffic architecture after install:
+#   Browser → Nginx (443) → Next.js :3000 → FastAPI :8000
 #
-# Requirements: Docker 24.0+, internet connection
-# GHCR packages must be set to Public in GitHub settings.
+# The browser NEVER talks to port 8000 directly.
+# Next.js proxies /api/* to FastAPI on the Docker network.
+# No CORS issues. No IP hardcoding. Works on any domain or IP.
+#
+# Requirements: Ubuntu 20.04+ or Debian 11+, internet access
 # =========================================================
 set -euo pipefail
+
+# ── Constants ─────────────────────────────────────────────
+MERIDIAN_DIR="/opt/meridian"
+NGINX_CONF="/etc/nginx/sites-available/meridian"
+SYSTEMD_UNIT="/etc/systemd/system/meridian.service"
+LICENCE_SERVER="https://meridian-licence-worker.reshigan-085.workers.dev/api/licence"
+GHCR_PREFIX="ghcr.io/luketempleman/meridian"
+OLLAMA_MODEL="qwen2.5:3b"
 
 # ── Colors ────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -24,9 +33,12 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 info()  { echo -e "${GREEN}✓${NC} $*"; }
-warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
-error() { echo -e "${RED}✗${NC} $*"; exit 1; }
+warn()  { echo -e "${YELLOW}⚠${NC}  $*"; }
+error() { echo -e "${RED}✗${NC} $*" >&2; exit 1; }
 step()  { echo -e "\n${CYAN}${BOLD}━━━ $* ━━━${NC}\n"; }
+
+# ── Must run as root ──────────────────────────────────────
+[ "$EUID" -ne 0 ] && error "Please run as root:  sudo bash $0"
 
 # ── Banner ────────────────────────────────────────────────
 clear
@@ -41,52 +53,156 @@ cat << "EOF"
 ║                                              ║
 ╚══════════════════════════════════════════════╝
 EOF
-echo -e "${NC}\n"
+echo -e "${NC}"
 
-# ── Prerequisites ─────────────────────────────────────────
-step "Prerequisites Check"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 1 — System prerequisites
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "1/10  System Check"
 
-command -v docker &>/dev/null || error "Docker not installed. Get it from: https://docs.docker.com/engine/install/"
-command -v curl &>/dev/null   || error "curl not installed"
+OS_ID=$(grep -oP '(?<=^ID=).+' /etc/os-release 2>/dev/null | tr -d '"' || echo "unknown")
+OS_VER=$(grep -oP '(?<=^VERSION_ID=).+' /etc/os-release 2>/dev/null | tr -d '"' || echo "0")
+info "OS: $OS_ID $OS_VER"
 
-DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0.0.0")
-DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
-[ "$DOCKER_MAJOR" -lt 24 ] && error "Docker 24.0+ required (found $DOCKER_VERSION)"
-info "Docker $DOCKER_VERSION detected"
-info "Docker Compose available"
+[[ "$OS_ID" != "ubuntu" && "$OS_ID" != "debian" ]] && \
+    warn "Tested on Ubuntu/Debian. Proceeding anyway."
 
-# ── Detect Server IP (for display only) ──────────────────
-SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "this server")
+# Ensure base utilities
+apt-get install -y -q curl openssl 2>/dev/null || true
 
-# ── Licence Key ───────────────────────────────────────────
-step "Licence Activation"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 2 — Docker
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "2/10  Docker"
 
-echo "Enter your Meridian licence key (provided by Vantax):"
-read -p "Licence Key: " LICENCE_KEY
+if command -v docker &>/dev/null; then
+    DOCKER_VER=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "installed")
+    info "Docker $DOCKER_VER already installed"
+else
+    warn "Docker not found — installing via get.docker.com..."
+    curl -fsSL https://get.docker.com | sh
+    systemctl enable docker
+    systemctl start docker
+    info "Docker installed and started"
+fi
+
+if ! docker compose version &>/dev/null; then
+    apt-get install -y -q docker-compose-plugin
+fi
+info "Docker Compose ready"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 3 — Nginx
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "3/10  Nginx"
+
+if ! command -v nginx &>/dev/null; then
+    apt-get update -q
+    apt-get install -y -q nginx
+    systemctl enable nginx
+    info "Nginx installed"
+else
+    info "Nginx already installed"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 4 — Questions (all upfront, then no more interaction)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "4/10  Configuration"
+
+# Handle reinstall
+if [ -f "$MERIDIAN_DIR/.env" ]; then
+    warn "Existing installation found at $MERIDIAN_DIR"
+    if [ -t 0 ]; then
+        read -p "Reinstall and regenerate all secrets? [y/N]: " REINSTALL
+        [[ ! "$REINSTALL" =~ ^[Yy] ]] && {
+            echo ""
+            info "To update images only, run:"
+            echo "  cd $MERIDIAN_DIR && docker compose pull && docker compose up -d"
+            exit 0
+        }
+    fi
+fi
+
+mkdir -p "$MERIDIAN_DIR"
+
+echo ""
+echo "  Enter the address where Meridian will be reached."
+echo "  • Domain:  meridian.yourcompany.com  (SSL via Let's Encrypt)"
+echo "  • IP:      16.28.29.123              (self-signed SSL)"
+echo ""
+
+if [ -t 0 ]; then
+    read -p "  Domain or IP: " SERVER_ADDRESS
+else
+    SERVER_ADDRESS="${SERVER_ADDRESS:-localhost}"
+fi
+SERVER_ADDRESS=$(echo "$SERVER_ADDRESS" | tr -d '[:space:]')
+[ -z "$SERVER_ADDRESS" ] && error "Server address is required."
+
+# Domain vs IP
+if [[ "$SERVER_ADDRESS" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    IS_DOMAIN=false
+else
+    IS_DOMAIN=true
+fi
+
+echo ""
+if [ -t 0 ]; then
+    read -p "  Licence Key (MRDX-...): " LICENCE_KEY
+else
+    LICENCE_KEY="${LICENCE_KEY:-}"
+fi
 LICENCE_KEY=$(echo "$LICENCE_KEY" | tr -d ' ' | tr '[:lower:]' '[:upper:]')
-
 [[ ! "$LICENCE_KEY" =~ ^MRDX-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$ ]] && \
     error "Invalid licence key format. Expected: MRDX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
 
-info "Licence key format valid"
+echo ""
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
+ADMIN_NAME="${ADMIN_NAME:-}"
+ADMIN_PASS="${ADMIN_PASSWORD:-}"
 
-# ── Validate Licence ──────────────────────────────────────
-step "Validating Licence"
+if [ -z "$ADMIN_EMAIL" ] && [ -t 0 ]; then
+    read -p "  Admin Email: " ADMIN_EMAIL
+    while [ -z "$ADMIN_EMAIL" ]; do
+        echo -e "  ${RED}Email required${NC}"
+        read -p "  Admin Email: " ADMIN_EMAIL
+    done
+    read -p "  Admin Name [$ADMIN_EMAIL]: " ADMIN_NAME
+    ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
+    while true; do
+        read -sp "  Admin Password (min 8 chars): " ADMIN_PASS
+        echo ""
+        [ ${#ADMIN_PASS} -ge 8 ] && break
+        echo -e "  ${RED}Password must be at least 8 characters${NC}"
+    done
+elif [ -z "$ADMIN_EMAIL" ]; then
+    warn "ADMIN_EMAIL not set — skipping admin creation."
+    ADMIN_EMAIL="SKIP"
+fi
 
-LICENCE_SERVER="https://meridian-licence-worker.reshigan-085.workers.dev/api/licence/validate"
+echo ""
+info "Address:  $SERVER_ADDRESS"
+info "Licence:  ${LICENCE_KEY:0:9}****"
+[ "$ADMIN_EMAIL" != "SKIP" ] && info "Admin:    $ADMIN_EMAIL"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 5 — Validate licence
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "5/10  Licence Validation"
+
 echo "Contacting licence server..."
-
-VALIDATION=$(curl -s -X POST "$LICENCE_SERVER" \
+VALIDATION=$(curl -s --max-time 15 -X POST "${LICENCE_SERVER}/validate" \
     -H "Content-Type: application/json" \
-    -d "{\"licenceKey\":\"$LICENCE_KEY\",\"machineFingerprint\":\"$(hostname)\"}" \
-    -w "\n%{http_code}")
+    -d "{\"licenceKey\":\"${LICENCE_KEY}\",\"machineFingerprint\":\"$(hostname)\"}" \
+    -w "\n%{http_code}" 2>/dev/null || echo -e "\n000")
 
 HTTP_CODE=$(echo "$VALIDATION" | tail -n1)
 BODY=$(echo "$VALIDATION" | sed '$d')
 
 if [ "$HTTP_CODE" != "200" ]; then
-    REASON=$(echo "$BODY" | grep -o '"reason":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-    error "Licence validation failed: $REASON (HTTP $HTTP_CODE)"
+    REASON=$(echo "$BODY" | grep -o '"reason":"[^"]*"' | cut -d'"' -f4 || echo "server unreachable")
+    error "Licence validation failed (HTTP $HTTP_CODE): $REASON"
 fi
 
 COMPANY=$(echo "$BODY" | grep -o '"company_name":"[^"]*"' | cut -d'"' -f4 || echo "Unknown")
@@ -98,66 +214,69 @@ echo "  Company:  $COMPANY"
 echo "  Tier:     $TIER"
 echo "  Expires:  $EXPIRY"
 
-# ── Configuration ─────────────────────────────────────────
-step "Generating Configuration"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 6 — Generate config
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "6/10  Generating Configuration"
 
-DB_PASS=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
-MINIO_PASS=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
-SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+DB_PASS=$(openssl rand -hex 16)
+MINIO_PASS=$(openssl rand -hex 16)
+SECRET=$(openssl rand -hex 32)
 
-cat > .env << EOF
+cat > "$MERIDIAN_DIR/.env" << EOF
 # Meridian Platform Configuration
 # Generated: $(date)
+# Company:  ${COMPANY}
 # Licence:  ${LICENCE_KEY:0:9}****-****
 
-# Licence
-# licence middleware (api/middleware/licence.py) appends /validate to LICENCE_SERVER_URL,
-# so we store the base URL only (strip /validate suffix if present).
+# ── Licence ───────────────────────────────────────────────
 LICENCE_MODE=online
-LICENCE_KEY=$LICENCE_KEY
-LICENCE_SERVER_URL=${LICENCE_SERVER%/validate}
+LICENCE_KEY=${LICENCE_KEY}
+LICENCE_SERVER_URL=${LICENCE_SERVER}
 
-# LLM
+# ── LLM ───────────────────────────────────────────────────
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_MODEL=qwen2.5:3b
+OLLAMA_MODEL=${OLLAMA_MODEL}
 
-# Database
-DB_PASSWORD=$DB_PASS
-DATABASE_URL=postgresql+asyncpg://meridian:$DB_PASS@db:5432/meridian
-DATABASE_URL_SYNC=postgresql://meridian:$DB_PASS@db:5432/meridian
+# ── Database ──────────────────────────────────────────────
+DB_PASSWORD=${DB_PASS}
+DATABASE_URL=postgresql+asyncpg://meridian:${DB_PASS}@db:5432/meridian
+DATABASE_URL_SYNC=postgresql://meridian:${DB_PASS}@db:5432/meridian
 
-# Redis
+# ── Redis ─────────────────────────────────────────────────
 REDIS_URL=redis://redis:6379/0
 
-# MinIO
-# MINIO_PASSWORD   → MinIO container's root password (MINIO_ROOT_PASSWORD)
-# MINIO_SECRET_KEY → API client connection key (config.py: minio_secret_key)
+# ── MinIO ─────────────────────────────────────────────────
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=meridian
-MINIO_PASSWORD=$MINIO_PASS
-MINIO_SECRET_KEY=$MINIO_PASS
+MINIO_PASSWORD=${MINIO_PASS}
+MINIO_SECRET_KEY=${MINIO_PASS}
 MINIO_BUCKET_UPLOADS=meridian-uploads
 MINIO_BUCKET_REPORTS=meridian-reports
 
-# SAP (mock mode — configure a real connector after setup)
+# ── SAP ───────────────────────────────────────────────────
 SAP_CONNECTOR=mock
-CREDENTIAL_MASTER_KEY=$SECRET
+CREDENTIAL_MASTER_KEY=${SECRET}
 
-# Auth
+# ── Auth ──────────────────────────────────────────────────
 AUTH_MODE=local
 
-# Internal API proxy (used by Next.js rewrites — do not change)
-INTERNAL_API_URL=http://api:8000
-
+# ── CORS ──────────────────────────────────────────────────
+# Browser never hits the API directly — Next.js proxies /api/* internally.
+# Only Next.js container and localhost health checks reach port 8000.
+CORS_ORIGINS=http://localhost:3000,http://frontend:3000
 EOF
 
-info "Configuration saved to .env"
+chmod 600 "$MERIDIAN_DIR/.env"
+info "Configuration written to $MERIDIAN_DIR/.env"
 
-# ── Docker Compose File ───────────────────────────────────
-step "Creating Deployment Configuration"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 7 — Write docker-compose.yml
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "7/10  Docker Compose"
 
-cat > docker-compose.yml << 'COMPOSE_EOF'
+cat > "$MERIDIAN_DIR/docker-compose.yml" << 'COMPOSE_EOF'
 version: "3.9"
 
 networks:
@@ -171,6 +290,7 @@ volumes:
   ollama_data:
 
 services:
+
   db:
     image: postgres:16-alpine
     container_name: meridian-db
@@ -221,7 +341,6 @@ services:
       timeout: 20s
       retries: 3
 
-  # Standard Ollama image — model is pulled at first startup (see installer step below)
   ollama:
     image: ollama/ollama:latest
     container_name: meridian-ollama
@@ -236,12 +355,29 @@ services:
       timeout: 10s
       retries: 5
 
+  # Pulls the AI model once. No-op on subsequent starts if model exists in volume.
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: meridian-ollama-init
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - meridian-net
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama", "pull", "qwen2.5:3b"]
+    restart: "no"
+
   api:
     image: ghcr.io/luketempleman/meridian-api:latest
     platform: linux/amd64
     container_name: meridian-api
     env_file: .env
-    # No ports exposed — API is only reachable via internal Docker network (http://api:8000)
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -289,223 +425,299 @@ services:
     container_name: meridian-frontend
     env_file: .env
     environment:
+      # Server-side only. Next.js rewrites /api/* to this URL on the Docker network.
+      # The browser never sees this — it just calls relative /api/* URLs.
       - INTERNAL_API_URL=http://api:8000
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - meridian-net
     restart: unless-stopped
 COMPOSE_EOF
 
-info "docker-compose.yml created"
+info "docker-compose.yml written"
 
-# ── Pull Images ───────────────────────────────────────────
-step "Downloading Images"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 8 — Nginx + SSL
+#
+# Nginx proxies ALL traffic to Next.js on port 3000.
+# Next.js handles /api/* internally (server-side rewrite to FastAPI).
+# No split proxy needed — simpler and more correct.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "8/10  Nginx & SSL"
 
-echo "Pulling Meridian images from GHCR..."
-echo "(Images are built automatically when code is pushed to main)"
-echo ""
+# SSL: Let's Encrypt for domains, self-signed for IPs
+if [ "$IS_DOMAIN" = true ]; then
+    # Install certbot
+    if ! command -v certbot &>/dev/null; then
+        apt-get install -y -q certbot python3-certbot-nginx 2>/dev/null || \
+        { snap install --classic certbot 2>/dev/null && ln -sf /snap/bin/certbot /usr/bin/certbot 2>/dev/null; } || true
+    fi
 
-docker compose pull \
-    || error "Failed to pull images from GHCR.
-  Possible causes:
-    1. Images haven't been built yet — push to main first, wait for CI to finish
-    2. GHCR packages are set to Private — go to github.com/luketempleman → Packages
-       → set each meridian-* package visibility to Public
-    3. No internet connection"
+    # Write HTTP-only config first so certbot can validate
+    cat > "$NGINX_CONF" << NGINX_HTTP_EOF
+server {
+    listen 80;
+    server_name ${SERVER_ADDRESS};
+    client_max_body_size 200M;
 
-info "All images downloaded"
+    location / {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade \$http_upgrade;
+        proxy_set_header   Connection 'upgrade';
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 120s;
+    }
+}
+NGINX_HTTP_EOF
 
-# ── Start Infrastructure ──────────────────────────────────
-step "Starting Services"
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/meridian
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t && systemctl reload nginx
 
-# Remove any stale Meridian containers
-if docker ps -a --format '{{.Names}}' | grep -q "^meridian-"; then
-    warn "Existing Meridian containers found — removing..."
-    docker compose down -v 2>/dev/null || true
-    docker rm -f $(docker ps -aq -f "name=meridian-" 2>/dev/null) 2>/dev/null || true
-    info "Old deployment removed"
+    if command -v certbot &>/dev/null; then
+        certbot --nginx \
+            -d "$SERVER_ADDRESS" \
+            --non-interactive \
+            --agree-tos \
+            --email "support@vantax.co.za" \
+            --redirect \
+            && info "SSL certificate issued for $SERVER_ADDRESS" \
+            || warn "Certbot failed — running on HTTP. Add SSL later: sudo certbot --nginx -d $SERVER_ADDRESS"
+        PROTOCOL="https"
+    else
+        warn "Certbot not available — running on HTTP"
+        PROTOCOL="http"
+    fi
+
+else
+    # IP address — self-signed certificate
+    mkdir -p /etc/nginx/ssl/meridian
+    openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/meridian/privkey.pem \
+        -out    /etc/nginx/ssl/meridian/fullchain.pem \
+        -subj   "/C=ZA/O=Meridian/CN=${SERVER_ADDRESS}" \
+        2>/dev/null
+    info "Self-signed SSL certificate generated (10-year validity)"
+
+    cat > "$NGINX_CONF" << NGINX_SSL_EOF
+# HTTP → HTTPS redirect
+server {
+    listen 80;
+    server_name ${SERVER_ADDRESS};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${SERVER_ADDRESS};
+
+    ssl_certificate     /etc/nginx/ssl/meridian/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/meridian/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+
+    add_header X-Frame-Options    "SAMEORIGIN"  always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy    "no-referrer-when-downgrade" always;
+
+    # Allow large SAP file uploads
+    client_max_body_size 200M;
+
+    # All traffic → Next.js.
+    # Next.js server rewrites /api/* → FastAPI internally (Docker DNS).
+    # The browser never talks to port 8000.
+    location / {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade \$http_upgrade;
+        proxy_set_header   Connection 'upgrade';
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_read_timeout 120s;
+    }
+}
+NGINX_SSL_EOF
+
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/meridian
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t || error "Nginx config test failed. Check $NGINX_CONF"
+    systemctl reload nginx
+    info "Nginx configured with self-signed SSL"
+    PROTOCOL="https"
 fi
 
+FINAL_URL="${PROTOCOL}://${SERVER_ADDRESS}"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 9 — Systemd service
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "9/10  System Service"
+
+cat > "$SYSTEMD_UNIT" << SYSTEMD_EOF
+[Unit]
+Description=Meridian Platform (SAP Data Quality & MDM)
+Documentation=https://meridian.vantax.co.za/docs
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${MERIDIAN_DIR}
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose stop
+TimeoutStartSec=300
+TimeoutStopSec=60
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD_EOF
+
+systemctl daemon-reload
+systemctl enable meridian
+info "Systemd service installed — Meridian will start automatically on reboot"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# STEP 10 — Start everything
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+step "10/10  Starting Meridian"
+
+cd "$MERIDIAN_DIR"
+
+# Tear down any stale deployment
+docker compose down --remove-orphans 2>/dev/null || true
+
+# Pull all images from GHCR
+echo "Pulling images (this may take a few minutes)..."
+docker compose pull || error "Failed to pull images. Check GHCR package visibility and internet access."
+info "Images downloaded"
+
+# Start infrastructure
 echo "Starting database and Redis..."
 docker compose up -d db redis
 
 echo "Waiting for database..."
 for i in {1..30}; do
-    if docker compose exec -T db pg_isready -U meridian &>/dev/null; then
-        info "Database ready"
-        break
-    fi
-    [ $i -eq 30 ] && error "Database failed to start. Run: docker compose logs db"
+    docker compose exec -T db pg_isready -U meridian &>/dev/null && { info "Database ready"; break; }
+    [ $i -eq 30 ] && error "Database failed to start. Check: docker compose logs db"
     sleep 2
 done
 
-# ── Migrations ────────────────────────────────────────────
-# Run migrations early to catch failures before starting everything.
-# The API entrypoint.sh also runs migrations on startup — running twice is safe.
+# Run migrations
 echo "Running database migrations..."
 docker compose run --rm -T api alembic upgrade head \
-    || error "Migration failed. Run: docker compose logs"
+    || error "Migrations failed. Check: docker compose logs"
 info "Migrations complete"
 
-# ── Start All Services ────────────────────────────────────
+# Start all services
 echo "Starting all services..."
-docker compose up -d || true
+docker compose up -d
 info "All services started"
 
-# ── Pull Ollama Model ─────────────────────────────────────
-step "Downloading AI Model"
-
-OLLAMA_READY=false
-
-# Stage 1: wait for the container to be running (image may still be pulling)
-echo "Waiting for Ollama container to start (image pull may take a few minutes)..."
+# Wait for API
+echo "Waiting for API to be ready..."
 for i in {1..60}; do
-    STATE=$(docker inspect --format '{{.State.Status}}' meridian-ollama 2>/dev/null || echo "missing")
-    if [ "$STATE" = "running" ]; then
+    curl -sf http://localhost:8000/health &>/dev/null && { info "API is healthy"; break; }
+    [ $i -eq 60 ] && warn "API health check timed out. Check: docker compose logs api"
+    sleep 3
+done
+
+# Give the startup event (tenant seeding, jwt_secret generation) a moment
+sleep 5
+
+# ── Create admin user ──────────────────────────────────────
+if [ "$ADMIN_EMAIL" != "SKIP" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASS:-}" ]; then
+    echo "Creating admin user..."
+    ADMIN_RESULT=$(docker compose exec -T api \
+        python scripts/manage_users.py create \
+        --email "$ADMIN_EMAIL" \
+        --name "${ADMIN_NAME:-$ADMIN_EMAIL}" \
+        --password "$ADMIN_PASS" \
+        --role admin 2>&1 </dev/null) || true
+
+    if echo "$ADMIN_RESULT" | grep -qi "created\|already exists"; then
+        info "Admin user ready: $ADMIN_EMAIL"
+    else
+        warn "Admin creation: $ADMIN_RESULT"
+        warn "Create manually: docker compose -f $MERIDIAN_DIR/docker-compose.yml exec api python scripts/manage_users.py create --email $ADMIN_EMAIL --password <pass> --role admin"
+    fi
+fi
+
+# ── AI model (background, wait for it) ────────────────────
+echo ""
+echo "Waiting for AI model (${OLLAMA_MODEL}) to download..."
+echo "This may take several minutes on first install (~2 GB)."
+echo ""
+
+for i in {1..120}; do
+    STATE=$(docker inspect --format '{{.State.Status}}' meridian-ollama-init 2>/dev/null || echo "missing")
+    EXIT_CODE=$(docker inspect --format '{{.State.ExitCode}}' meridian-ollama-init 2>/dev/null || echo "-1")
+
+    if [ "$STATE" = "exited" ] && [ "$EXIT_CODE" = "0" ]; then
+        info "AI model ${OLLAMA_MODEL} ready"
+        break
+    elif [ "$STATE" = "exited" ] && [ "$EXIT_CODE" != "0" ]; then
+        warn "Model pull failed. Check: docker compose logs ollama-init"
+        warn "Retry later: docker compose -f $MERIDIAN_DIR/docker-compose.yml exec ollama ollama pull ${OLLAMA_MODEL}"
         break
     fi
-    [ $i -eq 60 ] && warn "Ollama container never started — skipping model pull. Pull manually later: docker compose exec ollama ollama pull qwen2.5:3b" && break
+
+    # Progress every 30 seconds
+    (( i % 6 == 0 )) && echo "  Downloading... (~$((i * 5))s elapsed)"
     sleep 5
 done
 
-# Stage 2: wait for the Ollama HTTP server to be responsive inside the container
-if [ "$(docker inspect --format '{{.State.Status}}' meridian-ollama 2>/dev/null)" = "running" ]; then
-    echo "Waiting for Ollama service to be ready..."
-    for i in {1..40}; do
-        if docker compose exec -T ollama curl -sf http://localhost:11434 &>/dev/null; then
-            info "Ollama ready"
-            OLLAMA_READY=true
-            break
-        fi
-        [ $i -eq 40 ] && warn "Ollama service did not respond — skipping model pull. Pull manually later: docker compose exec ollama ollama pull qwen2.5:3b"
-        sleep 3
-    done
-fi
-
-if [ "$OLLAMA_READY" = "true" ]; then
-    echo "Pulling qwen2.5:3b (~2 GB)..."
-    docker compose exec -T ollama ollama pull qwen2.5:3b \
-        && info "AI model ready" \
-        || warn "Model pull failed. Pull manually: docker compose exec ollama ollama pull qwen2.5:3b"
-fi
-
-# ── Health Checks ─────────────────────────────────────────
-step "Verifying Deployment"
-
-echo "Waiting for API..."
-for i in {1..60}; do
-    if docker compose exec -T api curl -sf http://localhost:8000/health &>/dev/null; then
-        info "API online"
-        break
-    fi
-    [ $i -eq 60 ] && warn "API health check timed out. Check: docker compose logs api"
-    sleep 2
-done
-# Give the API startup event (tenant seeding) a moment to complete
-sleep 5
-
-echo "Waiting for frontend..."
-for i in {1..30}; do
-    STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
-    if [ "$STATUS" = "200" ] || [ "$STATUS" = "307" ]; then
-        info "Frontend online"
-        break
-    fi
-    [ $i -eq 30 ] && warn "Frontend not responding yet — it may still be starting up."
-    sleep 2
-done
-
-echo "Verifying API proxy..."
-PROXY_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/health 2>/dev/null || echo "000")
-if [ "$PROXY_STATUS" = "200" ]; then
-    info "API proxy working (port 8000 is internal-only)"
-else
-    warn "API proxy check returned $PROXY_STATUS — API may still be starting. Check: docker compose logs frontend"
-fi
-
-# ── Admin User ────────────────────────────────────────────
-step "Admin Account Setup"
-
-# Support non-interactive mode via env vars (useful for automated installs):
-#   ADMIN_EMAIL=... ADMIN_NAME=... ADMIN_PASSWORD=... bash standalone-install.sh
-ADMIN_EMAIL="${ADMIN_EMAIL:-}"
-ADMIN_NAME="${ADMIN_NAME:-}"
-ADMIN_PASS="${ADMIN_PASSWORD:-}"
-
-if [ -z "$ADMIN_EMAIL" ]; then
-    echo "Create your first admin user:"
-    echo ""
-    # Detect non-interactive stdin (pipe/redirect) — skip prompts cleanly
-    if [ -t 0 ]; then
-        read -p "Admin Email: " ADMIN_EMAIL
-        while [ -z "$ADMIN_EMAIL" ]; do
-            echo -e "${RED}Email required${NC}"
-            read -p "Admin Email: " ADMIN_EMAIL
-        done
-        read -p "Admin Name [$ADMIN_EMAIL]: " ADMIN_NAME
-        ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
-        while true; do
-            read -sp "Admin Password (min 8 chars): " ADMIN_PASS
-            echo ""
-            [ ${#ADMIN_PASS} -ge 8 ] && break
-            echo -e "${RED}Password must be at least 8 characters${NC}"
-        done
-    else
-        warn "Non-interactive mode — skipping admin user creation."
-        warn "Create the first user after install:"
-        warn "  docker compose exec api python scripts/manage_users.py create --email admin@example.com --password <pass> --role admin"
-        ADMIN_EMAIL="SKIP"
-    fi
-fi
-
-if [ "$ADMIN_EMAIL" != "SKIP" ] && [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASS" ]; then
-ADMIN_NAME="${ADMIN_NAME:-$ADMIN_EMAIL}"
+# ── Final health check ─────────────────────────────────────
 echo ""
-info "Creating admin user..."
+API_OK=false
+FRONTEND_OK=false
 
-# manage_users.py is bundled in the prod image — seeds the tenant and hashes the password
-# Redirect stdin from /dev/null so docker compose exec doesn't inherit the closed pipe
-ADMIN_RESULT=$(docker compose exec -T api python scripts/manage_users.py create \
-    --email "$ADMIN_EMAIL" \
-    --name "$ADMIN_NAME" \
-    --password "$ADMIN_PASS" \
-    --role admin 2>&1 </dev/null) || true
+curl -sf http://localhost:8000/health &>/dev/null && API_OK=true
+STATUS_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+[[ "$STATUS_CODE" =~ ^(200|307|308)$ ]] && FRONTEND_OK=true
 
-if echo "$ADMIN_RESULT" | grep -q "User created"; then
-    info "Admin user created: $ADMIN_EMAIL"
-else
-    warn "Admin creation issue: $ADMIN_RESULT"
-    warn "Run manually: docker compose exec api python scripts/manage_users.py create --email $ADMIN_EMAIL --password <pass> --role admin"
-fi
+[ "$API_OK" = true ]      && info "API:      healthy" || warn "API:      not responding — check: docker compose logs api"
+[ "$FRONTEND_OK" = true ] && info "Frontend: healthy" || warn "Frontend: not responding — check: docker compose logs frontend"
 
-fi # end SKIP check
-
-# ── Summary ───────────────────────────────────────────────
-step "Installation Complete!"
-
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Done
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BOLD}✓ Meridian is running!${NC}"
 echo ""
-echo "  Dashboard:   ${CYAN}http://${SERVER_IP}:3000${NC}"
-echo "  (Access from any browser on the same network)"
-echo "  Login:       $ADMIN_EMAIL"
+echo "  Dashboard:  ${CYAN}${FINAL_URL}${NC}"
+[ "$ADMIN_EMAIL" != "SKIP" ] && echo "  Login:      $ADMIN_EMAIL"
 echo ""
-echo "  Licence:     ${LICENCE_KEY:0:9}****-****"
-echo "  Tier:        $TIER"
-echo "  Expires:     $EXPIRY"
+echo "  Company:    $COMPANY"
+echo "  Tier:       $TIER"
+echo "  Expires:    $EXPIRY"
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "Useful commands:"
-echo "  View logs:    docker compose logs -f"
-echo "  Stop:         docker compose stop"
-echo "  Restart:      docker compose restart"
-echo "  Update:       docker compose pull && docker compose up -d"
+echo "Manage Meridian:"
+echo "  Status:   sudo systemctl status meridian"
+echo "  Logs:     docker compose -f $MERIDIAN_DIR/docker-compose.yml logs -f"
+echo "  Restart:  sudo systemctl restart meridian"
+echo "  Update:   cd $MERIDIAN_DIR && docker compose pull && docker compose up -d"
 echo ""
-echo "For support: support@vantax.co.za"
+echo "  Config:   $MERIDIAN_DIR/.env"
+echo "  Nginx:    $NGINX_CONF"
+echo ""
+echo "Support:    support@vantax.co.za"
 echo ""

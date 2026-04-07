@@ -61,9 +61,23 @@ CREATE TABLE IF NOT EXISTS tenant_users (
     UNIQUE(tenant_id, email)
 );
 
+-- Installer download log — one row per download attempt
+CREATE TABLE IF NOT EXISTS download_log (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    licence_key_suffix TEXT,        -- last 9 chars for display (e.g. "MRDX-XXXX")
+    ip_address TEXT,                -- client IP from CF-Connecting-IP
+    user_agent TEXT,                -- for detecting curl vs browser
+    downloaded_at TEXT NOT NULL,    -- ISO timestamp
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_tenants_key_hash ON tenants(licence_key_hash);
 CREATE INDEX IF NOT EXISTS idx_rules_module ON rules(module);
 CREATE INDEX IF NOT EXISTS idx_rules_category ON rules(category);
 CREATE INDEX IF NOT EXISTS idx_field_mappings_tenant ON field_mappings(tenant_id, module);
 CREATE INDEX IF NOT EXISTS idx_tenant_users_tenant ON tenant_users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_users_email ON tenant_users(email);
+CREATE INDEX IF NOT EXISTS idx_download_log_tenant ON download_log(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_download_log_time ON download_log(downloaded_at DESC);

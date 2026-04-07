@@ -155,11 +155,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS — permissive because API port is internal-only (not publicly exposed).
-# All browser traffic goes through the Next.js same-origin proxy on :3000.
+# CORS — the browser never hits this port directly. All browser traffic flows:
+#   Browser → Nginx → Next.js :3000 → (server rewrite) → FastAPI :8000
+# Only the Next.js server container and localhost health checks reach us here.
+# Origins come from CORS_ORIGINS env var (comma-separated).
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

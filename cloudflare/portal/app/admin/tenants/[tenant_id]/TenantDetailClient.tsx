@@ -317,7 +317,21 @@ export default function TenantDetailClient({ tenant: initialTenant }: { tenant: 
               className="rounded px-3 py-2 text-sm"
               style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
             >
-              Copy
+              Copy Key
+            </button>
+          </div>
+          <p className="text-xs" style={{ color: "#4ade80" }}>Customer install command:</p>
+          <div className="flex items-center gap-3">
+            <code className="flex-1 rounded px-3 py-2 font-mono text-xs text-white break-all"
+              style={{ background: "var(--card)" }}>
+              {`curl -fsSL "https://get.meridian.vantax.co.za/install?key=${newKey}" | sudo bash`}
+            </code>
+            <button
+              onClick={() => navigator.clipboard.writeText(`curl -fsSL "https://get.meridian.vantax.co.za/install?key=${newKey}" | sudo bash`)}
+              className="rounded px-3 py-2 text-sm whitespace-nowrap"
+              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+            >
+              Copy Cmd
             </button>
           </div>
           <button onClick={() => setNewKey(null)} className="text-xs" style={{ color: "var(--muted)" }}>
@@ -424,6 +438,33 @@ export default function TenantDetailClient({ tenant: initialTenant }: { tenant: 
               Last validated:{" "}
               {new Date(tenant.last_ping).toLocaleString("en-ZA")}
             </p>
+          )}
+
+          {/* Install command */}
+          {tenant.licence_key_masked && tenant.licence_key_masked !== "(no key)" && (
+            <div className="mt-2 rounded-lg p-3" style={{ background: "rgba(0,0,0,0.04)", border: "1px solid var(--border)" }}>
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--muted)" }}>Customer Install Command</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs break-all rounded px-2 py-1.5 font-mono"
+                  style={{ background: "#0d1117", color: "#58a6ff" }}>
+                  {`curl -fsSL "https://get.meridian.vantax.co.za/install?key=MRDX-XXXXXXXX-XXXXXXXX-${tenant.licence_key_masked}" | sudo bash`}
+                </code>
+                <button
+                  onClick={() => {
+                    const cmd = `curl -fsSL "https://get.meridian.vantax.co.za/install?key=MRDX-XXXXXXXX-XXXXXXXX-${tenant.licence_key_masked}" | sudo bash`;
+                    navigator.clipboard.writeText(cmd);
+                  }}
+                  className="rounded px-2 py-1.5 text-xs whitespace-nowrap"
+                  style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs mt-1.5" style={{ color: "var(--muted)" }}>
+                Replace <code style={{ color: "#f97316" }}>MRDX-XXXXXXXX-XXXXXXXX-{tenant.licence_key_masked}</code> with the full licence key (shown once at generation).
+                Run on the customer&apos;s Ubuntu server as root.
+              </p>
+            </div>
           )}
         </Section>
 

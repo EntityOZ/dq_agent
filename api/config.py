@@ -43,9 +43,11 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     smtp_from: str = "noreply@meridian.local"
 
-    # CORS — comma-separated string, e.g. http://localhost:3000,http://myhost:3000
-    # Stored as str to avoid pydantic-settings v2 JSON-parsing issues with list fields.
-    # main.py splits this into a list when configuring CORSMiddleware.
+    # CORS — comma-separated origins.
+    # The browser never hits the API directly — Next.js proxies /api/* to FastAPI
+    # on the Docker internal network. Only Next.js server and localhost health
+    # checks ever reach this port.
+    # main.py splits this into a list for CORSMiddleware.
     cors_origins: str = "http://localhost:3000,http://frontend:3000"
 
     # Auth

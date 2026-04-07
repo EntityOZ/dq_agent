@@ -1,13 +1,19 @@
 # =========================================================
 # Meridian Frontend — Production Image (IP-Protected)
-# Next.js standalone build — no source code in final image
+#
+# Architecture:
+#   Browser → Nginx → Next.js :3000 → (server rewrite) → FastAPI :8000
+#
+# INTERNAL_API_URL is the only runtime config needed — it tells
+# Next.js where to forward /api/* requests on the Docker network.
+# It is NOT a NEXT_PUBLIC_ var and never appears in the browser bundle.
 # =========================================================
 
 # === DEPENDENCY STAGE ===
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --production=false --prefer-offline || npm install --production=false
+RUN npm ci --production=false
 
 # === BUILD STAGE ===
 FROM node:20-alpine AS builder
@@ -15,6 +21,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 ENV NEXT_TELEMETRY_DISABLED=1
+# No NEXT_PUBLIC_API_URL — browser uses relative URLs, Next.js rewrites handle routing
 RUN npm run build
 
 # === PRODUCTION STAGE ===
@@ -22,21 +29,29 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy ONLY the standalone build output — no source code
+# Standalone build only — no source code in the image
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy entrypoint (sets INTERNAL_API_URL before starting node)
+COPY frontend/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Remove source maps
 RUN find . -name "*.map" -delete 2>/dev/null || true
 
 USER nextjs
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# INTERNAL_API_URL is read by next.config.ts at server startup.
+# Set here as a safe default; docker-compose overrides it at runtime.
+ENV INTERNAL_API_URL=http://api:8000
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
