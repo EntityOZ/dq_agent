@@ -284,3 +284,17 @@ rules:
   fix_map:
     __blank__: 'In ECC: Set via LT01/LT02. In S/4HANA: Use embedded EWM or /SCWM/ transactions.'
   record_fix_template: 'Record is missing LTAP.TAPOS. In ECC: Set via LT01/LT02. In S/4HANA: Use embedded EWM or /SCWM/ transactions.'
+
+- id: EWMS_TO018
+  field: TANUM
+  check_class: cross_field_check
+  fields: ['TANUM']
+  condition: "~`TANUM`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate transfer order numbers detected — each TO must be unique
+  why_it_matters: Duplicate TO numbers indicate a data extract issue. Each warehouse task (TANUM) must be unique. Duplicates cause confirmation posting errors and stock movement ambiguity.
+  rule_authority: sap_hard_constraint
+  sap_impact: TO confirmation posts to wrong quant. Stock movements are doubled. Warehouse productivity metrics are inflated.
+  fix_map:
+    __blank__: "De-duplicate the data extract at TO header level. If genuine duplicates exist in eWMS, escalate to Basis — this indicates a number range collision."

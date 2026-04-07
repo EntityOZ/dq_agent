@@ -2249,3 +2249,16 @@ rules:
     __blank__: 'In ECC: Set via MM02. In S/4HANA: Use MM02 or Fiori app F1602 (Manage Product Master Data).'
   record_fix_template: 'Record is missing MVKE.VTWEG. In ECC: Set via MM02. In S/4HANA: Use MM02 or Fiori app F1602 (Manage
     Product Master Data).'
+- id: MM138
+  field: MARA.MATNR
+  check_class: cross_field_check
+  fields: ['MARA.MATNR']
+  condition: "~`MARA.MATNR`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate material numbers detected — each material must be unique
+  why_it_matters: Duplicate materials cause fragmented stock, incorrect MRP planning, split purchase orders, and inventory valuation errors. MATNR must be unique across the client landscape.
+  rule_authority: sap_hard_constraint
+  sap_impact: Inventory is split across duplicate materials. MRP generates incorrect requirements. Purchasing creates POs against the wrong material. Stock valuation is fragmented.
+  fix_map:
+    __blank__: "Identify and consolidate duplicate materials. Use MMAM to change material type if needed. Merge stock via movement type 309. Update all dependent documents (BOM, source list, info records)."

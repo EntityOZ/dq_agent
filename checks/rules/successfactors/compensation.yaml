@@ -262,6 +262,7 @@ rules:
       SALARY/HOURLY/COMMISSION via Admin Center > Compensation Import.
 
   - id: COMP011
+    field: COMPINFO.SALARY
     check_class: cross_field_check
     fields: ["COMPINFO.SALARY", "COMPINFO.PAY_RANGE_MIN", "COMPINFO.PAY_RANGE_MAX"]
     condition: "`COMPINFO.PAY_RANGE_MIN`.notna() & `COMPINFO.PAY_RANGE_MAX`.notna() & `COMPINFO.SALARY`.notna() & ((`COMPINFO.SALARY` < `COMPINFO.PAY_RANGE_MIN`) | (`COMPINFO.SALARY` > `COMPINFO.PAY_RANGE_MAX`))"
@@ -286,6 +287,7 @@ rules:
       max: {COMPINFO.PAY_RANGE_MAX}). Review via Admin Center > Compensation.
 
   - id: COMP012
+    field: COMPINFO.PAY_RANGE_MIN
     check_class: cross_field_check
     fields: ["COMPINFO.PAY_RANGE_MIN", "COMPINFO.PAY_RANGE_MID", "COMPINFO.PAY_RANGE_MAX"]
     condition: "`COMPINFO.PAY_RANGE_MIN`.notna() & `COMPINFO.PAY_RANGE_MID`.notna() & `COMPINFO.PAY_RANGE_MAX`.notna() & ((`COMPINFO.PAY_RANGE_MID` < `COMPINFO.PAY_RANGE_MIN`) | (`COMPINFO.PAY_RANGE_MID` > `COMPINFO.PAY_RANGE_MAX`))"
@@ -376,3 +378,17 @@ rules:
     record_fix_template: >-
       Employee {COMPINFO.USERID}: PAY_RANGE_MID is missing. Populate from pay grade
       structure via Admin Center > Compensation Import.
+
+  - id: COMP016
+    field: COMPINFO.USERID
+    check_class: cross_field_check
+    fields: ['COMPINFO.USERID']
+    condition: "~`COMPINFO.USERID`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: Duplicate compensation records per employee — each employee should have one active comp record
+    why_it_matters: Duplicate compensation records cause incorrect pay calculations, doubled bonus accruals, and compa-ratio calculation errors.
+    rule_authority: best_practice
+    sap_impact: Compensation statements show conflicting data. Budget forecasts are overstated. Payroll integration may pick the wrong record.
+    fix_map:
+      __blank__: "Review duplicate compensation records in Admin Center > Compensation Import. Archive or end-date the incorrect record."

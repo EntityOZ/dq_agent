@@ -280,3 +280,17 @@ rules:
     record_fix_template: >-
       Storage location {MARD.LGORT}: missing warehouse assignment. Configure via
       SPRO (ECC) or /SCWM/SPRO (S/4HANA embedded EWM).
+
+  - id: WM013
+    field: LGNUM_WM
+    check_class: cross_field_check
+    fields: ['LGNUM_WM']
+    condition: "~`LGNUM_WM`.duplicated(keep=False)"
+    severity: high
+    dimension: uniqueness
+    message: Duplicate WM interface records detected — indicates data transfer duplication
+    why_it_matters: Duplicate WM interface records cause doubled stock movements, incorrect bin-level inventory, and WM-IM reconciliation breaks.
+    rule_authority: best_practice
+    sap_impact: Stock is posted twice at bin level. WM-IM reconciliation shows differences. Transfer order confirmation is ambiguous.
+    fix_map:
+      __blank__: "De-duplicate the data extract. If genuine duplicates exist in the WM interface, run LX23 to reconcile WM and IM stock."

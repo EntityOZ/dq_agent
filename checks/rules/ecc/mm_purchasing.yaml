@@ -456,6 +456,7 @@ rules:
   record_fix_template: 'PO {EKKO.EBELN} item {EKPO.EBELP}: WEPOS is ''{actual_value}''. Set to blank or X via ME22N or Fiori
     app F2229.'
 - id: PUR025
+  field: EKPO.WEPOS
   fields:
   - EKPO.WEPOS
   - EKPO.WERKS
@@ -732,3 +733,16 @@ rules:
     __blank__: 'In ECC: Set via ME22N. In S/4HANA: Use Fiori app F2229 (Create Purchase Order).'
   record_fix_template: 'Record is missing EKPO.TXZ01. In ECC: Set via ME22N. In S/4HANA: Use Fiori app F2229 (Create Purchase
     Order).'
+- id: PUR042
+  field: EKKO.EBELN
+  check_class: cross_field_check
+  fields: ['EKKO.EBELN']
+  condition: "~`EKKO.EBELN`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate purchase order numbers detected — each PO must be unique
+  why_it_matters: Duplicate PO numbers indicate a data extract or migration error. Each purchase order must have a unique EBELN. Duplicates cause goods receipt posting ambiguity and invoice verification failures.
+  rule_authority: sap_hard_constraint
+  sap_impact: MIGO cannot determine which PO to post against. Invoice verification (MIRO) matches to the wrong PO. Goods receipt history is ambiguous.
+  fix_map:
+    __blank__: "Investigate the source of duplicate PO numbers. This is typically a data extract issue (duplicate rows from joined tables). If genuine duplicates exist in SAP, escalate to Basis — this indicates a number range collision."

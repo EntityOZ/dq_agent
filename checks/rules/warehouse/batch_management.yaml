@@ -164,6 +164,7 @@ rules:
       via MSC2N (ECC) or Fiori app F3506 (S/4HANA).
 
   - id: BATCH008
+    field: MCH7.HSDAT
     fields: ["MCH7.HSDAT", "MCH7.VFDAT"]
     check_class: cross_field_check
     condition: "`MCH7.HSDAT` > `MCH7.VFDAT`"
@@ -355,3 +356,17 @@ rules:
     record_fix_template: >-
       Batch {MCH1.CHARG}: VFDAT is {actual_value} (expired). Block via MSC2N (ECC)
       or Fiori app F3506 (S/4HANA) and initiate disposal.
+
+  - id: BATCH016
+    field: MCH1.CHARG
+    check_class: cross_field_check
+    fields: ['MCH1.CHARG']
+    condition: "~`MCH1.CHARG`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: Duplicate batch numbers detected — each batch must be unique per material
+    why_it_matters: Duplicate batch numbers cause incorrect traceability, wrong shelf life determination, and FEFO sorting errors. Each batch must be uniquely identifiable.
+    rule_authority: sap_hard_constraint
+    sap_impact: Batch traceability is broken. FEFO picks wrong batch. Shelf life check fails. Recall cannot isolate affected batches.
+    fix_map:
+      __blank__: "Investigate duplicate batch numbers. If caused by extract join (MCH1+MCH7), de-duplicate at batch level. If genuine, escalate — SAP should prevent this via batch number assignment."

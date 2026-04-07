@@ -473,6 +473,7 @@ rules:
   record_fix_template: 'SO {VBAK.VBELN} item {VBAP.POSNR}: ABGRU is {actual_value} but item appears rejected. Set the rejection
     reason via VA02 or Fiori app F6588.'
 - id: SDSO025
+  field: VBAK.ABSTK
   fields:
   - VBAK.ABSTK
   - VBAP.ABGRU
@@ -595,3 +596,16 @@ rules:
     __blank__: 'In ECC: Set via VA02. In S/4HANA: Use Fiori app F6588 (Create Sales Order).'
   record_fix_template: 'Record is missing VBAP.POSNR. In ECC: Set via VA02. In S/4HANA: Use Fiori app F6588 (Create Sales
     Order).'
+- id: SDSO033
+  field: VBAK.VBELN
+  check_class: cross_field_check
+  fields: ['VBAK.VBELN']
+  condition: "~`VBAK.VBELN`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate sales order numbers detected — each sales order must be unique
+  why_it_matters: Duplicate sales order numbers indicate a data extract issue (e.g. header-item join). Each VBELN must be unique at header level. Duplicates distort order volume reports and revenue analytics.
+  rule_authority: sap_hard_constraint
+  sap_impact: Order volume and revenue reports are overstated. Delivery creation references ambiguous orders. Billing may process the same order twice.
+  fix_map:
+    __blank__: "This is typically a data extract issue — ensure the extract is at header level (VBAK) not header-item (VBAK+VBAP). If genuine duplicates exist, escalate to Basis."

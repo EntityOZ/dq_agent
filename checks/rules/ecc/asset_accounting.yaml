@@ -273,6 +273,7 @@ rules:
   record_fix_template: 'Asset {ANLA.ANLN1}: AFABG is {actual_value}. Set the depreciation start date via AS02 > Depreciation
     Areas tab or Fiori app F2747.'
 - id: AA017
+  field: ANLB.AFABG
   fields:
   - ANLB.AFABG
   - ANLA.AKTIV
@@ -470,3 +471,16 @@ rules:
     __blank__: 'In ECC: Set via AS02. In S/4HANA: Use Fiori app F2747 (Manage Fixed Asset).'
   record_fix_template: 'Record is missing ANLZ.RAESSION. In ECC: Set via AS02. In S/4HANA: Use Fiori app F2747 (Manage Fixed
     Asset).'
+- id: AA030
+  field: ANLA.ANLN1
+  check_class: cross_field_check
+  fields: ['ANLA.ANLN1']
+  condition: "~`ANLA.ANLN1`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate asset main numbers detected — each asset must be unique
+  why_it_matters: Duplicate asset numbers cause double depreciation, incorrect book values, and reconciliation breaks between the asset subledger and general ledger. Each fixed asset must have a unique main number (ANLN1) within the company code.
+  rule_authority: sap_hard_constraint
+  sap_impact: Depreciation is posted twice. Asset subledger does not reconcile with FI-GL. Asset value reports are overstated. Year-end close will flag the imbalance.
+  fix_map:
+    __blank__: "Identify and merge duplicate asset records via AS06 (asset transfer within company code) or archive the duplicate via OAAR. Reconcile with FI-GL after correction."

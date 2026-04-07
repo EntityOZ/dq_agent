@@ -257,6 +257,7 @@ rules:
       investigate the posting process.
 
   - id: XSYS012
+    field: BUDAT
     fields: ["BUDAT", "BLDAT"]
     check_class: cross_field_check
     condition: "`BUDAT` > `BLDAT`"
@@ -279,3 +280,17 @@ rules:
     record_fix_template: >-
       Cross-system record: BUDAT ({actual_value}) is after BLDAT. Verify the dates
       are correct via FB03 (ECC) or Fiori app F0717 (S/4HANA).
+
+  - id: XSYS013
+    field: MATNR_CROSS
+    check_class: cross_field_check
+    fields: ['MATNR_CROSS']
+    condition: "~`MATNR_CROSS`.duplicated(keep=False)"
+    severity: high
+    dimension: uniqueness
+    message: Duplicate cross-system material records detected — same material appears multiple times
+    why_it_matters: Duplicate cross-system records cause incorrect reconciliation between ECC/S4 and satellite systems. Each material should have one mapping record per target system.
+    rule_authority: best_practice
+    sap_impact: Cross-system reconciliation shows false differences. Material sync creates duplicates in target system. Stock reports disagree between systems.
+    fix_map:
+      __blank__: "De-duplicate the cross-system mapping extract. Verify the material number mapping table between source and target systems."

@@ -132,6 +132,7 @@ rules:
   record_fix_template: 'Vehicle {FLEET_MASTER.REG_NUMBER}: SERVICE_KM is {actual_value}. Set the service interval via IE02
     (ECC) or Fiori app F2723 (S/4HANA).'
 - id: FLEET008
+  field: FLEET_MASTER.SERVICE_KM
   fields:
   - FLEET_MASTER.SERVICE_KM
   - FLEET_MASTER.CURRENT_KM
@@ -276,3 +277,17 @@ rules:
     __blank__: 'In ECC: Set via IE02 (Equipment Master). In S/4HANA: Use Fiori app F4283.'
   record_fix_template: 'Record is missing FLEET_MASTER.NEXT_SERVICE_DUE. In ECC: Set via IE02 (Equipment Master). In S/4HANA:
     Use Fiori app F4283.'
+
+- id: FLEET017
+  field: REG_NUMBER
+  check_class: cross_field_check
+  fields: ['REG_NUMBER']
+  condition: "~`REG_NUMBER`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate vehicle registration numbers detected — each vehicle must be unique
+  why_it_matters: Duplicate registrations cause incorrect cost allocation, doubled insurance premiums, and fleet size overstatement. Each vehicle must have a unique registration.
+  rule_authority: sap_hard_constraint
+  sap_impact: Maintenance costs are allocated to wrong vehicle. Insurance and licence costs are doubled. Fleet utilisation reports are unreliable.
+  fix_map:
+    __blank__: "Identify duplicate vehicle records. Merge or archive the duplicate via fleet management transaction. Update all linked maintenance orders."

@@ -415,6 +415,7 @@ rules:
   record_fix_template: 'Employee {EMPEMPLOYMENT.USERID}: EVENT_REASON is missing on employment record. Add via Admin Center
     > Employment Information.'
 - id: EC025
+  field: EMPEMPLOYMENT.START_DATE
   check_class: cross_field_check
   fields:
   - EMPEMPLOYMENT.START_DATE
@@ -646,3 +647,16 @@ rules:
     __blank__: Maintain via SuccessFactors Admin Center > Employee Central > People Profile.
   record_fix_template: Record is missing PERPHONE.PHONE_NUMBER. Maintain via SuccessFactors Admin Center > Employee Central
     > People Profile.
+- id: EC041
+  field: USERID
+  check_class: cross_field_check
+  fields: ['USERID']
+  condition: "~`USERID`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate employee user IDs detected — each employee must have a unique USERID
+  why_it_matters: Duplicate USERIDs cause incorrect payroll processing, conflicting approval workflows, and ambiguous reporting. Each employee must have a single unique identifier across Employee Central.
+  rule_authority: sap_hard_constraint
+  sap_impact: Payroll processes the wrong employee. Approval workflows route to the wrong person. Headcount reports are overstated.
+  fix_map:
+    __blank__: "Identify duplicate USERIDs in Admin Center. Merge records using the Employee Data Import template with the correct surviving USERID. Archive duplicates."

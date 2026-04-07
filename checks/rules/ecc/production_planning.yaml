@@ -328,6 +328,7 @@ rules:
       tab. In S/4HANA: use transaction CR02.'
   record_fix_template: 'Work centre {CRHD.ARBPL}: WERKS is {actual_value}. Assign the plant via CR02 > Basic Data tab.'
 - id: PP019
+  field: PLKOD.LOESSION
   fields:
   - PLKOD.LOESSION
   - PLKOD.LOSBS
@@ -447,3 +448,16 @@ rules:
     __blank__: 'In ECC: Set via CA02 (routing) or CS02 (BOM). In S/4HANA: Use the corresponding Fiori apps.'
   record_fix_template: 'Record is missing STPO.SORTF. In ECC: Set via CA02 (routing) or CS02 (BOM). In S/4HANA: Use the corresponding
     Fiori apps.'
+- id: PP027
+  field: PLNNR
+  check_class: cross_field_check
+  fields: ['PLNNR']
+  condition: "~`PLNNR`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate routing numbers detected — each routing must be unique
+  why_it_matters: Duplicate routing numbers cause production orders to reference the wrong operations, leading to incorrect scheduling, costing, and confirmation postings.
+  rule_authority: sap_hard_constraint
+  sap_impact: Production orders link to wrong routing. Scheduled times and costs are incorrect. Confirmation postings go against wrong operations.
+  fix_map:
+    __blank__: "Investigate duplicate routing numbers. If caused by extract join, de-duplicate the extract. If genuine, archive the unused routing via CA02."

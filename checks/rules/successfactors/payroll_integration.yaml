@@ -212,6 +212,7 @@ rules:
       4217 code via Payroll Control Center.
 
   - id: PAY010
+    field: PAYRESULT.GROSS_PAY
     check_class: cross_field_check
     fields: ["PAYRESULT.GROSS_PAY", "PAYRESULT.NET_PAY"]
     condition: "`PAYRESULT.GROSS_PAY`.notna() & `PAYRESULT.NET_PAY`.notna() & (`PAYRESULT.GROSS_PAY` < `PAYRESULT.NET_PAY`)"
@@ -345,3 +346,17 @@ rules:
     record_fix_template: >-
       Payroll result {PAYRESULT.USERID}: DEDUCTIONS is missing. Verify payroll
       calculation via Payroll Control Center.
+
+  - id: PAY016
+    field: PAYRESULT.USERID_PAY
+    check_class: cross_field_check
+    fields: ['PAYRESULT.USERID_PAY']
+    condition: "~`PAYRESULT.USERID_PAY`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: Duplicate payroll result records per employee per period — indicates replication error
+    why_it_matters: Duplicate payroll results cause doubled payment amounts, incorrect tax withholding, and GL posting variances.
+    rule_authority: sap_hard_constraint
+    sap_impact: Employee is paid twice. Tax withholding is doubled. Payroll-to-FI posting is overstated. Payroll reconciliation fails.
+    fix_map:
+      __blank__: "Investigate the ECP replication log. Delete the duplicate payroll result via the Payroll Control Center. Re-run the replication for the affected period."

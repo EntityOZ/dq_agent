@@ -362,3 +362,17 @@ rules:
     record_fix_template: >-
       Change request {USMD_CREQU.CREQU_ID}: APPROVER '{actual_value}' has non-standard
       format. Verify via SU01 (ECC) or Fiori app F1603 (S/4HANA).
+
+  - id: MDG016
+    field: CREQU_ID
+    check_class: cross_field_check
+    fields: ['CREQU_ID']
+    condition: "~`CREQU_ID`.duplicated(keep=False)"
+    severity: high
+    dimension: uniqueness
+    message: Duplicate MDG change request IDs detected — each CR must be unique
+    why_it_matters: Duplicate change request IDs cause workflow routing errors, approval ambiguity, and audit trail breaks. Each MDG CR must have a unique identifier.
+    rule_authority: sap_hard_constraint
+    sap_impact: Workflow routes to wrong approver. Audit trail is ambiguous. Data activation may process the wrong change request.
+    fix_map:
+      __blank__: "Investigate duplicate CR IDs. This is typically a data extract issue. If genuine, escalate to MDG administration — number range collision or replication error."

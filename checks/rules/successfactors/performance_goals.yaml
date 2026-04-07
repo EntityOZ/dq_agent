@@ -250,3 +250,16 @@ rules:
     __blank__: Maintain via SuccessFactors Admin Center > Performance & Goals module.
   record_fix_template: Record is missing PMREVIEWRESULT.SELF_RATING. Maintain via SuccessFactors Admin Center > Performance
     & Goals module.
+- id: PERF015
+  field: USERID_PERF
+  check_class: cross_field_check
+  fields: ['USERID_PERF']
+  condition: "~`USERID_PERF`.duplicated(keep=False)"
+  severity: high
+  dimension: uniqueness
+  message: Duplicate performance review records per employee per cycle — only one review should exist
+  why_it_matters: Duplicate reviews cause conflicting ratings, incorrect calibration results, and compensation decision errors.
+  rule_authority: best_practice
+  sap_impact: Calibration sessions show conflicting ratings. Compensation decisions reference the wrong review. Overall rating is ambiguous.
+  fix_map:
+    __blank__: "Identify duplicate review forms in Admin Center > Performance. Delete the incorrect form. Verify the correct form is routed in the current cycle."

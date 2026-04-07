@@ -253,3 +253,17 @@ rules:
     record_fix_template: >-
       Enrolment {BENEFITENROLLMENT.USERID}: ENROL_DATE format invalid
       (value: {actual_value}). Convert to YYYY-MM-DD.
+
+  - id: BEN011
+    field: USERID_BEN
+    check_class: cross_field_check
+    fields: ['USERID_BEN']
+    condition: "~`USERID_BEN`.duplicated(keep=False)"
+    severity: high
+    dimension: uniqueness
+    message: Duplicate benefit enrollment records per employee — review for over-enrollment
+    why_it_matters: Duplicate enrollment records can cause double premium deductions, incorrect coverage levels, and carrier file errors.
+    rule_authority: best_practice
+    sap_impact: Payroll deducts premiums twice. Carrier feeds contain duplicate enrollments. Benefits cost reports are overstated.
+    fix_map:
+      __blank__: "Review duplicate enrollments in Admin Center > Benefits. End-date or delete the incorrect enrollment. Verify carrier feed after correction."

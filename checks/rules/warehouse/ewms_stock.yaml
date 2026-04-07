@@ -358,3 +358,17 @@ rules:
     __blank__: 'In ECC: Set via LS01N/LS02N. In S/4HANA: Use embedded EWM or /SCWM/ transactions.'
   record_fix_template: 'Record is missing LQUA.VERME. In ECC: Set via LS01N/LS02N. In S/4HANA: Use embedded EWM or /SCWM/
     transactions.'
+
+- id: EWMS022
+  field: LGNUM
+  check_class: cross_field_check
+  fields: ['LGNUM']
+  condition: "~`LGNUM`.duplicated(keep=False)"
+  severity: high
+  dimension: uniqueness
+  message: Duplicate stock records detected — indicates data extract or quant duplication issue
+  why_it_matters: Duplicate stock quants cause inventory discrepancies, incorrect available-to-promise, and warehouse task creation against phantom stock.
+  rule_authority: best_practice
+  sap_impact: Available stock is overstated. Warehouse tasks are created for non-existent stock. Physical inventory count will show variances.
+  fix_map:
+    __blank__: "Verify the data extract is at quant level (one row per storage bin per material per batch). If genuine quant duplicates exist, run /SCWM/AQUA to reconcile."

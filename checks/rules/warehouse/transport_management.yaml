@@ -182,6 +182,7 @@ rules:
       investigate the shipment processing history.
 
   - id: TM009
+    field: VTTK.DESSION
     fields: ["VTTK.DESSION", "VTTK.DESSION_END"]
     check_class: cross_field_check
     condition: "`VTTK.DESSION` > `VTTK.DESSION_END`"
@@ -339,3 +340,17 @@ rules:
     record_fix_template: >-
       Shipment {VTTK.TKNUM}: TDLNR '{actual_value}' is not a valid vendor number.
       Verify via XK03 (ECC) or Fiori app F0843 (S/4HANA) and correct.
+
+  - id: TM016
+    field: TKNUM
+    check_class: cross_field_check
+    fields: ['TKNUM']
+    condition: "~`TKNUM`.duplicated(keep=False)"
+    severity: critical
+    dimension: uniqueness
+    message: Duplicate shipment numbers detected — each shipment must be unique
+    why_it_matters: Duplicate shipment numbers cause incorrect freight cost allocation, delivery tracking ambiguity, and carrier invoice matching failures.
+    rule_authority: sap_hard_constraint
+    sap_impact: Freight costs are doubled. Delivery tracking is ambiguous. Carrier invoice verification fails.
+    fix_map:
+      __blank__: "De-duplicate the data extract at shipment header level. If genuine duplicates exist, escalate to Basis."

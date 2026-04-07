@@ -178,6 +178,7 @@ rules:
   record_fix_template: 'Requisition {JOBREQUISITION.TITLE}: OPEN_DATE is missing. Set via Recruiting > Requisition Management.
     Format: YYYY-MM-DD.'
 - id: REC010
+  field: JOBREQUISITION.OPEN_DATE
   check_class: cross_field_check
   fields:
   - JOBREQUISITION.OPEN_DATE
@@ -322,3 +323,16 @@ rules:
     __blank__: Maintain via SuccessFactors Admin Center > Recruiting or Onboarding module.
   record_fix_template: Record is missing ONBOARDINGCANDIDATEINFO.TASK_COMPLETION. Maintain via SuccessFactors Admin Center
     > Recruiting or Onboarding module.
+- id: REC019
+  field: CANDIDATE_ID
+  check_class: cross_field_check
+  fields: ['CANDIDATE_ID']
+  condition: "~`CANDIDATE_ID`.duplicated(keep=False)"
+  severity: high
+  dimension: uniqueness
+  message: Duplicate candidate records detected — same candidate appears multiple times
+  why_it_matters: Duplicate candidates cause fragmented application history, incorrect offer management, and compliance reporting errors for EEO/diversity tracking.
+  rule_authority: best_practice
+  sap_impact: Application history is split. Offer letters may be sent to wrong record. EEO reporting undercounts unique applicants.
+  fix_map:
+    __blank__: "Merge duplicate candidates in Recruiting > Candidate Management > Merge Candidates. Preserve the record with the most complete application history."

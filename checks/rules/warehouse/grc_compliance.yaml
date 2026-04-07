@@ -97,6 +97,7 @@ rules:
       {actual_value}. Set an expiry date per access policy via SU01 or GRC.
 
   - id: GRC005
+    field: GRACUSERROLE.VALID_FROM
     fields: ["GRACUSERROLE.VALID_FROM", "GRACUSERROLE.VALID_TO"]
     check_class: cross_field_check
     condition: "`GRACUSERROLE.VALID_FROM` > `GRACUSERROLE.VALID_TO`"
@@ -297,3 +298,17 @@ rules:
     record_fix_template: >-
       Role assignment: USERID '{actual_value}' has non-standard format. Verify via
       SU01 (ECC) or Fiori app F1603 (S/4HANA).
+
+  - id: GRC013
+    field: USERID_GRC
+    check_class: cross_field_check
+    fields: ['USERID_GRC']
+    condition: "~`USERID_GRC`.duplicated(keep=False)"
+    severity: high
+    dimension: uniqueness
+    message: Duplicate GRC user-role assignments detected — indicates access control inconsistency
+    why_it_matters: Duplicate role assignments cause SoD analysis to produce false positives or miss genuine conflicts. Each user-role combination must be unique.
+    rule_authority: best_practice
+    sap_impact: SoD matrix produces incorrect results. Audit reports flag phantom conflicts. Access risk quantification is unreliable.
+    fix_map:
+      __blank__: "Review duplicate role assignments in GRC Access Control. Remove the duplicate assignment. Re-run SoD analysis for affected users."

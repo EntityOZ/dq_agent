@@ -292,6 +292,7 @@ rules:
   record_fix_template: 'Equipment {EQUI.EQUNR}: TIDNR is {actual_value}. Assign the technical ID via IE02 (ECC) or Fiori app
     F4283 (S/4HANA).'
 - id: PM018
+  field: EQUI.TIDNR
   fields:
   - EQUI.TIDNR
   - EQUI.IWERK
@@ -527,3 +528,16 @@ rules:
       Location).'
   record_fix_template: 'Record is missing IFLOT.SWERK. In ECC: Set via IE02/IL02. In S/4HANA: Use Fiori app F4283 (Manage
     Equipment) or F4284 (Manage Functional Location).'
+- id: PM033
+  field: EQUI.EQUNR
+  check_class: cross_field_check
+  fields: ['EQUI.EQUNR']
+  condition: "~`EQUI.EQUNR`.duplicated(keep=False)"
+  severity: critical
+  dimension: uniqueness
+  message: Duplicate equipment numbers detected — each equipment must be unique
+  why_it_matters: Duplicate equipment records cause doubled maintenance costs, incorrect failure analysis, and ambiguous work order references. Each equipment must have a unique EQUNR.
+  rule_authority: sap_hard_constraint
+  sap_impact: Maintenance orders reference the wrong equipment. Failure history is split. Warranty tracking is unreliable. Cost reporting doubles up.
+  fix_map:
+    __blank__: "Identify and merge duplicate equipment via IE02 or archive duplicates via OIEA. Reassign maintenance orders and notifications to the surviving record."

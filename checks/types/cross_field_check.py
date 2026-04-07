@@ -8,7 +8,7 @@ class CrossFieldCheck(BaseCheck):
 
     def run(self, df: pd.DataFrame) -> CheckResult:
         try:
-            field = self.rule["field"]
+            field = self.rule.get("field") or self.rule.get("fields", [""])[0]
             fields = self.rule.get("fields", [field])
             condition = self.rule["condition"]
             total = len(df)
