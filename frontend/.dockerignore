@@ -2,3 +2,4 @@
 .git
 *.md
 node_modules
+!docker-entrypoint.sh
