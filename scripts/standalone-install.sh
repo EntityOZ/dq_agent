@@ -464,6 +464,23 @@ server {
     server_name ${SERVER_ADDRESS};
     client_max_body_size 200M;
 
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 120s;
+        client_max_body_size 200M;
+    }
+
+    location /health {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+    }
+
     location / {
         proxy_pass         http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -533,9 +550,25 @@ server {
     # Allow large SAP file uploads
     client_max_body_size 200M;
 
-    # All traffic → Next.js.
-    # Next.js server rewrites /api/* → FastAPI internally (Docker DNS).
-    # The browser never talks to port 8000.
+    # API traffic → FastAPI directly (bypasses Next.js, no build-time env needed)
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_read_timeout 120s;
+        client_max_body_size 200M;
+    }
+
+    location /health {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+    }
+
+    # All other traffic → Next.js
     location / {
         proxy_pass         http://127.0.0.1:3000;
         proxy_http_version 1.1;
