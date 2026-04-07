@@ -51,6 +51,15 @@ DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
 info "Docker $DOCKER_VERSION detected"
 info "Docker Compose available"
 
+# ── Detect Public IP ─────────────────────────────────────
+PUBLIC_IP=$(curl -sf --max-time 5 https://api.ipify.org \
+    || curl -sf --max-time 5 https://checkip.amazonaws.com \
+    || curl -sf --max-time 5 https://ifconfig.me \
+    || hostname -I 2>/dev/null | awk '{print $1}' \
+    || echo "localhost")
+PUBLIC_IP=$(echo "$PUBLIC_IP" | tr -d '[:space:]')
+info "Detected server IP: $PUBLIC_IP"
+
 # ── Licence Key ───────────────────────────────────────────
 step "Licence Activation"
 
@@ -141,8 +150,11 @@ CREDENTIAL_MASTER_KEY=$SECRET
 AUTH_MODE=local
 NEXT_PUBLIC_AUTH_MODE=local
 
+# API URL (used by frontend browser JS — must be the server's public address)
+NEXT_PUBLIC_API_URL=http://${PUBLIC_IP}:8000
+
 # CORS
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000,http://${PUBLIC_IP}:3000
 
 # Clerk dummy keys — required for frontend build; not used in local auth mode
 CLERK_SECRET_KEY=sk_test_bG9jYWwtYXV0aC1tb2RlLWR1bW15c2VjcmV0a2V5
@@ -464,8 +476,8 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo -e "  ${BOLD}✓ Meridian is running!${NC}"
 echo ""
-echo "  Dashboard:   ${CYAN}http://localhost:3000${NC}"
-echo "  API:         http://localhost:8000"
+echo "  Dashboard:   ${CYAN}http://${PUBLIC_IP}:3000${NC}"
+echo "  API:         http://${PUBLIC_IP}:8000"
 echo "  Login:       $ADMIN_EMAIL"
 echo ""
 echo "  Licence:     ${LICENCE_KEY:0:9}****-****"
