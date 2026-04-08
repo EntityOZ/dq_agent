@@ -24,7 +24,10 @@ apiClient.interceptors.response.use(
     if (typeof window !== "undefined" && error.response) {
       if (error.response.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
-        window.location.href = "/sign-in";
+        // Don't redirect if already on the sign-in page — let the form handle the error
+        if (!window.location.pathname.startsWith("/sign-in")) {
+          window.location.href = "/sign-in";
+        }
         return Promise.reject(error);
       }
       if (error.response.status === 402) {
