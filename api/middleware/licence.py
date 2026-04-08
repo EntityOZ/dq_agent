@@ -357,25 +357,11 @@ async def _validate_licence() -> dict | None:
 FEATURE_ROUTE_MAP: dict[str, str] = {
     # Phase A-G routes (longer prefixes first for correct startswith matching)
     "/api/v1/cleaning/export": "export_reports",
-    "/api/v1/cleaning": "cleaning",
-    "/api/v1/exceptions": "exceptions",
-    "/api/v1/analytics": "analytics",
-    "/api/v1/nlp": "nlp",
-    "/api/v1/contracts": "contracts",
-    "/api/v1/notifications": "notifications",
+    "/api/v1/cleaning": "export_reports",
     "/api/v1/reports": "export_reports",
     "/api/v1/sync-trigger": "run_sync",
-    # Phase H-O MDM routes
-    "/api/v1/systems": "mdm",
-    "/api/v1/sync": "mdm",  # must be after /api/v1/sync-trigger
-    "/api/v1/master-records": "mdm",
-    "/api/v1/stewardship": "mdm",
-    "/api/v1/glossary": "mdm",
-    "/api/v1/relationships": "mdm",
-    "/api/v1/match-rules": "mdm",
-    "/api/v1/mdm-metrics": "mdm",
     # AI features
-    "/api/v1/ai": "ai_features",
+    "/api/v1/ai": "ask_meridian",
 }
 
 
