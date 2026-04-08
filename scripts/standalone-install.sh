@@ -675,9 +675,10 @@ done
 # Give the startup event (tenant seeding, jwt_secret generation) a moment
 sleep 5
 
-# ── Create admin user ──────────────────────────────────────
+# ── Create/update admin user ───────────────────────────────
 if [ "$ADMIN_EMAIL" != "SKIP" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASS:-}" ]; then
     echo "Creating admin user..."
+    # Try create first; if user already exists (seeded by main.py), update password
     ADMIN_RESULT=$(docker compose exec -T api \
         python scripts/manage_users.py create \
         --email "$ADMIN_EMAIL" \
@@ -685,12 +686,14 @@ if [ "$ADMIN_EMAIL" != "SKIP" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PA
         --password "$ADMIN_PASS" \
         --role admin 2>&1 </dev/null) || true
 
-    if echo "$ADMIN_RESULT" | grep -qi "created\|already exists"; then
-        info "Admin user ready: $ADMIN_EMAIL"
-    else
-        warn "Admin creation: $ADMIN_RESULT"
-        warn "Create manually: docker compose -f $MERIDIAN_DIR/docker-compose.yml exec api python scripts/manage_users.py create --email $ADMIN_EMAIL --password <pass> --role admin"
+    if echo "$ADMIN_RESULT" | grep -qi "already exists"; then
+        # User was seeded by main.py with default password — update to the installer password
+        docker compose exec -T api \
+            python scripts/manage_users.py reset-password \
+            --email "$ADMIN_EMAIL" \
+            --password "$ADMIN_PASS" 2>&1 </dev/null || true
     fi
+    info "Admin user ready: $ADMIN_EMAIL"
 fi
 
 # ── AI model (background, wait for it) ────────────────────
