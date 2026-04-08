@@ -172,7 +172,7 @@ def _populate_contract_breaches(session: Session, tid: str) -> int:
               AND EXISTS (
                   SELECT 1 FROM contract_compliance_history cch
                   WHERE cch.contract_id = c.id
-                    AND cch.compliant = false
+                    AND cch.overall_compliant = false
                     AND cch.checked_at >= now() - interval '7 days'
               )
               AND NOT EXISTS (
