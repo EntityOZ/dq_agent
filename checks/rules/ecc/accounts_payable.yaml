@@ -556,7 +556,7 @@ rules:
   max_age_hours: 17520
   severity: low
   dimension: timeliness
-  message: Vendor master not updated in 2+ years — review if bank details, payment terms, and addresses are still current
+  message: Vendor master not updated in 2+ years â€” review if bank details, payment terms, and addresses are still current
   rule_authority: best_practice
 
 - id: AP034
@@ -565,7 +565,7 @@ rules:
   pattern: "^[A-Z]{2}[0-9A-Z]{5,15}$"
   severity: high
   dimension: accuracy
-  message: Vendor VAT/tax registration number format is invalid — must start with 2-letter country code followed by alphanumeric characters
+  message: Vendor VAT/tax registration number format is invalid â€” must start with 2-letter country code followed by alphanumeric characters
   why_it_matters: Invalid VAT numbers cause tax reporting errors, rejected electronic invoices, and SARS/HMRC compliance failures.
   rule_authority: best_practice
   sap_impact: Tax reporting includes invalid VAT numbers. E-invoicing is rejected by tax authority. VAT reclaim is disallowed.

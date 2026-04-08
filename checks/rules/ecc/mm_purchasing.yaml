@@ -753,7 +753,7 @@ rules:
   max_age_hours: 8760
   severity: medium
   dimension: timeliness
-  message: Purchase order older than 1 year — open POs older than 12 months should be reviewed and closed if no longer needed
+  message: Purchase order older than 1 year â€” open POs older than 12 months should be reviewed and closed if no longer needed
   rule_authority: best_practice
 
 - id: PUR044
@@ -763,7 +763,7 @@ rules:
   condition: "`EKPO.NETPR`.notna() & (`EKPO.NETPR` >= 0)"
   severity: high
   dimension: accuracy
-  message: Purchase order line has negative net price — indicates pricing error or incorrect credit memo configuration
+  message: Purchase order line has negative net price â€” indicates pricing error or incorrect credit memo configuration
   why_it_matters: Negative PO prices cause goods receipt valuation errors, invoice verification mismatches, and incorrect cost centre charges.
   rule_authority: best_practice
   sap_impact: GR posting creates negative stock value. Invoice verification shows price variance. Cost centre is credited instead of debited.

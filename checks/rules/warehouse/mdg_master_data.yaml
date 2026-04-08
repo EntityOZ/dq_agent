@@ -383,5 +383,5 @@ rules:
     max_age_hours: 8760
     severity: low
     dimension: timeliness
-    message: MDG change request older than 1 year — long-pending CRs should be reviewed, approved, or rejected
+    message: MDG change request older than 1 year â€” long-pending CRs should be reviewed, approved, or rejected
     rule_authority: best_practice

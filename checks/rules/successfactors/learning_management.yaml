@@ -328,5 +328,5 @@ rules:
     max_age_hours: 0
     severity: high
     dimension: timeliness
-    message: Learning assignment past due date — overdue mandatory training creates compliance risk
+    message: Learning assignment past due date â€” overdue mandatory training creates compliance risk
     rule_authority: best_practice

@@ -616,7 +616,7 @@ rules:
   max_age_hours: 8760
   severity: medium
   dimension: timeliness
-  message: Sales order older than 1 year — open orders older than 12 months should be reviewed for closure or rejection
+  message: Sales order older than 1 year â€” open orders older than 12 months should be reviewed for closure or rejection
   rule_authority: best_practice
 
 - id: SDSO035
@@ -626,7 +626,7 @@ rules:
   condition: "`VBAP.KWMENG`.notna() & (`VBAP.KWMENG` > 0)"
   severity: high
   dimension: accuracy
-  message: Sales order line has zero or negative order quantity — indicates configuration or entry error
+  message: Sales order line has zero or negative order quantity â€” indicates configuration or entry error
   why_it_matters: Zero or negative quantities on sales order lines cause delivery creation failures, incorrect revenue recognition, and pricing errors.
   rule_authority: best_practice
   sap_impact: Delivery cannot be created for zero-quantity line. Revenue is not recognised. Pricing conditions produce zero or negative amounts.

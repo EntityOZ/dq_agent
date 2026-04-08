@@ -468,7 +468,7 @@ rules:
   max_age_hours: 26280
   severity: medium
   dimension: timeliness
-  message: Routing not updated in 3+ years — review if operations, work centres, and standard values are still accurate
+  message: Routing not updated in 3+ years â€” review if operations, work centres, and standard values are still accurate
   rule_authority: best_practice
 
 - id: PP029
@@ -477,7 +477,7 @@ rules:
   pattern: "^[A-Z0-9]{3}$"
   severity: medium
   dimension: accuracy
-  message: MRP controller code format is invalid — must be exactly 3 alphanumeric characters
+  message: MRP controller code format is invalid â€” must be exactly 3 alphanumeric characters
   why_it_matters: Invalid MRP controller codes cause MRP run exceptions, unassigned planned orders, and materials falling through planning coverage.
   rule_authority: best_practice
   sap_impact: MRP cannot assign planned orders to a controller. Materials are excluded from MRP monitoring. Exception messages are generated every run.

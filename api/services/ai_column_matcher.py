@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from llm.provider import get_llm
+from llm.provider import get_llm_safe
 
 logger = logging.getLogger("meridian.ai_column_matcher")
 
@@ -335,7 +335,11 @@ def _llm_match_columns(
     )
 
     try:
-        llm = get_llm()
+        llm = get_llm_safe()
+        if llm is None:
+            logger.warning("LLM unavailable — falling back to unmatched columns")
+            return _fallback_unmatched(unmatched_headers)
+
         from langchain_core.messages import HumanMessage, SystemMessage
 
         response = llm.invoke([

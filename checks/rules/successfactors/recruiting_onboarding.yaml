@@ -343,5 +343,5 @@ rules:
   max_age_hours: 4380
   severity: medium
   dimension: timeliness
-  message: Requisition open for 6+ months — long-open requisitions should be reviewed, refreshed, or closed
+  message: Requisition open for 6+ months â€” long-open requisitions should be reviewed, refreshed, or closed
   rule_authority: best_practice

@@ -319,5 +319,5 @@ rules:
     max_age_hours: 17520
     severity: medium
     dimension: timeliness
-    message: GRC role assignment older than 2 years — stale access assignments should be recertified
+    message: GRC role assignment older than 2 years â€” stale access assignments should be recertified
     rule_authority: best_practice

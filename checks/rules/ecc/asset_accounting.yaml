@@ -491,5 +491,5 @@ rules:
   max_age_hours: 87600
   severity: low
   dimension: timeliness
-  message: Asset capitalised more than 10 years ago — review if useful life and depreciation parameters are still appropriate
+  message: Asset capitalised more than 10 years ago â€” review if useful life and depreciation parameters are still appropriate
   rule_authority: best_practice

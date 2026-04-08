@@ -399,5 +399,5 @@ rules:
     max_age_hours: 17520
     severity: medium
     dimension: timeliness
-    message: Compensation record not updated in 2+ years — salary may be outdated, review against current pay ranges
+    message: Compensation record not updated in 2+ years â€” salary may be outdated, review against current pay ranges
     rule_authority: best_practice

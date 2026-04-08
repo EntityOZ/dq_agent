@@ -298,5 +298,5 @@ rules:
   max_age_hours: 8760
   severity: medium
   dimension: timeliness
-  message: Vehicle not serviced in 1+ year — overdue maintenance creates safety and warranty risk
+  message: Vehicle not serviced in 1+ year â€” overdue maintenance creates safety and warranty risk
   rule_authority: best_practice

@@ -304,5 +304,5 @@ rules:
     max_age_hours: 2190
     severity: medium
     dimension: timeliness
-    message: Time record older than 3 months — stale time records may indicate inactive time recording for this employee
+    message: Time record older than 3 months â€” stale time records may indicate inactive time recording for this employee
     rule_authority: best_practice

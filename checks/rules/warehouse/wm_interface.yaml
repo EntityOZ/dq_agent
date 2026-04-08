@@ -301,7 +301,7 @@ rules:
     max_age_hours: 8760
     severity: low
     dimension: timeliness
-    message: WM interface record older than 1 year — stale interface records may indicate broken WM-IM integration
+    message: WM interface record older than 1 year â€” stale interface records may indicate broken WM-IM integration
     rule_authority: best_practice
 
   - id: WM015
@@ -310,7 +310,7 @@ rules:
     pattern: "^[A-Z0-9]{3,4}$"
     severity: medium
     dimension: accuracy
-    message: Warehouse number format is invalid — must be 3-4 alphanumeric characters
+    message: Warehouse number format is invalid â€” must be 3-4 alphanumeric characters
     why_it_matters: Invalid warehouse numbers cause WM-IM interface failures, transfer order creation errors, and stock reconciliation breaks.
     rule_authority: best_practice
     sap_impact: WM interface cannot process movements. Transfer orders reference non-existent warehouse. LX23 reconciliation fails.

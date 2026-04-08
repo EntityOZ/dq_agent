@@ -274,5 +274,5 @@ rules:
     max_age_hours: 17520
     severity: low
     dimension: timeliness
-    message: Benefit enrollment older than 2 years — verify enrollment is still valid and premiums are current
+    message: Benefit enrollment older than 2 years â€” verify enrollment is still valid and premiums are current
     rule_authority: best_practice

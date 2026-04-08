@@ -379,5 +379,5 @@ rules:
   max_age_hours: 8760
   severity: low
   dimension: timeliness
-  message: Stock record unchanged for 1+ year — slow-moving or dead stock should be reviewed for disposal or write-down
+  message: Stock record unchanged for 1+ year â€” slow-moving or dead stock should be reviewed for disposal or write-down
   rule_authority: best_practice

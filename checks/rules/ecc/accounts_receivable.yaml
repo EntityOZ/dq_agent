@@ -649,7 +649,7 @@ rules:
     max_age_hours: 17520
     severity: low
     dimension: timeliness
-    message: Customer master not updated in 2+ years — review if credit limits, payment terms, and addresses are still current
+    message: Customer master not updated in 2+ years â€” review if credit limits, payment terms, and addresses are still current
     rule_authority: best_practice
 
   - id: AR027

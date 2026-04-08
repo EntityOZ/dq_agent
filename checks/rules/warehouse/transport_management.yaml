@@ -361,7 +361,7 @@ rules:
     max_age_hours: 2190
     severity: medium
     dimension: timeliness
-    message: Shipment created 3+ months ago — long-open shipments should be reviewed for completion or cancellation
+    message: Shipment created 3+ months ago â€” long-open shipments should be reviewed for completion or cancellation
     rule_authority: best_practice
 
   - id: TM018
@@ -370,7 +370,7 @@ rules:
     pattern: "^[A-Z0-9]{1,10}$"
     severity: medium
     dimension: accuracy
-    message: Forwarding agent number format is invalid — should be alphanumeric vendor number
+    message: Forwarding agent number format is invalid â€” should be alphanumeric vendor number
     why_it_matters: Invalid forwarding agent references cause freight cost settlement failures and carrier assignment errors.
     rule_authority: best_practice
     sap_impact: Freight cost cannot be settled to the carrier. Shipment tracking references are broken. Carrier performance reporting is unreliable.

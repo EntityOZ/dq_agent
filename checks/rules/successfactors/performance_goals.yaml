@@ -270,5 +270,5 @@ rules:
   max_age_hours: 17520
   severity: medium
   dimension: timeliness
-  message: Performance review older than 2 years — review cycle may be stalled or employee was missed in current cycle
+  message: Performance review older than 2 years â€” review cycle may be stalled or employee was missed in current cycle
   rule_authority: best_practice

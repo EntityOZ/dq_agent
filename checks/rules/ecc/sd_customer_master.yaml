@@ -665,5 +665,5 @@ rules:
     max_age_hours: 17520
     severity: low
     dimension: timeliness
-    message: SD customer master not updated in 2+ years — review if pricing, shipping, and partner functions are still current
+    message: SD customer master not updated in 2+ years â€” review if pricing, shipping, and partner functions are still current
     rule_authority: best_practice
