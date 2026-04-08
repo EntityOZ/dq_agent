@@ -29,6 +29,7 @@ def get_llm() -> Any:
             temperature=0.1,
             num_predict=8192,
             format="json",
+            request_timeout=120.0,  # cold model load can take 60s on first request
         )
 
     if provider == "ollama_cloud":
@@ -39,6 +40,7 @@ def get_llm() -> Any:
             headers={"Authorization": f"Bearer {os.getenv('OLLAMA_API_KEY', '')}"},
             temperature=0.1,
             num_predict=8192,
+            request_timeout=120.0,
         )
 
     if provider == "anthropic":
